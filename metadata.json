@@ -1,0 +1,5 @@
+{
+  "name": "Test de courage",
+  "description": "Une application interactive qui génère des challenges quotidiens personnalisés basés sur votre profil, pour tester votre audace.",
+  "requestFramePermissions": []
+}

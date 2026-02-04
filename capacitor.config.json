@@ -1,0 +1,7 @@
+
+{
+  "appId": "com.couragetest.app",
+  "appName": "Test de courage",
+  "webDir": ".",
+  "bundledWebRuntime": false
+}
