@@ -9,9 +9,9 @@ const nonLatin = (s: string) => /[^\u0000-ɏḀ-ỿ]/.test(s);
 
 export function Vocab({ onSettings }: { onSettings: () => void }) {
   const { state } = useStore();
-  const { lang, pack } = useActive();
+  const { lang, pack, words } = useActive();
   const [mode, setMode] = useState<Mode>('list');
-  const hasScript = pack.words.some((w) => nonLatin(w.term));
+  const hasScript = words.some((w) => nonLatin(w.term));
 
   return (
     <>
@@ -22,11 +22,11 @@ export function Vocab({ onSettings }: { onSettings: () => void }) {
         {hasScript && <button className={mode === 'trace' ? 'on' : ''} onClick={() => setMode('trace')}>Tracer</button>}
       </div>
 
-      {!pack.words.length && <Empty>Aucun mot pour cette langue. Générez-en avec Claude ci-dessous.</Empty>}
-      {mode === 'list' && <List words={pack.words} />}
-      {mode === 'cards' && pack.words.length > 0 && <Cards words={pack.words} />}
-      {mode === 'write' && pack.words.length > 0 && <Write words={pack.words} />}
-      {mode === 'trace' && <Trace words={pack.words.filter((w) => nonLatin(w.term))} />}
+      {!words.length && <Empty>Aucun mot pour cette langue. Générez-en avec Claude ci-dessous.</Empty>}
+      {mode === 'list' && <List words={words} />}
+      {mode === 'cards' && words.length > 0 && <Cards words={words} />}
+      {mode === 'write' && words.length > 0 && <Write words={words} />}
+      {mode === 'trace' && <Trace words={words.filter((w) => nonLatin(w.term))} />}
 
       {mode === 'list' && (
         <GenerateBar

@@ -37,10 +37,10 @@ small { color: var(--mute); font-size: .82rem; }
 main { flex: 1; padding: 8px 16px calc(92px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px; }
 .tabs {
   position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 560px; z-index: 6;
-  display: grid; grid-template-columns: repeat(5, 1fr); background: var(--card); border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: repeat(6, 1fr); background: var(--card); border-top: 1px solid var(--line);
   padding-bottom: env(safe-area-inset-bottom);
 }
-.tabs button { padding: 8px 0 9px; font-size: .68rem; color: var(--mute); display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.tabs button { padding: 8px 0 9px; font-size: .62rem; min-width: 0; color: var(--mute); display: flex; flex-direction: column; align-items: center; gap: 1px; }
 .tabs button span { font-size: 1.25rem; filter: grayscale(1); opacity: .7; }
 .tabs button.on { color: var(--brand); font-weight: 700; }
 .tabs button.on span { filter: none; opacity: 1; }

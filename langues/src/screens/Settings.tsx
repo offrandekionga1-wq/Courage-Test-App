@@ -4,6 +4,7 @@ import { BUILTIN_LANGUAGES, SUGGESTED_LANGUAGES } from '../data';
 import { courseSteps, explainError, generateUpdate } from '../claude';
 import { isNative, openVoiceInstall, speak, ttsSupported, useVoiceStatus } from '../tts';
 import type { AppState, Language } from '../types';
+import { Sources } from './Sources';
 
 const LEVELS = ['Débutant', 'Élémentaire', 'Intermédiaire', 'Avancé'];
 const MODELS: [string, string][] = [
@@ -13,6 +14,11 @@ const MODELS: [string, string][] = [
 ];
 
 export function Settings() {
+  const [sources, setSources] = useState(false);
+  return sources ? <Sources onBack={() => setSources(false)} /> : <SettingsMain onSources={() => setSources(true)} />;
+}
+
+function SettingsMain({ onSources }: { onSources: () => void }) {
   const { state, update } = useStore();
   const set = (patch: Partial<AppState>) => update((s) => ({ ...s, ...patch }));
   const langs = allLanguages(state);
@@ -242,6 +248,12 @@ export function Settings() {
         <button className="btn ghost" onClick={() => speak(getPack(state, state.active).words[0]?.term ?? active.native, active.tts, state.voiceRate)}>
           🔊 Tester la voix ({active.name.toLowerCase()})
         </button>
+      </section>
+
+      <section className="card">
+        <h3>À propos des données</h3>
+        <p className="hint">Mots, phrases et définitions intégrés : Tatoeba, JMdict, CC-CEDICT, Wiktionnaire.</p>
+        <button className="btn ghost" onClick={onSources}>Sources et licences</button>
       </section>
 
       <section className="card">

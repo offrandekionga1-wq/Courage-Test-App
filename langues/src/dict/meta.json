@@ -1,0 +1,68 @@
+{
+ "generated": "2026-11-12",
+ "stats": {
+  "en": {
+   "words": 2000,
+   "words_fr": 2000,
+   "words_en": 0,
+   "sentences": 1882,
+   "authors": 491
+  },
+  "es": {
+   "words": 2000,
+   "words_fr": 2000,
+   "words_en": 0,
+   "sentences": 1879,
+   "authors": 413
+  },
+  "de": {
+   "words": 2000,
+   "words_fr": 2000,
+   "words_en": 0,
+   "sentences": 1904,
+   "authors": 382
+  },
+  "it": {
+   "words": 2000,
+   "words_fr": 2000,
+   "words_en": 0,
+   "sentences": 1801,
+   "authors": 304
+  },
+  "pt": {
+   "words": 2000,
+   "words_fr": 2000,
+   "words_en": 0,
+   "sentences": 1747,
+   "authors": 354
+  },
+  "lt": {
+   "words": 1615,
+   "words_fr": 523,
+   "words_en": 1092,
+   "sentences": 171,
+   "authors": 69
+  },
+  "tl": {
+   "words": 1894,
+   "words_fr": 275,
+   "words_en": 1619,
+   "sentences": 854,
+   "authors": 163
+  },
+  "ja": {
+   "words": 2000,
+   "words_fr": 2000,
+   "words_en": 0,
+   "sentences": 1240,
+   "authors": 286
+  },
+  "zh": {
+   "words": 2000,
+   "words_fr": 1193,
+   "words_en": 807,
+   "sentences": 1482,
+   "authors": 303
+  }
+ }
+}

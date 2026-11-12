@@ -1,12 +1,25 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { getLanguage, getPack, mergeExtra, useStore } from './store';
 import { speak } from './tts';
 import { explainError } from './claude';
-import type { Language, Pack } from './types';
+import { useDict } from './dict';
+import type { Language, Pack, Word } from './types';
 
-export function useActive(): { lang: Language; pack: Pack } {
+/** Mots du dictionnaire intégré qui ne doublonnent pas les mots déjà dans le pack. */
+export function useAllWords(code: string, pack: Pack): Word[] {
+  const dict = useDict(code);
+  return useMemo(() => {
+    if (!dict) return pack.words;
+    const have = new Set(pack.words.map((w) => w.term.toLowerCase()));
+    return [...pack.words, ...dict.words.filter((w) => !have.has(w.term.toLowerCase()))];
+  }, [dict, pack.words]);
+}
+
+/** `pack` = contenu de base + généré par Claude ; `words` y ajoute le dictionnaire intégré (chargé à la demande). */
+export function useActive(): { lang: Language; pack: Pack; words: Word[] } {
   const { state } = useStore();
-  return { lang: getLanguage(state, state.active), pack: getPack(state, state.active) };
+  const pack = getPack(state, state.active);
+  return { lang: getLanguage(state, state.active), pack, words: useAllWords(state.active, pack) };
 }
 
 export function SpeakBtn({ text, big }: { text: string; big?: boolean }) {

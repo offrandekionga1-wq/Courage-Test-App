@@ -6,12 +6,17 @@ import { Conjugation } from './screens/Conjugation';
 import { Lessons } from './screens/Lessons';
 import { Chat } from './screens/Chat';
 import { Settings } from './screens/Settings';
+import { useAllWords } from './ui';
+import { hasDict, loadDict } from './dict';
+import { BUILTIN_LANGUAGES } from './data';
+import { Phrases } from './screens/Phrases';
 import { isNative, openVoiceInstall, useVoiceStatus } from './tts';
 
-type Tab = 'home' | 'vocab' | 'conj' | 'lessons' | 'chat' | 'settings';
+type Tab = 'home' | 'vocab' | 'phrases' | 'conj' | 'lessons' | 'chat' | 'settings';
 const TABS: [Tab, string, string][] = [
   ['home', '🏠', 'Accueil'],
   ['vocab', '🔤', 'Vocabulaire'],
+  ['phrases', '💡', 'Phrases'],
   ['conj', '🔁', 'Conjugaison'],
   ['lessons', '📖', 'Leçons'],
   ['chat', '💬', 'Discussion'],
@@ -44,6 +49,14 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.active, state.autoUpdate, state.apiKey]);
 
+  // Navigateur : une fois en ligne, on récupère tous les dictionnaires en arrière-plan pour que l'appli
+  // fonctionne ensuite hors ligne (le service worker met les fragments en cache). Dans l'APK, tout est déjà local.
+  useEffect(() => {
+    if (isNative() || !navigator.onLine) return;
+    const t = setTimeout(() => BUILTIN_LANGUAGES.forEach((l) => hasDict(l.code) && loadDict(l.code)), 4000);
+    return () => clearTimeout(t);
+  }, []);
+
   const goSettings = () => setTab('settings');
 
   return (
@@ -68,6 +81,7 @@ export function App() {
       <main key={state.active + tab}>
         {tab === 'home' && <Home go={setTab} />}
         {tab === 'vocab' && <Vocab onSettings={goSettings} />}
+        {tab === 'phrases' && <Phrases />}
         {tab === 'conj' && <Conjugation onSettings={goSettings} />}
         {tab === 'lessons' && <Lessons onSettings={goSettings} />}
         {tab === 'chat' && <Chat onSettings={goSettings} />}
@@ -91,11 +105,12 @@ function Home({ go }: { go: (t: Tab) => void }) {
   const { state } = useStore();
   const lang = getLanguage(state, state.active);
   const pack = getPack(state, state.active);
-  const known = pack.words.filter((w) => isKnown(state, w.id)).length;
+  const words = useAllWords(state.active, pack);
+  const known = words.filter((w) => isKnown(state, w.id)).length;
   const done = pack.lessons.filter((l) => state.lessonsDone[l.id]).length;
-  const pct = pack.words.length ? Math.round((known / pack.words.length) * 100) : 0;
+  const pct = words.length ? Math.round((known / words.length) * 100) : 0;
   const voice = useVoiceStatus([lang.tts])[lang.tts];
-  const empty = !pack.words.length && !pack.verbs.length && !pack.lessons.length;
+  const empty = !words.length && !pack.verbs.length && !pack.lessons.length;
 
   return (
     <>
@@ -109,7 +124,7 @@ function Home({ go }: { go: (t: Tab) => void }) {
       </section>
 
       <section className="card">
-        <div className="row between"><span>Mots maîtrisés</span><b>{known} / {pack.words.length}</b></div>
+        <div className="row between"><span>Mots maîtrisés</span><b>{known} / {words.length}</b></div>
         <div className="bar"><i style={{ width: `${pct}%` }} /></div>
         <div className="row between small"><span>Leçons terminées</span><b>{done} / {pack.lessons.length}</b></div>
       </section>
@@ -130,7 +145,8 @@ function Home({ go }: { go: (t: Tab) => void }) {
       )}
 
       <section className="tiles">
-        <button onClick={() => go('vocab')}><span>🔤</span><b>Vocabulaire</b><small>{pack.words.length} mots, écriture et tracé</small></button>
+        <button onClick={() => go('vocab')}><span>🔤</span><b>Vocabulaire</b><small>{words.length} mots, écriture et tracé</small></button>
+        <button onClick={() => go('phrases')}><span>💡</span><b>Phrases</b><small>Exemples réels (Tatoeba)</small></button>
         <button onClick={() => go('conj')}><span>🔁</span><b>Conjugaison</b><small>{pack.verbs.length} verbes</small></button>
         <button onClick={() => go('lessons')}><span>📖</span><b>Leçons</b><small>{pack.lessons.length} leçons</small></button>
         <button onClick={() => go('chat')}><span>💬</span><b>Discussion</b><small>Parler avec Claude</small></button>

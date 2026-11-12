@@ -2,9 +2,10 @@
 
 Application mobile (PWA) pour apprendre les langues, en français.
 
-- **Langues de départ** : anglais, japonais, lituanien, chinois, tagalog. D'autres s'ajoutent dans les réglages.
+- **Langues intégrées** : anglais, japonais, lituanien, chinois, tagalog, espagnol, allemand, italien, portugais. D'autres s'ajoutent dans les réglages.
 - **Vocabulaire** : liste par thème, cartes à répétition espacée, exercice d'écriture, tracé au doigt pour les écritures non latines.
 - **Conjugaison** : tableaux et quiz. Pour le chinois et le tagalog, qui ne conjuguent pas selon la personne, ce sont les aspects et les constructions.
+- **Phrases** : plus d'un millier de phrases réelles par langue (Tatoeba) avec traduction française, écoute et quiz.
 - **Leçons** : explications, phrases à écouter, quiz.
 - **Discussion** : conversation simulée avec Claude, lue à voix haute, avec traduction et correction de vos phrases.
 - **Voix** : synthèse vocale du téléphone, dictée au micro quand le navigateur la propose.
@@ -38,8 +39,22 @@ L'appli utilise le moteur de synthèse vocale d'Android. Une appli ne peut pas i
 
 ## Contenu
 
-- Intégré : 99 mots, 4 verbes, 3 leçons et 4 points de grammaire par langue de départ.
+- Intégré, écrit à la main : 99 mots, 4 verbes, 3 leçons et 4 points de grammaire par langue. **Ce contenu a été rédigé par Claude et n'a pas été relu par des locuteurs natifs**, notamment pour le lituanien et le tagalog : à vérifier avant de s'y fier.
+- Intégré, issu de sources libres : jusqu'à 2 000 mots avec définition (français quand c'est possible, sinon anglais, marqué [EN]) et 1 200 à 1 900 phrases d'exemple par langue. Le lituanien et le tagalog ont peu de phrases traduites en français (171 et 854) et surtout des définitions anglaises, faute de sources françaises.
+- Licences et crédits : `CREDITS.md`, `credits/` (auteurs Tatoeba) et, dans l'appli, Réglages → Sources et licences.
 - Généré par Claude : réglages, **Générer le cours complet** (environ 300 mots, 12 verbes, 6 leçons, 6 points de grammaire). Chaque étape est sauvegardée aussitôt.
+
+## Régénérer les données libres
+
+Les fichiers `src/dict/*.json` sont produits par un script (Python 3, bibliothèque standard) :
+
+```bash
+cd langues
+python3 -I scripts/build-data.py fetch    # télécharge ~3 Go de sources dans scripts/.cache (ignoré par git)
+python3 -I scripts/build-data.py build    # écrit src/dict/*.json, CREDITS.md, credits/*.txt
+```
+
+Sources : Tatoeba (CC BY 2.0 FR), JMdict (CC BY-SA 4.0), CC-CEDICT (CC BY-SA 4.0), Wiktionnaire et Wiktionary via kaikki.org (CC BY-SA 4.0), FrequencyWords (CC BY-SA 4.0). Les phrases sans auteur sont écartées. Chaque langue est un fragment JavaScript chargé à la demande et embarqué dans l'application (aucun réseau requis, dans l'APK comme en PWA après le premier chargement).
 
 ## Développer
 
@@ -53,7 +68,9 @@ npx cap sync android                # copie dist/ dans le projet Android
 
 ## Organisation
 
-- `src/data/` : contenu intégré (`grammar.ts` pour la grammaire, `extra.ts` pour le second lot de mots)
+- `src/data/` : contenu écrit à la main (`grammar.ts` pour la grammaire, `extra.ts` pour le second lot de mots, `more.ts` pour l'espagnol, l'allemand, l'italien et le portugais)
+- `src/dict/` : dictionnaires et phrases générés par `scripts/build-data.py` (un JSON par langue)
+- `scripts/` : script de génération des données
 - `src/store.tsx` : état, sauvegarde locale, répétition espacée
 - `src/claude.ts` : appels à l'API Claude
 - `src/tts.ts` : voix et dictée (natif Android ou navigateur)
