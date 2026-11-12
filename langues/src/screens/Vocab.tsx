@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { activeKey, isDue, isKnown, review, shuffle, useStore } from '../store';
-import { Empty, EnTag, GenerateBar, SearchField, SpeakBtn } from '../ui';
+import { Empty, EnTag, GenerateBar, SearchField, Sentence, SpeakBtn } from '../ui';
+import { hasFurigana } from '../ruby';
 import { useActive, useT } from '../hooks';
 import { useDict } from '../dict';
 import { generateWords } from '../generate';
@@ -68,7 +69,10 @@ function WordRow({ w, open, onToggle }: { w: Word; open: boolean; onToggle: () =
       </div>
       {open && w.example && (
         <div className="example">
-          <span className="row gap"><span className="grow">{w.example}</span><SpeakBtn text={w.example} /></span>
+          <span className="row gap">
+            <Sentence text={w.example} reading={w.exampleReading} className="grow" />
+            <SpeakBtn text={w.exampleReading && hasFurigana(w.exampleReading) ? w.exampleReading : w.example} />
+          </span>
           <small>{w.exampleFr}</small>
         </div>
       )}
@@ -156,7 +160,11 @@ function Cards({ words }: { words: Word[] }) {
         {shown ? (
           <div className="answer">
             <b>{w.fr}</b>
-            {w.example && <p className="hint">{w.example}<br />{w.exampleFr}</p>}
+            {w.example && (
+              <p className="hint">
+                <Sentence text={w.example} reading={w.exampleReading} /><br />{w.exampleFr}
+              </p>
+            )}
           </div>
         ) : <small>{t('vocab.show')}</small>}
       </section>

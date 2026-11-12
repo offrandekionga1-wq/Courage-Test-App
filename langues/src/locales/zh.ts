@@ -66,6 +66,7 @@ export const strings: Record<string, string> = {
   'conj.question': '请把「{verb}」变为{tense}、{person}',
   'conj.note': '说明',
 
+  'lessons.vocabTab': '词汇',
   'lessons.lesson': '课程',
   'lessons.grammar': '语法',
   'lessons.course': '教程',
@@ -78,6 +79,7 @@ export const strings: Record<string, string> = {
   'lessons.topicPlaceholder': '想学的主题（可不填）',
   'lessons.generate': '用人工智能新建一课',
   'lessons.generateGrammar': '用人工智能新建语法点',
+  'lessons.wikibooksNote': '本课取自维基教科书《{page}》（CC BY-SA 4.0）。',
   'lessons.sourceNote': '本课取自 Wikivoyage 会话手册（CC BY-SA 4.0）。',
   'lessons.partlyEnglish': '标有 EN 的句子在来源中没有法语译文。',
   'lessons.translateWithAI': '用人工智能翻译',

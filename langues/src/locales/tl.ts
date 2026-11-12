@@ -67,6 +67,7 @@ export const strings: Record<string, string> = {
   'conj.question': 'Ibanghay ang “{verb}” sa {tense}, {person}',
   'conj.note': 'Paalala',
 
+  'lessons.vocabTab': 'Salita',
   'lessons.lesson': 'Mga aralin',
   'lessons.grammar': 'Balarila',
   'lessons.course': 'Kurso',
@@ -79,6 +80,7 @@ export const strings: Record<string, string> = {
   'lessons.topicPlaceholder': 'Paksang gusto (hindi kailangan)',
   'lessons.generate': 'Bagong aralin gamit ang AI',
   'lessons.generateGrammar': 'Bagong puntos ng balarila gamit ang AI',
+  'lessons.wikibooksNote': 'Aralin mula sa Wikibook na “{page}” (CC BY-SA 4.0).',
   'lessons.sourceNote': 'Aralin mula sa phrasebook ng Wikivoyage (CC BY-SA 4.0).',
   'lessons.partlyEnglish': 'Ang mga pangungusap na may EN ay walang saling Pranses sa pinagkunan.',
   'lessons.translateWithAI': 'Isalin gamit ang AI',

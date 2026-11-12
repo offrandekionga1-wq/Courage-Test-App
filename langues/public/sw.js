@@ -1,5 +1,5 @@
 // Cache hors-ligne : l'appli et son contenu restent utilisables sans réseau.
-const CACHE = 'polyglotte-v2';
+const CACHE = 'polyglotte-v3';
 
 // À l'installation : la page d'accueil et les fichiers qu'elle référence (scripts, styles) sont mis en cache,
 // pour que l'appli démarre hors ligne même si le service worker n'a pas encore contrôlé le premier chargement.
@@ -13,12 +13,21 @@ self.addEventListener('install', (e) => {
         await cache.put('./', res);
         const urls = [...html.matchAll(/(?:src|href)="(\.\/[^"]+)"/g)].map((m) => m[1]);
         await Promise.all(urls.map((u) => cache.add(u).catch(() => {})));
-        // Fragments chargés à la demande (un dictionnaire par langue) : repérés dans le script principal et mis en cache aussi.
+        // Fragments chargés à la demande : on précharge les petits (traductions de l'interface,
+        // guides de conversation) et on laisse les dictionnaires, qui pèsent plusieurs mégaoctets,
+        // se mettre en cache au fur et à mesure de leur première consultation.
         for (const u of urls.filter((x) => x.endsWith('.js'))) {
           const js = await (await cache.match(u))?.text();
           const base = new URL(u, self.location.href);
-          const chunks = [...(js ?? '').matchAll(/["'`](\.\/[\w.-]+\.js)["'`]/g)].map((m) => new URL(m[1], base).href);
-          await Promise.all([...new Set(chunks)].map((c) => cache.add(c).catch(() => {})));
+          const chunks = [...new Set([...(js ?? '').matchAll(/["'`](\.\/[\w.-]+\.js)["'`]/g)]
+            .map((m) => new URL(m[1], base).href))];
+          await Promise.all(chunks.map(async (c) => {
+            try {
+              const res = await fetch(c);
+              const size = Number(res.headers.get('content-length') ?? 0);
+              if (res.ok && size < 400000) await cache.put(c, res);
+            } catch { /* hors ligne ou fragment absent : ce n'est pas bloquant */ }
+          }));
         }
       } catch { /* hors ligne à l'installation : on réessaiera à la prochaine mise à jour */ }
       await self.skipWaiting();

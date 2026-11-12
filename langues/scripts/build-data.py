@@ -42,20 +42,20 @@ KAIKKI_EN = 'https://kaikki.org/dictionary/{n}/kaikki.org-dictionary-{n}.jsonl'
 # code -> paramètres. freq = chemin FrequencyWords ; fr = nom de la langue dans le Wiktionnaire ;
 # en = nom dans le Wiktionary anglais (repli) ; cjk = pas d'espaces entre les mots.
 LANGS = {
-    'en': dict(iso3='eng', freq='2018/en/en_50k.txt', fr='Anglais'),
-    'es': dict(iso3='spa', freq='2018/es/es_50k.txt', fr='Espagnol'),
-    'de': dict(iso3='deu', freq='2018/de/de_50k.txt', fr='Allemand'),
-    'it': dict(iso3='ita', freq='2018/it/it_50k.txt', fr='Italien'),
-    'pt': dict(iso3='por', freq='2018/pt/pt_50k.txt', fr='Portugais'),
-    'lt': dict(iso3='lit', freq='2018/lt/lt_50k.txt', fr='Lituanien', en='Lithuanian'),
-    'tl': dict(iso3='tgl', freq='2016/tl/tl_50k.txt', fr='Tagalog', en='Tagalog'),
+    'en': dict(iso3='eng', freq='2018/en/en_full.txt', fr='Anglais'),
+    'es': dict(iso3='spa', freq='2018/es/es_full.txt', fr='Espagnol'),
+    'de': dict(iso3='deu', freq='2018/de/de_full.txt', fr='Allemand'),
+    'it': dict(iso3='ita', freq='2018/it/it_full.txt', fr='Italien'),
+    'pt': dict(iso3='por', freq='2018/pt/pt_full.txt', fr='Portugais'),
+    'lt': dict(iso3='lit', freq='2018/lt/lt_full.txt', fr='Lituanien', en='Lithuanian'),
+    'tl': dict(iso3='tgl', freq='2016/tl/tl_full.txt', fr='Tagalog', en='Tagalog'),
     'ja': dict(iso3='jpn', cjk=True),
-    'zh': dict(iso3='cmn', freq='2018/zh_cn/zh_cn_50k.txt', fr='Chinois', cjk=True),
+    'zh': dict(iso3='cmn', freq='2018/zh_cn/zh_cn_full.txt', fr='Chinois', cjk=True),
 }
-N_WORDS = 12000     # mots par langue au maximum
-N_SENT = 10000      # phrases par langue au maximum
-N_VERBS = 600       # verbes conjugués par langue au maximum
-MAX_LEN = {False: 70, True: 32}   # longueur maximale d'une phrase (caractères)
+N_WORDS = 25000     # mots par langue au maximum
+N_SENT = 40000      # phrases par langue au maximum
+N_VERBS = 3000      # verbes conjugués par langue au maximum
+MAX_LEN = {False: 110, True: 46}  # longueur maximale d'une phrase (caractères)
 MIN_LEN = {False: 14, True: 5}
 
 
@@ -87,6 +87,8 @@ def sources_for(code: str) -> list[tuple[str, str]]:
     i = c['iso3']
     out += [(f'{TATOEBA}/per_language/{i}/{i}_sentences_detailed.tsv.bz2', f'tatoeba/{i}_sentences_detailed.tsv.bz2'),
             (f'{TATOEBA}/per_language/{i}/{i}-fra_links.tsv.bz2', f'tatoeba/{i}-fra_links.tsv.bz2')]
+    if i != 'eng':
+        out.append((f'{TATOEBA}/per_language/{i}/{i}-eng_links.tsv.bz2', f'tatoeba/{i}-eng_links.tsv.bz2'))
     if c.get('freq'):
         out.append((f'{FREQ}/{c["freq"]}', f'freq/{code}.txt'))
     if c.get('fr'):
@@ -100,6 +102,7 @@ def sources_for(code: str) -> list[tuple[str, str]]:
 
 def cmd_fetch():
     fetch(f'{TATOEBA}/per_language/fra/fra_sentences_detailed.tsv.bz2', 'tatoeba/fra_sentences_detailed.tsv.bz2')
+    fetch(f'{TATOEBA}/per_language/eng/eng_sentences_detailed.tsv.bz2', 'tatoeba/eng_sentences_detailed.tsv.bz2')
     fetch(f'{TATOEBA}/transcriptions.tar.bz2', 'tatoeba/transcriptions.tar.bz2')
     fetch(JMDICT, 'JMdict.gz')
     fetch(CEDICT, 'cedict.zip')
@@ -208,20 +211,22 @@ def pinyin_marks(syl: str) -> str:
 
 
 # ───────────────────────── Tatoeba ─────────────────────────
-_fra_cache: dict | None = None
+_pivot_cache: dict[str, dict] = {}
 
 
-def load_fra() -> dict:
-    global _fra_cache
-    if _fra_cache is None:
+def load_pivot(iso3: str) -> dict:
+    """Phrases qui servent de traduction (français, puis anglais en repli) : id -> (texte, auteur)."""
+    if iso3 not in _pivot_cache:
         d = {}
-        with opener(CACHE / 'tatoeba/fra_sentences_detailed.tsv.bz2') as f:
-            for line in f:
-                p = line.rstrip('\n').split('\t')
-                if len(p) >= 4 and p[3] and p[3] != '\\N':
-                    d[p[0]] = (p[2], p[3])
-        _fra_cache = d
-    return _fra_cache
+        path = CACHE / f'tatoeba/{iso3}_sentences_detailed.tsv.bz2'
+        if path.exists():
+            with opener(path) as f:
+                for line in f:
+                    p = line.rstrip('\n').split('\t')
+                    if len(p) >= 4 and p[3] and p[3] != '\\N':
+                        d[p[0]] = (p[2], p[3])
+        _pivot_cache[iso3] = d
+    return _pivot_cache[iso3]
 
 
 _readings: dict | None = None
@@ -241,8 +246,9 @@ def load_readings() -> dict:
                 continue
             sid, lang, script, _user, tr = p[:5]
             if lang == 'jpn' and script == 'Hrkt':
-                # « [俺|おれ]が » → « おれが » ; « [場所|ば|しょ] » → « ばしょ »
-                r['jpn'][sid] = re.sub(r'\[([^\]|]*)\|([^\]]*)\]', lambda m: m.group(2).replace('|', ''), tr)
+                # Conservé tel quel : « [場所|ば|しょ]とか » garde l'association kanji ↔ kana,
+                # que l'application rend en furigana au-dessus des caractères.
+                r['jpn'][sid] = tr
             elif lang == 'cmn' and script == 'Latn':
                 r['cmn'][sid] = re.sub(r'([A-Za-zü]+)([1-5])', lambda m: pinyin_marks(m.group(0)), tr)
     _readings = r
@@ -250,17 +256,27 @@ def load_readings() -> dict:
 
 
 def load_sentences(code: str):
-    """Renvoie [(id, texte, fr, auteur_L, auteur_fr)] pour les phrases ayant une traduction française."""
+    """[(id, texte, traduction, auteur, auteur de la traduction, traduction anglaise ?)].
+
+    La traduction française est préférée ; là où elle manque — c'est courant en lituanien et en
+    tagalog — on prend l'anglaise et on la signale, plutôt que de laisser la langue sans exemples.
+    """
     c = LANGS[code]
     i = c['iso3']
     cjk = c.get('cjk', False)
-    fra = load_fra()
-    link = {}
-    with opener(CACHE / f'tatoeba/{i}-fra_links.tsv.bz2') as f:
-        for line in f:
-            p = line.rstrip('\n').split('\t')
-            if len(p) == 2 and p[1] in fra and p[0] not in link:
-                link[p[0]] = p[1]
+    link: dict[str, tuple[str, str]] = {}     # id de la phrase -> (id de la traduction, 'fra' | 'eng')
+    for pivot in ('fra', 'eng'):
+        if pivot == i:
+            continue
+        path = CACHE / f'tatoeba/{i}-{pivot}_links.tsv.bz2'
+        if not path.exists():
+            continue
+        have = load_pivot(pivot)
+        with opener(path) as f:
+            for line in f:
+                p = line.rstrip('\n').split('\t')
+                if len(p) == 2 and p[1] in have and p[0] not in link:
+                    link[p[0]] = (p[1], pivot)
     out = []
     with opener(CACHE / f'tatoeba/{i}_sentences_detailed.tsv.bz2') as f:
         for line in f:
@@ -270,11 +286,12 @@ def load_sentences(code: str):
             text = p[2].strip()
             if not (MIN_LEN[cjk] <= len(text) <= MAX_LEN[cjk]):
                 continue
-            ftext, fuser = fra[link[p[0]]]
-            ftext = ftext.strip()
-            if len(ftext) > 110 or re.search(r'\d{3,}', text):
+            tid, pivot = link[p[0]]
+            ttext, tuser = load_pivot(pivot)[tid]
+            ttext = ttext.strip()
+            if len(ttext) > 130 or re.search(r'\d{4,}', text):
                 continue
-            out.append((p[0], text, ftext, p[3], fuser))
+            out.append((p[0], text, ttext, p[3], tuser, pivot == 'eng'))
     out.sort(key=lambda s: (len(s[1]), int(s[0])))
     return out
 
@@ -282,13 +299,33 @@ def load_sentences(code: str):
 # ───────────────────────── mots ─────────────────────────
 def read_freq(code: str) -> list[str]:
     path = CACHE / f'freq/{code}.txt'
-    words = []
+    words, seen = [], set()
+    if path.exists():
+        with opener(path) as f:
+            for line in f:
+                w = line.split(' ')[0].strip()
+                if w and not re.search(r'\d', w) and w not in seen:
+                    seen.add(w)
+                    words.append(w)
+    words += corpus_freq(code, seen)
+    return words
+
+
+def corpus_freq(code: str, skip: set[str]) -> list[str]:
+    """Mots les plus fréquents dans les phrases Tatoeba de la langue, hors ceux déjà listés."""
+    i = LANGS[code]['iso3']
+    path = CACHE / f'tatoeba/{i}_sentences_detailed.tsv.bz2'
+    if not path.exists():
+        return []
+    counts: dict[str, int] = defaultdict(int)
     with opener(path) as f:
         for line in f:
-            w = line.split(' ')[0].strip()
-            if w and not re.search(r'\d', w):
-                words.append(w)
-    return words
+            p = line.rstrip('\n').split('\t')
+            if len(p) >= 3:
+                for tok in tokens(p[2]):
+                    if tok not in skip and len(tok) > 1:
+                        counts[tok] += 1
+    return [w for w, n in sorted(counts.items(), key=lambda kv: -kv[1]) if n >= 3]
 
 
 def wikt_index(path: Path, wanted: set[str], glosser, cap_ok: bool = False):
@@ -321,7 +358,7 @@ def wikt_index(path: Path, wanted: set[str], glosser, cap_ok: bool = False):
 
 def words_from_wiktionary(code: str):
     c = LANGS[code]
-    freq = read_freq(code)[:60000]
+    freq = read_freq(code)[:120000]
     wanted = set(w.lower() for w in freq)
     fr = wikt_index(CACHE / f'wikt-fr/{c["fr"]}.jsonl', wanted, french_glosses, cap_ok=(code == 'de'))
     en = wikt_index(CACHE / f'wikt-en/{c["en"]}.jsonl', wanted, english_glosses) if c.get('en') else {}
@@ -543,8 +580,11 @@ def build_language(code: str) -> dict:
 
     sentences = []
     for n in order:
-        sid, text, ftext, au, fu = sents[n]
-        sentences.append([text, ftext, int(sid), rd.get(sid, ''), aidx(au), aidx(fu)])
+        sid, text, ftext, au, fu, is_en = sents[n]
+        row = [text, ftext, int(sid), rd.get(sid, ''), aidx(au), aidx(fu)]
+        if is_en:
+            row.append(1)
+        sentences.append(row)
 
     band = lambda i: f'Fréquents {i // 500 * 500 + 1}–{i // 500 * 500 + 500}'
     out_words = []
@@ -558,8 +598,9 @@ def build_language(code: str) -> dict:
     verbs = build_verbs(code, words)
     data = {'v': 1, 'w': out_words, 's': sentences, 'a': names, 'vb': verbs}
     n_fr = sum(1 for r in out_words if len(r) < 5)
+    n_sent_en = sum(1 for r in sentences if len(r) > 6)
     stats = dict(words=len(out_words), words_fr=n_fr, words_en=len(out_words) - n_fr,
-                 sentences=len(sentences), authors=len(names), verbs=len(verbs))
+                 sentences=len(sentences), sentences_en=n_sent_en, authors=len(names), verbs=len(verbs))
     print('  ', stats, flush=True)
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / f'{code}.json').write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
@@ -615,10 +656,12 @@ def cmd_build(only: list[str] | None = None):
     stats = {c: stats[c] for c in LANGS if c in stats}
     meta = {'generated': date.today().isoformat(), 'stats': stats}
     (OUT / 'meta.json').write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding='utf-8')
-    lines = [CREDITS_HEAD, '| Langue | Mots | dont glosses en anglais | Phrases | Verbes conjugués | Auteurs Tatoeba |',
-             '|---|---|---|---|---|---|']
+    lines = [CREDITS_HEAD,
+             '| Langue | Mots | dont définitions anglaises | Phrases | dont traduction anglaise | Verbes conjugués | Auteurs Tatoeba |',
+             '|---|---|---|---|---|---|---|']
     for code, s in stats.items():
-        lines.append(f'| {code} | {s["words"]} | {s["words_en"]} | {s["sentences"]} | {s["verbs"]} | {s["authors"]} |')
+        lines.append(f'| {code} | {s["words"]} | {s["words_en"]} | {s["sentences"]} '
+                     f'| {s.get("sentences_en", 0)} | {s["verbs"]} | {s["authors"]} |')
     lines.append(f'\nDonnées générées le {meta["generated"]}.\n')
     (ROOT / 'CREDITS.md').write_text('\n'.join(lines), encoding='utf-8')
 

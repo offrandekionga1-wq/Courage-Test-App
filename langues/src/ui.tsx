@@ -1,7 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { activeKey, getLanguage, getPack, mergeExtra, useStore } from './store';
 import { useDict } from './dict';
-import { useCourse } from './course';
+import { useCourse, useGrammar } from './course';
+import { useVocabLessons } from './lessons';
+import { hasFurigana, plainText, Ruby } from './ruby';
 import { speak } from './tts';
 import { explainError } from './generate';
 import { useT } from './i18n';
@@ -43,7 +45,12 @@ export function useActive(): Active {
     const have = new Set(pack.verbs.map((v) => v.infinitive.toLowerCase()));
     return [...pack.verbs, ...dict.verbs.filter((v) => !have.has(v.infinitive.toLowerCase()))];
   }, [dict, pack.verbs]);
-  const lessons = useMemo(() => [...(course ?? []), ...pack.lessons], [course, pack.lessons]);
+  const vocabLessons = useVocabLessons(code, words);
+  const grammar = useGrammar(code);
+  const lessons = useMemo(
+    () => [...(course ?? []), ...(vocabLessons ?? []), ...(grammar ?? []), ...pack.lessons],
+    [course, vocabLessons, grammar, pack.lessons],
+  );
   return { lang: getLanguage(state, code), pack, words, verbs, lessons, loading: dict === undefined };
 }
 
@@ -55,9 +62,18 @@ export function SpeakBtn({ text, big, lang }: { text: string; big?: boolean; lan
     <button
       className={`icon-btn${big ? ' big' : ''}`}
       aria-label={t('chat.listen')}
-      onClick={(e) => { e.stopPropagation(); speak(text, lang ?? active.tts, state.voiceRate); }}
+      onClick={(e) => { e.stopPropagation(); speak(plainText(text), lang ?? active.tts, state.voiceRate); }}
     ><IconSpeaker size={big ? 26 : 20} /></button>
   );
+}
+
+/**
+ * Affiche une phrase. En japonais, la lecture note celle de chaque kanji : on la montre alors en
+ * furigana au-dessus du texte, plutôt que sur une ligne séparée.
+ */
+export function Sentence({ text, reading, className }: { text: string; reading?: string; className?: string }) {
+  if (hasFurigana(reading)) return <Ruby annotated={reading!} className={className} />;
+  return <span className={className}>{text}</span>;
 }
 
 export function Empty({ children }: { children: ReactNode }) {

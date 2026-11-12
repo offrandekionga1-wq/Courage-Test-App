@@ -67,6 +67,7 @@ export const strings: Record<string, string> = {
   'conj.question': 'Asmenuokite „{verb}“: {tense}, {person}',
   'conj.note': 'Pastaba',
 
+  'lessons.vocabTab': 'Žodžiai',
   'lessons.lesson': 'Pamokos',
   'lessons.grammar': 'Gramatika',
   'lessons.course': 'Kursas',
@@ -79,6 +80,7 @@ export const strings: Record<string, string> = {
   'lessons.topicPlaceholder': 'Norima tema (nebūtina)',
   'lessons.generate': 'Nauja pamoka su dirbtiniu intelektu',
   'lessons.generateGrammar': 'Naujas gramatikos punktas su dirbtiniu intelektu',
+  'lessons.wikibooksNote': 'Pamoka iš Vikiknygų „{page}“ (CC BY-SA 4.0).',
   'lessons.sourceNote': 'Pamoka iš Wikivoyage pasikalbėjimų knygelės (CC BY-SA 4.0).',
   'lessons.partlyEnglish': 'Sakiniai, pažymėti EN, šaltinyje neturi vertimo į prancūzų kalbą.',
   'lessons.translateWithAI': 'Versti su dirbtiniu intelektu',

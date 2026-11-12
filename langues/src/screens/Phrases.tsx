@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { review, shuffle, touchStreak, useStore } from '../store';
 import { useDict, type Dict, type DictSentence } from '../dict';
-import { Empty, SearchField, SpeakBtn } from '../ui';
+import { Empty, SearchField, Sentence, SpeakBtn } from '../ui';
+import { plainText, readingWorthShowing } from '../ruby';
 import { useActive, useT } from '../hooks';
 
 type Mode = 'list' | 'quiz';
@@ -33,8 +34,8 @@ function SentenceCard({ s, dict, open, onToggle }: { s: DictSentence; dict: Dict
     <div className="word" onClick={onToggle}>
       <div className="word-main">
         <div className="grow">
-          <b className="term">{s[0]}</b>
-          {s[3] && <small className="block">{s[3]}</small>}
+          <Sentence text={s[0]} reading={s[3]} className="term" />
+          {readingWorthShowing(s[0], s[3]) && <small className="block">{s[3]}</small>}
         </div>
         <SpeakBtn text={s[0]} />
       </div>
@@ -60,7 +61,8 @@ function List({ dict }: { dict: Dict }) {
   const found = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return needle
-      ? dict.sentences.filter((s) => s[0].toLowerCase().includes(needle) || s[1].toLowerCase().includes(needle))
+      ? dict.sentences.filter((s) => s[0].toLowerCase().includes(needle) || s[1].toLowerCase().includes(needle)
+          || plainText(s[3] ?? '').toLowerCase().includes(needle))
       : dict.sentences;
   }, [dict, q]);
   return (
@@ -106,8 +108,8 @@ function Quiz({ dict }: { dict: Dict }) {
     <>
       <p className="progress">{t('phrases.score')} : {score.ok} / {score.n}</p>
       <section className="card flash">
-        <b className="term" style={{ fontSize: '1.25rem' }}>{q.s[0]}</b>
-        {q.s[3] && <small>{q.s[3]}</small>}
+        <Sentence text={q.s[0]} reading={q.s[3]} className="term" />
+        {readingWorthShowing(q.s[0], q.s[3]) && <small>{q.s[3]}</small>}
         <SpeakBtn text={q.s[0]} big />
       </section>
       <section className="choices">

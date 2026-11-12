@@ -3,7 +3,6 @@ import { activeKey, allLanguages, getLanguage, getPack, isDue, isKnown, mergeExt
 import { generateWords } from './generate';
 import { hasDict, loadDict } from './dict';
 import { hasCourse, loadCourse } from './course';
-import { BUILTIN_LANGUAGES } from './data';
 import { useActive, useT } from './hooks';
 import { Vocab } from './screens/Vocab';
 import { Phrases } from './screens/Phrases';
@@ -59,18 +58,20 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.active, state.autoUpdate, state.provider]);
 
-  // Dans un navigateur, on récupère tous les dictionnaires en arrière-plan dès qu'on est en ligne,
-  // pour que l'appli reste utilisable hors ligne ensuite. Dans l'APK, tout est déjà sur le téléphone.
+  // Dans un navigateur, on prépare hors ligne les seules langues que l'utilisateur étudie :
+  // tout charger ferait télécharger plusieurs dizaines de mégaoctets sans raison.
+  // Dans l'APK, le contenu est déjà sur le téléphone.
   useEffect(() => {
     if (isNative() || !navigator.onLine) return;
     const id = setTimeout(() => {
-      BUILTIN_LANGUAGES.forEach((l) => {
-        if (hasDict(l.code)) loadDict(l.code);
-        if (hasCourse(l.code)) loadCourse(l.code);
-      });
-    }, 4000);
+      for (const code of state.learning) {
+        if (hasDict(code)) loadDict(code);
+        if (hasCourse(code)) loadCourse(code);
+      }
+    }, 5000);
     return () => clearTimeout(id);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.learning.join(',')]);
 
   // Premier lancement sur Android : si des voix manquent, on propose d'ouvrir l'écran
   // d'installation du téléphone. Une application ne peut pas installer une voix elle-même.

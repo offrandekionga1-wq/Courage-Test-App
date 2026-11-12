@@ -66,6 +66,7 @@ export const strings: Record<string, string> = {
   'conj.question': 'Konjugieren Sie „{verb}“ im {tense}, {person}',
   'conj.note': 'Hinweis',
 
+  'lessons.vocabTab': 'Wörter',
   'lessons.lesson': 'Lektionen',
   'lessons.grammar': 'Grammatik',
   'lessons.course': 'Kurs',
@@ -78,6 +79,7 @@ export const strings: Record<string, string> = {
   'lessons.topicPlaceholder': 'Gewünschtes Thema (optional)',
   'lessons.generate': 'Neue Lektion mit der KI',
   'lessons.generateGrammar': 'Neuer Grammatikpunkt mit der KI',
+  'lessons.wikibooksNote': 'Lektion aus dem Wikibook „{page}“ (CC BY-SA 4.0).',
   'lessons.sourceNote': 'Lektion aus dem Wikivoyage-Sprachführer (CC BY-SA 4.0).',
   'lessons.partlyEnglish': 'Mit EN markierte Sätze haben in der Quelle keine französische Übersetzung.',
   'lessons.translateWithAI': 'Mit der KI übersetzen',

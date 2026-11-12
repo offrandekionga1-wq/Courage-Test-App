@@ -14,6 +14,7 @@ export interface Word {
   theme: string;
   example?: string;
   exampleFr?: string;
+  exampleReading?: string;   // lecture annotée de l'exemple (furigana en japonais)
 }
 
 export interface VerbForm { label: string; form: string; reading?: string }
@@ -33,11 +34,15 @@ export interface Lesson {
   id: string;
   title: string;
   level: string;
-  kind?: 'grammar' | 'course';   // absent = leçon ordinaire ; 'course' = tirée d'un guide libre
+  kind?: 'grammar' | 'course' | 'vocab';   // absent = leçon ordinaire
   intro: string;
   sections: { heading: string; body: string }[];
   phrases: Phrase[];
   quiz: QuizItem[];
+  /** Mots étudiés, pour les leçons de vocabulaire. */
+  words?: Word[];
+  /** Page d'origine, pour les leçons tirées d'un wiki. */
+  source?: string;
 }
 
 export interface Pack { words: Word[]; verbs: Verb[]; lessons: Lesson[] }

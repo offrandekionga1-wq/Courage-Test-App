@@ -74,6 +74,7 @@ export const fr = {
   'conj.note': 'À noter',
 
   // Leçons
+  'lessons.vocabTab': 'Mots',
   'lessons.lesson': 'Leçons',
   'lessons.grammar': 'Grammaire',
   'lessons.course': 'Cours',
@@ -86,6 +87,7 @@ export const fr = {
   'lessons.topicPlaceholder': 'Sujet souhaité (facultatif)',
   'lessons.generate': 'Nouvelle leçon avec l’IA',
   'lessons.generateGrammar': 'Nouveau point de grammaire avec l’IA',
+  'lessons.wikibooksNote': 'Leçon tirée du Wikilivre « {page} » (CC BY-SA 4.0).',
   'lessons.sourceNote': 'Leçon tirée du guide de conversation Wikivoyage (CC BY-SA 4.0).',
   'lessons.partlyEnglish': 'Les phrases marquées EN n’ont pas de traduction française dans la source.',
   'lessons.translateWithAI': 'Traduire en français avec l’IA',

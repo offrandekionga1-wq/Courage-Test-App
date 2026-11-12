@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { review, shuffle, touchStreak, useStore } from '../store';
-import { Empty, SpeakBtn } from '../ui';
+import { Empty, Sentence, SpeakBtn } from '../ui';
+import { readingWorthShowing } from '../ruby';
 import { useActive, useT } from '../hooks';
 import { IconCheck } from '../icons';
 import type { Lesson, Verb, Word } from '../types';
@@ -45,7 +46,7 @@ function buildQuestions(opts: {
       if (others.length < 3) break;
       const choices = shuffle([p.fr, ...shuffle(others).slice(0, 3)]);
       out.push({
-        key: `${l.id}:p${i}`, prompt: p.text, say: p.text, reading: p.reading,
+        key: `${l.id}:p${i}`, prompt: p.text, say: p.reading ?? p.text, reading: p.reading,
         choices, answer: choices.indexOf(p.fr),
       });
     }
@@ -186,8 +187,8 @@ function Quiz({ questions, title, picker, onWord, onDone, onRestart }: {
       {picker}
       <p className="progress">{title} · {t('practice.question', { i: i + 1, n: questions.length })}</p>
       <section className="card flash">
-        <b className="term" style={{ fontSize: '1.3rem' }}>{q.prompt}</b>
-        {q.reading && <small>{q.reading}</small>}
+        <Sentence text={q.prompt} reading={q.reading} className="term" />
+        {readingWorthShowing(q.prompt, q.reading) && <small>{q.reading}</small>}
         {q.say && <SpeakBtn text={q.say} big />}
       </section>
       <section className="choices">

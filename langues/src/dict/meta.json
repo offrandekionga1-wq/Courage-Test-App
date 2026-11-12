@@ -2,75 +2,84 @@
  "generated": "2026-11-12",
  "stats": {
   "en": {
-   "words": 12000,
-   "words_fr": 12000,
+   "words": 25000,
+   "words_fr": 25000,
    "words_en": 0,
-   "sentences": 10071,
-   "authors": 1163,
+   "sentences": 40000,
+   "sentences_en": 0,
+   "authors": 2188,
    "verbs": 549
   },
   "es": {
-   "words": 9976,
-   "words_fr": 9976,
+   "words": 13700,
+   "words_fr": 13700,
    "words_en": 0,
-   "sentences": 10000,
-   "authors": 908,
-   "verbs": 600
+   "sentences": 40000,
+   "sentences_en": 30411,
+   "authors": 2491,
+   "verbs": 3000
   },
   "de": {
-   "words": 12000,
-   "words_fr": 12000,
+   "words": 24157,
+   "words_fr": 24157,
    "words_en": 0,
-   "sentences": 10000,
-   "authors": 758,
-   "verbs": 600
+   "sentences": 40000,
+   "sentences_en": 27338,
+   "authors": 2035,
+   "verbs": 3000
   },
   "it": {
-   "words": 12000,
-   "words_fr": 12000,
+   "words": 19702,
+   "words_fr": 19702,
    "words_en": 0,
-   "sentences": 10000,
-   "authors": 591,
-   "verbs": 600
+   "sentences": 40000,
+   "sentences_en": 34026,
+   "authors": 1637,
+   "verbs": 3000
   },
   "pt": {
-   "words": 9150,
-   "words_fr": 9150,
+   "words": 11986,
+   "words_fr": 11986,
    "words_en": 0,
-   "sentences": 10000,
-   "authors": 714,
-   "verbs": 600
+   "sentences": 40000,
+   "sentences_en": 35122,
+   "authors": 1986,
+   "verbs": 3000
   },
   "lt": {
-   "words": 3159,
-   "words_fr": 765,
-   "words_en": 2394,
-   "sentences": 171,
-   "authors": 69,
+   "words": 4102,
+   "words_fr": 869,
+   "words_en": 3233,
+   "sentences": 7779,
+   "sentences_en": 7604,
+   "authors": 598,
    "verbs": 0
   },
   "tl": {
-   "words": 1894,
-   "words_fr": 275,
-   "words_en": 1619,
-   "sentences": 854,
-   "authors": 163,
-   "verbs": 600
+   "words": 4438,
+   "words_fr": 464,
+   "words_en": 3974,
+   "sentences": 36613,
+   "sentences_en": 35744,
+   "authors": 1093,
+   "verbs": 1830
   },
   "ja": {
-   "words": 12000,
-   "words_fr": 12000,
-   "words_en": 0,
-   "sentences": 10000,
-   "authors": 763,
-   "verbs": 600
+   "words": 25000,
+   "words_fr": 12978,
+   "words_en": 12022,
+   "sentences": 40000,
+   "sentences_en": 32363,
+   "authors": 1938,
+   "verbs": 3000
   },
   "zh": {
-   "words": 12000,
-   "words_fr": 3896,
-   "words_en": 8104,
-   "sentences": 10000,
-   "authors": 719,
+   "words": 25000,
+   "words_fr": 5672,
+   "words_en": 19328,
+   "sentences": 40000,
+   "sentences_en": 27909,
+   "authors": 2088,
    "verbs": 0
   }
  }

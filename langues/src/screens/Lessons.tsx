@@ -1,12 +1,15 @@
 import { useMemo, useState } from 'react';
-import { activeKey, touchStreak, useStore } from '../store';
-import { Empty, EnTag, GenerateBar, SpeakBtn } from '../ui';
+import { activeKey, isKnown, touchStreak, useStore } from '../store';
+import { Empty, EnTag, GenerateBar, Sentence, SpeakBtn } from '../ui';
 import { useActive, useT } from '../hooks';
+import { hasFurigana, readingWorthShowing } from '../ruby';
 import { generateLesson, translatePhrases } from '../generate';
 import { IconCheck, IconNext, IconSpark } from '../icons';
 import type { Lesson, Phrase } from '../types';
 
-type Kind = 'course' | 'lesson' | 'grammar';
+type Kind = 'vocab' | 'course' | 'grammar' | 'lesson';
+const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1'];
+const PAGE = 30;
 
 export function Lessons({ onSettings }: { onSettings: () => void }) {
   const { state } = useStore();
@@ -14,26 +17,54 @@ export function Lessons({ onSettings }: { onSettings: () => void }) {
   const { lang, pack, lessons, loading } = useActive();
   const [openId, setOpenId] = useState<string | null>(null);
   const [topic, setTopic] = useState('');
-  const [kind, setKind] = useState<Kind>('course');
+  const [kind, setKind] = useState<Kind>('vocab');
+  const [level, setLevel] = useState('A1');
+  const [limit, setLimit] = useState(PAGE);
 
-  const shown = useMemo(() => lessons.filter((l) => (l.kind ?? 'lesson') === kind), [lessons, kind]);
+  const ofKind = useMemo(() => lessons.filter((l) => (l.kind ?? 'lesson') === kind), [lessons, kind]);
+  // Les leçons de vocabulaire sont nombreuses : on les présente niveau par niveau.
+  const byLevel = kind === 'vocab';
+  const shown = useMemo(
+    () => (byLevel ? ofKind.filter((l) => l.level === level) : ofKind),
+    [ofKind, byLevel, level],
+  );
+
   const current = lessons.find((l) => l.id === openId);
   if (current) return <LessonView lesson={current} onBack={() => setOpenId(null)} />;
 
-  const tabs: [Kind, string][] = [['course', 'lessons.course'], ['lesson', 'lessons.lesson'], ['grammar', 'lessons.grammar']];
+  const tabs: [Kind, string][] = [
+    ['vocab', 'lessons.vocabTab'],
+    ['course', 'lessons.course'],
+    ['grammar', 'lessons.grammar'],
+    ['lesson', 'lessons.lesson'],
+  ];
 
   return (
     <>
       <div className="seg">
         {tabs.map(([k, key]) => (
-          <button key={k} className={kind === k ? 'on' : ''} onClick={() => setKind(k)}>{t(key)}</button>
+          <button
+            key={k}
+            className={kind === k ? 'on' : ''}
+            onClick={() => { setKind(k); setLimit(PAGE); }}
+          >{t(key)}</button>
         ))}
       </div>
+
+      {byLevel && (
+        <div className="seg">
+          {LEVELS.map((lv) => (
+            <button key={lv} className={level === lv ? 'on' : ''} onClick={() => { setLevel(lv); setLimit(PAGE); }}>
+              {lv}
+            </button>
+          ))}
+        </div>
+      )}
 
       {loading && !shown.length && <Empty>{t('common.loading')}</Empty>}
       {!loading && !shown.length && <Empty>{t('lessons.empty')}</Empty>}
 
-      {shown.map((l, i) => (
+      {shown.slice(0, limit).map((l, i) => (
         <button key={l.id} className="card lesson-item" onClick={() => setOpenId(l.id)}>
           <span className={`num${state.lessonsDone[l.id] ? ' ok' : ''}`}>
             {state.lessonsDone[l.id] ? <IconCheck size={16} /> : i + 1}
@@ -42,7 +73,8 @@ export function Lessons({ onSettings }: { onSettings: () => void }) {
             <b>{l.title}</b>
             <small className="block">
               {l.level}
-              {l.phrases.length ? ` · ${l.phrases.length}` : ''}
+              {l.words?.length ? ` · ${l.words.length} ${t('sources.words')}` : ''}
+              {!l.words?.length && l.phrases.length ? ` · ${l.phrases.length}` : ''}
               {state.lessonScores[l.id] ? ` · ${state.lessonScores[l.id].ok}/${state.lessonScores[l.id].n}` : ''}
             </small>
           </div>
@@ -50,7 +82,13 @@ export function Lessons({ onSettings }: { onSettings: () => void }) {
         </button>
       ))}
 
-      {kind !== 'course' && (
+      {shown.length > limit && (
+        <button className="btn ghost full" onClick={() => setLimit(limit + PAGE)}>
+          {t('vocab.more', { n: shown.length - limit })}
+        </button>
+      )}
+
+      {(kind === 'grammar' || kind === 'lesson') && (
         <section className="card">
           <input className="input" placeholder={t('lessons.topicPlaceholder')} value={topic} onChange={(e) => setTopic(e.target.value)} />
           <GenerateBar
@@ -109,7 +147,27 @@ function LessonView({ lesson, onBack }: { lesson: Lesson; onBack: () => void }) 
           </div>
         ))}
         {lesson.kind === 'course' && <small>{t('lessons.sourceNote')}</small>}
+        {lesson.source && <small>{t('lessons.wikibooksNote', { page: lesson.source })}</small>}
       </section>
+
+      {lesson.words && lesson.words.length > 0 && (
+        <section className="card">
+          <h3>{t('sources.words')} <small>{lesson.words.length}</small></h3>
+          {lesson.words.map((w) => (
+            <div key={w.id} className="word">
+              <div className="word-main">
+                <span className={`dot${isKnown(state, w.id) ? ' ok' : ''}`} />
+                <div className="grow">
+                  <b className="term">{w.term}</b>
+                  {w.reading && <small className="block">{w.reading}</small>}
+                </div>
+                <span className="fr">{w.fr}</span>
+                <SpeakBtn text={w.term} />
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
 
       {phrases.length > 0 && (
         <section className="card">
@@ -128,10 +186,10 @@ function LessonView({ lesson, onBack }: { lesson: Lesson; onBack: () => void }) 
             <div key={i} className="word">
               <div className="word-main">
                 <div className="grow">
-                  <b className="term">{p.text}</b>
-                  {p.reading && <small className="block">{p.reading}</small>}
+                  <Sentence text={p.text} reading={p.reading} className="term" />
+                  {readingWorthShowing(p.text, p.reading) && <small className="block">{p.reading}</small>}
                 </div>
-                <SpeakBtn text={p.text} />
+                <SpeakBtn text={p.reading && hasFurigana(p.reading) ? p.reading : p.text} />
               </div>
               <small className="block">{p.fr}{p.en && <EnTag />}</small>
             </div>
@@ -185,11 +243,11 @@ function Quiz({ lesson }: { lesson: Lesson }) {
           <div className="choices">
             {q.choices.map((c, ci) => {
               const chosen = answers[qi];
-              const state = chosen === undefined ? ''
+              const mark = chosen === undefined ? ''
                 : ci === q.answer ? ' ok'
                 : ci === chosen ? ' ko' : '';
               return (
-                <button key={ci} className={`choice${state}`} disabled={chosen !== undefined} onClick={() => pick(qi, ci)}>{c}</button>
+                <button key={ci} className={`choice${mark}`} disabled={chosen !== undefined} onClick={() => pick(qi, ci)}>{c}</button>
               );
             })}
           </div>

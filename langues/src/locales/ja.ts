@@ -66,6 +66,7 @@ export const strings: Record<string, string> = {
   'conj.question': '「{verb}」を{tense}、{person}で活用してください',
   'conj.note': '補足',
 
+  'lessons.vocabTab': '単語',
   'lessons.lesson': 'レッスン',
   'lessons.grammar': '文法',
   'lessons.course': 'コース',
@@ -78,6 +79,7 @@ export const strings: Record<string, string> = {
   'lessons.topicPlaceholder': '希望のテーマ（任意）',
   'lessons.generate': 'AIで新しいレッスン',
   'lessons.generateGrammar': 'AIで新しい文法項目',
+  'lessons.wikibooksNote': 'ウィキブックス「{page}」より（CC BY-SA 4.0）。',
   'lessons.sourceNote': 'Wikivoyageの会話集（CC BY-SA 4.0）より。',
   'lessons.partlyEnglish': 'ENと記された文には、出典にフランス語訳がありません。',
   'lessons.translateWithAI': 'AIで翻訳する',

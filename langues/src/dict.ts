@@ -46,7 +46,7 @@ export function loadDict(code: string): Promise<Dict | null> {
         return {
           id, term: r[0], reading: r[1] || undefined, fr: r[2],
           theme: `${band + 1}–${band + 500}`,
-          example: ex?.[0], exampleFr: ex?.[1],
+          example: ex?.[0], exampleFr: ex?.[1], exampleReading: ex?.[3] || undefined,
         };
       });
       const verbs: Verb[] = (d.vb ?? []).map((v) => {

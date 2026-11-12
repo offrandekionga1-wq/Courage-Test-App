@@ -313,6 +313,11 @@ canvas.trace { width: 100%; max-width: 280px; aspect-ratio: 1; border-radius: va
   font-size: 9rem; color: var(--line); pointer-events: none; user-select: none;
 }
 
+/* ── Furigana (lecture des kanji) ──────────────────────────── */
+ruby { ruby-align: center; }
+rt { font-size: .52em; color: var(--mute); font-weight: 500; line-height: 1.1; }
+.term ruby rt { font-size: .45em; }
+
 /* ── Divers ───────────────────────────────────────────────── */
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%);

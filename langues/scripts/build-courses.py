@@ -101,6 +101,8 @@ def unwiki(s: str) -> str:
     s = re.sub(r'<ref[^>]*>.*?</ref>|<ref[^>]*/>', '', s, flags=re.S)
     s = re.sub(r'<!--.*?-->', '', s, flags=re.S)
     s = re.sub(r'<[^>]+>', '', s)
+    # Les images et catégories n'ont pas de place dans une leçon : on les retire avant les liens.
+    s = re.sub(r'\[\[(?:Image|Fichier|File|Catégorie|Category)\s*:[^\[\]]*(?:\[\[[^\]]*\]\][^\[\]]*)*\]\]', '', s, flags=re.I)
     s = re.sub(r"\[\[(?:[^\]|]*\|)?([^\]|]*)\]\]", r'\1', s)       # [[lien|texte]] -> texte
     s = re.sub(r'\[https?://\S+\s+([^\]]*)\]', r'\1', s)
     s = re.sub(r"'''''|'''|''", '', s)                              # gras et italique
