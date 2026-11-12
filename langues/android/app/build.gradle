@@ -14,10 +14,6 @@ android {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
-            // Le contenu des langues représente une centaine de mégaoctets de JSON : laisser AAPT
-            // les compresser allongeait la compilation de plusieurs dizaines de minutes, et le
-            // téléphone devait les décompresser à chaque ouverture. Ils sont donc stockés tels quels.
-            noCompress 'js', 'json'
         }
     }
     buildTypes {
