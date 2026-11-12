@@ -224,10 +224,16 @@ def build(code: str) -> dict | None:
             key = theme.get(item[1]) or theme.get(item[1].lower())
             if not key:
                 p = pos.get(item[1]) or pos.get(item[1].lower()) or ''
-                key = POS_TITLE.get(p, 'Mots variés')
+                key = POS_TITLE.get(p, 'Vocabulaire courant')
             groups[key].append(item)
-        # Les thèmes les plus fournis d'abord, pour que les premières leçons soient les plus utiles.
-        for title, items in sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+        # Les leçons thématiques passent avant celles qui ne sont qu'un repli par nature de mot :
+        # « La cuisine » est plus parlant que « Noms courants ».
+        def order(kv: tuple[str, list]) -> tuple:
+            title, items = kv
+            generic = title in set(POS_TITLE.values()) | {'Vocabulaire courant'}
+            return (generic, -len(items), title)
+
+        for title, items in sorted(groups.items(), key=order):
             if len(items) < 8:
                 continue
             parts = [items[i:i + size] for i in range(0, len(items), size)]
