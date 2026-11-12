@@ -52,9 +52,9 @@ LANGS = {
     'ja': dict(iso3='jpn', cjk=True),
     'zh': dict(iso3='cmn', freq='2018/zh_cn/zh_cn_full.txt', fr='Chinois', cjk=True),
 }
-N_WORDS = 25000     # mots par langue au maximum
-N_SENT = 40000      # phrases par langue au maximum
-N_VERBS = 3000      # verbes conjugués par langue au maximum
+N_WORDS = 40000     # mots par langue au maximum
+N_SENT = 90000      # phrases par langue au maximum
+N_VERBS = 6000      # verbes conjugués par langue au maximum
 MAX_LEN = {False: 110, True: 46}  # longueur maximale d'une phrase (caractères)
 MIN_LEN = {False: 14, True: 5}
 
@@ -586,24 +586,30 @@ def build_language(code: str) -> dict:
             row.append(1)
         sentences.append(row)
 
-    band = lambda i: f'Fréquents {i // 500 * 500 + 1}–{i // 500 * 500 + 500}'
     out_words = []
-    for i, (w, ex) in enumerate(zip(words, ex_for_word)):
+    for w in words:
         term, reading, gloss, flag = w
-        row = [term, reading, gloss, remap.get(ex, -1) if ex >= 0 else -1]
-        if flag:
-            row.append(flag)
-        out_words.append(row)
+        out_words.append([term, reading, gloss, flag or ''])
     names = sorted(authors, key=lambda a: authors[a])
     verbs = build_verbs(code, words)
-    data = {'v': 1, 'w': out_words, 's': sentences, 'a': names, 'vb': verbs}
-    n_fr = sum(1 for r in out_words if len(r) < 5)
+    # Les mots portent leur exemple en clair : l'écran du vocabulaire n'a alors pas besoin du
+    # fichier des phrases, qui pèse plusieurs mégaoctets et ne sert qu'à l'écran « Phrases ».
+    # [terme, lecture, définition, « en » si la définition est anglaise, exemple]
+    for row, ex in zip(out_words, ex_for_word):
+        if ex >= 0:
+            sid, text, ftext, _au, _fu, is_en = sents[ex]
+            row.append([text, ftext, rd.get(sid, ''), 1 if is_en else 0])
+    data = {'v': 2, 'w': out_words, 'vb': verbs}
+    sentence_data = {'v': 2, 's': sentences, 'a': names}
+    n_fr = sum(1 for r in out_words if not r[3])
     n_sent_en = sum(1 for r in sentences if len(r) > 6)
     stats = dict(words=len(out_words), words_fr=n_fr, words_en=len(out_words) - n_fr,
                  sentences=len(sentences), sentences_en=n_sent_en, authors=len(names), verbs=len(verbs))
     print('  ', stats, flush=True)
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / f'{code}.json').write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+    (OUT / f'{code}-sentences.json').write_text(
+        json.dumps(sentence_data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
     CREDITS_DIR.mkdir(exist_ok=True)
     (CREDITS_DIR / f'tatoeba-{code}.txt').write_text(
         'Auteurs des phrases Tatoeba utilisées pour cette langue (originales et traductions françaises).\n'

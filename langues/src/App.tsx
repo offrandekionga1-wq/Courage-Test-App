@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { activeKey, allLanguages, getLanguage, getPack, isDue, isKnown, mergeExtra, useStore } from './store';
 import { generateWords } from './generate';
 import { hasDict, loadDict } from './dict';
+import { hasSentences, loadSentences } from './sentences';
 import { hasCourse, loadCourse } from './course';
 import { useActive, useT } from './hooks';
 import { Vocab } from './screens/Vocab';
@@ -58,20 +59,18 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.active, state.autoUpdate, state.provider]);
 
-  // Dans un navigateur, on prépare hors ligne les seules langues que l'utilisateur étudie :
-  // tout charger ferait télécharger plusieurs dizaines de mégaoctets sans raison.
-  // Dans l'APK, le contenu est déjà sur le téléphone.
+  // Dans un navigateur, on prépare hors ligne la seule langue ouverte : le contenu des neuf
+  // langues pèse plus de cent mégaoctets, inutile de tout télécharger. Dans l'APK, il est déjà là.
   useEffect(() => {
     if (isNative() || !navigator.onLine) return;
+    const code = state.active;
     const id = setTimeout(() => {
-      for (const code of state.learning) {
-        if (hasDict(code)) loadDict(code);
-        if (hasCourse(code)) loadCourse(code);
-      }
+      if (hasDict(code)) loadDict(code);
+      if (hasCourse(code)) loadCourse(code);
+      if (hasSentences(code)) loadSentences(code);
     }, 5000);
     return () => clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.learning.join(',')]);
+  }, [state.active]);
 
   // Premier lancement sur Android : si des voix manquent, on propose d'ouvrir l'écran
   // d'installation du téléphone. Une application ne peut pas installer une voix elle-même.

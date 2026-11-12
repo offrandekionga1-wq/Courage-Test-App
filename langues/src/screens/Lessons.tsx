@@ -8,7 +8,7 @@ import { IconCheck, IconNext, IconSpark } from '../icons';
 import type { Lesson, Phrase } from '../types';
 
 type Kind = 'vocab' | 'course' | 'grammar' | 'lesson';
-const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1'];
+const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 const PAGE = 30;
 
 export function Lessons({ onSettings }: { onSettings: () => void }) {

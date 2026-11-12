@@ -1,5 +1,5 @@
 import { allLanguages, useStore } from '../store';
-import { useDict } from '../dict';
+import { useSentences } from '../sentences';
 import { useT } from '../hooks';
 import { IconWarn } from '../icons';
 import meta from '../dict/meta.json';
@@ -50,7 +50,7 @@ export function Sources({ onBack }: { onBack: () => void }) {
   const { state } = useStore();
   const { t } = useT();
   const langs = allLanguages(state);
-  const dict = useDict(state.active);
+  const dict = useSentences(state.active);
   const stats = meta.stats as Record<string, Stat>;
   const courseStats = courses as Record<string, { lessons: number; phrases: number }>;
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { review, shuffle, touchStreak, useStore } from '../store';
-import { useDict, type Dict, type DictSentence } from '../dict';
+import { useSentences, type DictSentence, type Sentences } from '../sentences';
 import { Empty, SearchField, Sentence, SpeakBtn } from '../ui';
 import { plainText, readingWorthShowing } from '../ruby';
 import { useActive, useT } from '../hooks';
@@ -10,7 +10,7 @@ type Mode = 'list' | 'quiz';
 export function Phrases() {
   const { lang } = useActive();
   const { t } = useT();
-  const dict = useDict(lang.code);
+  const dict = useSentences(lang.code);
   const [mode, setMode] = useState<Mode>('list');
 
   if (dict === undefined) return <Empty>{t('phrases.loading')}</Empty>;
@@ -28,7 +28,7 @@ export function Phrases() {
   );
 }
 
-function SentenceCard({ s, dict, open, onToggle }: { s: DictSentence; dict: Dict; open: boolean; onToggle: () => void }) {
+function SentenceCard({ s, dict, open, onToggle }: { s: DictSentence; dict: Sentences; open: boolean; onToggle: () => void }) {
   const { t } = useT();
   return (
     <div className="word" onClick={onToggle}>
@@ -53,7 +53,7 @@ function SentenceCard({ s, dict, open, onToggle }: { s: DictSentence; dict: Dict
   );
 }
 
-function List({ dict }: { dict: Dict }) {
+function List({ dict }: { dict: Sentences }) {
   const { t } = useT();
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<number | null>(null);
@@ -88,7 +88,7 @@ function List({ dict }: { dict: Dict }) {
 }
 
 /** Quiz : la phrase est lue, on choisit sa traduction parmi quatre. */
-function Quiz({ dict }: { dict: Dict }) {
+function Quiz({ dict }: { dict: Sentences }) {
   const { update } = useStore();
   const { t } = useT();
   const [round, setRound] = useState(0);

@@ -32,7 +32,8 @@ LEVELS = [
     ('A2', 600, 1800, 20),
     ('B1', 1800, 4000, 22),
     ('B2', 4000, 9000, 25),
-    ('C1', 9000, 25000, 25),
+    ('C1', 9000, 20000, 25),
+    ('C2', 20000, 40000, 25),
 ]
 
 LEVEL_INTRO = {
@@ -41,6 +42,7 @@ LEVEL_INTRO = {
     'B1': "De quoi raconter, expliquer et comprendre l'essentiel d'un texte ordinaire.",
     'B2': "Un vocabulaire plus large, pour suivre une discussion suivie et lire sans peine.",
     'C1': "Les mots moins courants : la nuance, les domaines spécialisés, la langue écrite.",
+    'C2': "Le fond du dictionnaire : termes rares, techniques ou littéraires.",
 }
 
 # Thèmes retenus : clé reconnue dans les catégories du Wiktionnaire → titre affiché.

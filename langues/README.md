@@ -4,10 +4,10 @@ Application mobile pour apprendre les langues, qui fonctionne **entièrement hor
 
 - **Langues intégrées** : anglais, espagnol, allemand, italien, portugais, japonais, chinois, lituanien, tagalog. D'autres s'ajoutent dans les réglages.
 - **Langue de l'interface** : française par défaut, et traduisible dans les dix langues ci-dessus. Détectée d'après le téléphone au premier lancement, modifiable dans les réglages.
-- **Vocabulaire** : jusqu'à 25 000 mots par langue, classés par fréquence, avec définition, phrase d'exemple, cartes à répétition espacée, exercice d'écriture et tracé au doigt pour les écritures non latines.
-- **Phrases** : jusqu'à 40 000 phrases réelles par langue avec leur traduction, consultables, écoutables et jouables en quiz.
-- **Conjugaison** : jusqu'à 3 000 verbes par langue avec leurs tableaux complets, plus un quiz.
-- **Leçons** : une progression complète, du niveau A1 au niveau C1 — leçons de vocabulaire par thème et par niveau, cours par situation (saluer, se déplacer, manger, urgences…) et cours de grammaire.
+- **Vocabulaire** : jusqu'à 40 000 mots par langue, classés par fréquence, avec définition, phrase d'exemple, cartes à répétition espacée, exercice d'écriture et tracé au doigt pour les écritures non latines.
+- **Phrases** : jusqu'à 90 000 phrases réelles par langue avec leur traduction, consultables, écoutables et jouables en quiz.
+- **Conjugaison** : jusqu'à 6 000 verbes par langue avec leurs tableaux complets, plus un quiz.
+- **Leçons** : une progression complète, du niveau A1 au niveau C2 — leçons de vocabulaire par thème et par niveau, cours par situation (saluer, se déplacer, manger, urgences…) et cours de grammaire.
 - **Japonais** : les furigana s'affichent au-dessus des kanji dans toutes les phrases d'exemple.
 - **Exercices** : des questions construites à partir des leçons que vous avez terminées et des mots déjà vus.
 - **Discussion** : conversation simulée avec l'IA de votre choix, lue à voix haute, avec traduction et correction.
@@ -50,15 +50,17 @@ L'appli utilise le moteur de synthèse vocale d'Android. **Une application ne pe
 
 | Langue | Mots | Phrases | Verbes conjugués | Leçons de vocabulaire | Situations | Grammaire |
 |---|---|---|---|---|---|---|
-| Anglais | 25 000 | 40 000 | 549 | 1043 | 11 | 81 |
-| Espagnol | 13 700 | 40 000 | 3 000 | 592 | 14 | 8 |
-| Allemand | 24 157 | 40 000 | 3 000 | 1029 | 15 | 51 |
-| Italien | 19 702 | 40 000 | 3 000 | 847 | 13 | 6 |
-| Portugais | 11 986 | 40 000 | 3 000 | 525 | 14 | 10 |
+| Anglais | 26 324 | 90 000 | 549 | 1 110 | 11 | 83 |
+| Espagnol | 13 700 | 90 000 | 6 000 | 592 | 14 | 8 |
+| Allemand | 24 157 | 90 000 | 6 000 | 1 036 | 15 | 51 |
+| Italien | 19 702 | 90 000 | 6 000 | 847 | 13 | 6 |
+| Portugais | 11 986 | 90 000 | 6 000 | 525 | 14 | 10 |
 | Lituanien | 4 102 | 7 779 | — | 196 | 14 | — |
 | Tagalog | 4 438 | 36 613 | 1 830 | 212 | 14 | — |
-| Japonais | 25 000 | 40 000 | 3 000 | 1038 | 14 | 103 |
-| Chinois | 25 000 | 40 000 | — | 1042 | 13 | 10 |
+| Japonais | 29 951 | 90 000 | 6 000 | 1 236 | 14 | 103 |
+| Chinois | 40 000 | 66 683 | — | 1 648 | 13 | 11 |
+
+Soit **7 796 leçons** au total, réparties du niveau A1 au niveau C2. Chiffres à jour dans `CREDITS.md` et dans l'appli (Réglages → Sources et licences).
 
 Soit **6915 leçons** au total. Chiffres détaillés et à jour dans `CREDITS.md` et dans l'appli (Réglages → Sources et licences).
 
@@ -108,7 +110,7 @@ npx cap sync android                # copie dist/ dans le projet Android
 ## Organisation
 
 - `src/data/` : contenu écrit à la main (`grammar.ts`, `extra.ts`, `more.ts` pour espagnol, allemand, italien, portugais)
-- `src/dict/` : dictionnaires, phrases, conjugaisons et cours générés par les scripts (un JSON par langue)
+- `src/dict/` : contenu généré par les scripts. Par langue : `xx.json` (mots et conjugaisons), `xx-sentences.json` (phrases), `xx-lessons.json` (progression A1-C2), `xx-course.json` (situations), `xx-grammar.json` (grammaire). Les phrases sont dans un fichier à part pour que l'écran du vocabulaire n'ait pas à les charger.
 - `src/locales/` : traductions de l'interface, une par langue
 - `src/i18n.ts` : chaînes de référence (français) et chargement des traductions
 - `src/ai.ts` : couche commune aux fournisseurs d'IA ; `src/generate.ts` : conversation et génération de contenu
