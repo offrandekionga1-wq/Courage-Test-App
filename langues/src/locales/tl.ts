@@ -164,6 +164,9 @@ export const strings: Record<string, string> = {
   'sources.authorsOf': 'Mga may-akda ng pangungusap ({n})',
   'sources.showList': 'Ipakita ang talaan',
 
+  'vocab.generate': 'Bagong salita gamit ang AI',
+  'conj.generate': 'Bagong pandiwa gamit ang AI',
+  'gen.needKey': 'Maglagay ng API key sa mga setting para gumamit ng AI.',
   'common.back': 'Bumalik',
   'common.close': 'Isara',
   'common.cancel': 'Kanselahin',

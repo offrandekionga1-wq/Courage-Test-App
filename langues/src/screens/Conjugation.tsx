@@ -27,7 +27,7 @@ export function Conjugation({ onSettings }: { onSettings: () => void }) {
       {verbs.length > 0 && (mode === 'table' ? <Browse verbs={verbs} /> : <Quiz verbs={verbs} />)}
 
       <GenerateBar
-        label={t('lessons.generate')}
+        label={t('conj.generate')}
         onSettings={onSettings}
         run={async () => ({
           verbs: await generateVerbs({

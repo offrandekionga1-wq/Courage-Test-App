@@ -163,6 +163,9 @@ export const strings: Record<string, string> = {
   'sources.authorsOf': '例文の作成者（{n}名）',
   'sources.showList': '一覧を表示',
 
+  'vocab.generate': 'AIで新しい単語',
+  'conj.generate': 'AIで新しい動詞',
+  'gen.needKey': 'AIを使うには設定でAPIキーを入力してください。',
   'common.back': '戻る',
   'common.close': '閉じる',
   'common.cancel': 'やめる',

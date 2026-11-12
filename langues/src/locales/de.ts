@@ -163,6 +163,9 @@ export const strings: Record<string, string> = {
   'sources.authorsOf': 'Autoren der Sätze ({n})',
   'sources.showList': 'Liste anzeigen',
 
+  'vocab.generate': 'Neue Wörter mit der KI',
+  'conj.generate': 'Neue Verben mit der KI',
+  'gen.needKey': 'Fügen Sie in den Einstellungen einen API-Schlüssel hinzu, um die KI zu nutzen.',
   'common.back': 'Zurück',
   'common.close': 'Schließen',
   'common.cancel': 'Abbrechen',

@@ -163,6 +163,9 @@ export const strings: Record<string, string> = {
   'sources.authorsOf': '句子作者（{n}位）',
   'sources.showList': '显示列表',
 
+  'vocab.generate': '用人工智能添加新词',
+  'conj.generate': '用人工智能添加新动词',
+  'gen.needKey': '请在设置中填入 API 密钥后使用人工智能。',
   'common.back': '返回',
   'common.close': '关闭',
   'common.cancel': '取消',

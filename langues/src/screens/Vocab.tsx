@@ -37,7 +37,7 @@ export function Vocab({ onSettings }: { onSettings: () => void }) {
 
       {mode === 'list' && (
         <GenerateBar
-          label={t('lessons.generate')}
+          label={t('vocab.generate')}
           onSettings={onSettings}
           run={async () => ({
             words: await generateWords({

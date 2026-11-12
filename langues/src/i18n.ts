@@ -176,6 +176,10 @@ export const fr = {
   'sources.authorsOf': 'Auteurs des phrases ({n})',
   'sources.showList': 'Afficher la liste',
 
+  'vocab.generate': 'Nouveaux mots avec l’IA',
+  'conj.generate': 'Nouveaux verbes avec l’IA',
+  'gen.needKey': 'Ajoutez une clé d’API dans les réglages pour utiliser l’IA.',
+
   // Commun
   'common.back': 'Retour',
   'common.close': 'Fermer',

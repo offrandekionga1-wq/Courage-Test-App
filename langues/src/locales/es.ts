@@ -163,6 +163,9 @@ export const strings: Record<string, string> = {
   'sources.authorsOf': 'Autores de las frases ({n})',
   'sources.showList': 'Mostrar la lista',
 
+  'vocab.generate': 'Nuevas palabras con la IA',
+  'conj.generate': 'Nuevos verbos con la IA',
+  'gen.needKey': 'Añada una clave de API en los ajustes para usar la IA.',
   'common.back': 'Volver',
   'common.close': 'Cerrar',
   'common.cancel': 'Cancelar',

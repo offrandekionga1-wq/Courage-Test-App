@@ -94,7 +94,7 @@ export function GenerateBar({ label, run, onSettings }: {
     return (
       <div className="gen">
         <button className="btn ghost full" onClick={onSettings}><IconSpark size={18} /> {label}</button>
-        <p className="hint">{t('chat.needKey')}</p>
+        <p className="hint">{t('gen.needKey')}</p>
       </div>
     );
   }

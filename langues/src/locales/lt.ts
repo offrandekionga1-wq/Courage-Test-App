@@ -164,6 +164,9 @@ export const strings: Record<string, string> = {
   'sources.authorsOf': 'Sakinių autoriai ({n})',
   'sources.showList': 'Rodyti sąrašą',
 
+  'vocab.generate': 'Nauji žodžiai su dirbtiniu intelektu',
+  'conj.generate': 'Nauji veiksmažodžiai su dirbtiniu intelektu',
+  'gen.needKey': 'Kad naudotumėte dirbtinį intelektą, nustatymuose įrašykite API raktą.',
   'common.back': 'Atgal',
   'common.close': 'Užverti',
   'common.cancel': 'Atšaukti',
