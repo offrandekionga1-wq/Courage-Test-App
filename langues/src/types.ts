@@ -15,6 +15,7 @@ export interface Word {
   example?: string;
   exampleFr?: string;
   exampleReading?: string;   // lecture annotée de l'exemple (furigana en japonais)
+  exampleEn?: boolean;       // la traduction de l'exemple est anglaise
 }
 
 export interface VerbForm { label: string; form: string; reading?: string }

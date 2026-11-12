@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react';
 import type { Verb, Word } from './types';
 
 /** Phrase d'exemple Tatoeba : texte, traduction, numéro, lecture, auteurs (indices dans `authors`). */
-export type DictSentence = [text: string, fr: string, id: number, reading: string, author: number, authorFr: number];
+export type DictSentence = [
+  text: string, fr: string, id: number, reading: string,
+  author: number, authorFr: number,
+  /** 1 quand la traduction est anglaise, faute de traduction française. */
+  english?: 1,
+];
 /** Mot : terme, lecture, glose, indice de la phrase d'exemple (ou -1), « en » si la glose est anglaise. */
 export type DictWord = [term: string, reading: string, gloss: string, example: number, flag?: 'en'];
 interface RawVerb {
@@ -47,6 +52,7 @@ export function loadDict(code: string): Promise<Dict | null> {
           id, term: r[0], reading: r[1] || undefined, fr: r[2],
           theme: `${band + 1}–${band + 500}`,
           example: ex?.[0], exampleFr: ex?.[1], exampleReading: ex?.[3] || undefined,
+          exampleEn: ex?.[6] === 1,
         };
       });
       const verbs: Verb[] = (d.vb ?? []).map((v) => {

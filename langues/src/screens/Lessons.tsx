@@ -143,7 +143,8 @@ function LessonView({ lesson, onBack }: { lesson: Lesson; onBack: () => void }) 
         {lesson.sections.map((s, i) => (
           <div key={i}>
             <h4>{s.heading}</h4>
-            <p>{s.body}</p>
+            {/* Les tableaux repris des wikis gardent une ligne par entrée. */}
+            <p style={{ whiteSpace: 'pre-line' }}>{s.body}</p>
           </div>
         ))}
         {lesson.kind === 'course' && <small>{t('lessons.sourceNote')}</small>}

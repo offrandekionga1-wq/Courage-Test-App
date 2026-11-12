@@ -118,7 +118,7 @@ def page_to_lesson(code: str, title: str, text: str, n: int) -> dict | None:
             if m:
                 rows = table_to_lines(tables[int(m.group(1))])
                 if rows:
-                    pieces.append(' · '.join(rows[:14]))
+                    pieces.append('\n'.join(rows[:30]))
                 continue
             if raw.lstrip().startswith(('{', '!', '[[Catégorie', '[[Category')):
                 continue
@@ -133,11 +133,15 @@ def page_to_lesson(code: str, title: str, text: str, n: int) -> dict | None:
     if total < 350 or not sections:
         return None
     name = title.split('/')[-1].strip() or title
+    # Le premier bloc sans titre sert d'introduction ; sinon la leçon commence par ses sections.
+    intro = ''
+    if len(sections) > 1 and sections[0]['heading'] == 'Présentation':
+        intro = sections.pop(0)['body'][:600]
     return {
         'id': f'{code}:w{n}',
         'title': name[:70],
         'level': 'Tous niveaux',
-        'intro': sections[0]['body'][:400],
+        'intro': intro,
         'sections': sections[:12],
         'phrases': [],
         'quiz': [],

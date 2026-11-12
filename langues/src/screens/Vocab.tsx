@@ -73,7 +73,7 @@ function WordRow({ w, open, onToggle }: { w: Word; open: boolean; onToggle: () =
             <Sentence text={w.example} reading={w.exampleReading} className="grow" />
             <SpeakBtn text={w.exampleReading && hasFurigana(w.exampleReading) ? w.exampleReading : w.example} />
           </span>
-          <small>{w.exampleFr}</small>
+          <small>{w.exampleFr}{w.exampleEn && <EnTag />}</small>
         </div>
       )}
     </div>

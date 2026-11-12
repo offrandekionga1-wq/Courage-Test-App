@@ -47,7 +47,7 @@ export function useVocabLessons(code: string, words: Word[]): Lesson[] | undefin
       phrases: picked
         .filter((w) => w.example)
         .slice(0, 12)
-        .map((w) => ({ text: w.example!, fr: w.exampleFr ?? '', reading: w.exampleReading })),
+        .map((w) => ({ text: w.example!, fr: w.exampleFr ?? '', reading: w.exampleReading, en: w.exampleEn })),
       quiz: l.quiz,
       words: picked,
     };

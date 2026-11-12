@@ -45,7 +45,9 @@ export function useActive(): Active {
     const have = new Set(pack.verbs.map((v) => v.infinitive.toLowerCase()));
     return [...pack.verbs, ...dict.verbs.filter((v) => !have.has(v.infinitive.toLowerCase()))];
   }, [dict, pack.verbs]);
-  const vocabLessons = useVocabLessons(code, words);
+  // Les leçons référencent les mots par leur rang dans le dictionnaire : il faut lui passer
+  // `dict.words`, et non la liste combinée, qui commence par le contenu écrit à la main.
+  const vocabLessons = useVocabLessons(code, dict?.words ?? []);
   const grammar = useGrammar(code);
   const lessons = useMemo(
     () => [...(course ?? []), ...(vocabLessons ?? []), ...(grammar ?? []), ...pack.lessons],
