@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { allLanguages, DEFAULT_MODEL, getLanguage, getPack, mergeExtra, useStore } from '../store';
 import { BUILTIN_LANGUAGES, SUGGESTED_LANGUAGES } from '../data';
 import { explainError, generateUpdate } from '../claude';
-import { hasVoice, speak, ttsSupported } from '../tts';
+import { isNative, openVoiceInstall, speak, ttsSupported, useVoiceStatus } from '../tts';
 import type { AppState, Language } from '../types';
 
 const LEVELS = ['Débutant', 'Élémentaire', 'Intermédiaire', 'Avancé'];
@@ -18,14 +18,8 @@ export function Settings() {
   const langs = allLanguages(state);
   const active = getLanguage(state, state.active);
 
-  // La liste des voix arrive de façon asynchrone sur certains téléphones.
-  const [, tick] = useState(0);
-  useEffect(() => {
-    if (!ttsSupported()) return;
-    const on = () => tick((n) => n + 1);
-    window.speechSynthesis.addEventListener('voiceschanged', on);
-    return () => window.speechSynthesis.removeEventListener('voiceschanged', on);
-  }, []);
+  const voice = useVoiceStatus(langs.map((l) => l.tts));
+  const missing = langs.filter((l) => state.learning.includes(l.code) && voice[l.tts] === false);
 
   const toggle = (code: string) => update((s) => {
     const on = s.learning.includes(code);
@@ -129,12 +123,21 @@ export function Settings() {
                 <input type="checkbox" checked={state.learning.includes(l.code)} onChange={() => toggle(l.code)} />
                 <span>{l.flag} {l.name} <small>{l.native}</small></span>
               </label>
-              {ttsSupported() && <small title="Voix installée sur ce téléphone">{hasVoice(l.tts) ? '🔊' : '🔇'}</small>}
+              {ttsSupported() && <small title="Voix installée sur ce téléphone">{voice[l.tts] === undefined ? '…' : voice[l.tts] ? '🔊' : '🔇'}</small>}
               {!builtin && <button className="icon-btn" aria-label="Supprimer" onClick={() => remove(l.code)}>🗑️</button>}
             </div>
           );
         })}
-        <p className="hint">🔊 voix disponible sur ce téléphone · 🔇 voix à installer dans les réglages de synthèse vocale du téléphone.</p>
+        <p className="hint">🔊 voix installée sur ce téléphone · 🔇 voix manquante.</p>
+        {missing.length > 0 && (
+          <div className="note">
+            Voix manquantes : {missing.map((l) => l.name).join(', ')}.{' '}
+            {isNative()
+              ? "Touchez le bouton, puis téléchargez la voix de chaque langue dans l'écran du téléphone."
+              : "Installez-les dans les réglages de synthèse vocale de votre appareil."}
+            {isNative() && <button className="btn full" style={{ marginTop: 8 }} onClick={openVoiceInstall}>Installer les voix manquantes</button>}
+          </div>
+        )}
       </section>
 
       <section className="card">

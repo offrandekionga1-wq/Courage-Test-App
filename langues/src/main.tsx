@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { StoreProvider } from './store';
+import { Capacitor } from '@capacitor/core';
 import './styles.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -9,6 +10,6 @@ createRoot(document.getElementById('root')!).render(
   </StoreProvider>,
 );
 
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+if ('serviceWorker' in navigator && import.meta.env.PROD && !Capacitor.isNativePlatform()) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }

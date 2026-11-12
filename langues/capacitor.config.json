@@ -1,0 +1,7 @@
+{
+  "appId": "com.polyglotte.app",
+  "appName": "Polyglotte",
+  "webDir": "dist",
+  "android": { "allowMixedContent": false },
+  "server": { "androidScheme": "https" }
+}

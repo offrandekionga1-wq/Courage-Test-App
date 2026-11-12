@@ -6,6 +6,7 @@ import { Conjugation } from './screens/Conjugation';
 import { Lessons } from './screens/Lessons';
 import { Chat } from './screens/Chat';
 import { Settings } from './screens/Settings';
+import { isNative, openVoiceInstall, useVoiceStatus } from './tts';
 
 type Tab = 'home' | 'vocab' | 'conj' | 'lessons' | 'chat' | 'settings';
 const TABS: [Tab, string, string][] = [
@@ -93,6 +94,7 @@ function Home({ go }: { go: (t: Tab) => void }) {
   const known = pack.words.filter((w) => isKnown(state, w.id)).length;
   const done = pack.lessons.filter((l) => state.lessonsDone[l.id]).length;
   const pct = pack.words.length ? Math.round((known / pack.words.length) * 100) : 0;
+  const voice = useVoiceStatus([lang.tts])[lang.tts];
   const empty = !pack.words.length && !pack.verbs.length && !pack.lessons.length;
 
   return (
@@ -111,6 +113,15 @@ function Home({ go }: { go: (t: Tab) => void }) {
         <div className="bar"><i style={{ width: `${pct}%` }} /></div>
         <div className="row between small"><span>Leçons terminées</span><b>{done} / {pack.lessons.length}</b></div>
       </section>
+
+      {voice === false && (
+        <section className="card note">
+          🔇 Aucune voix pour le {lang.name.toLowerCase()} sur ce téléphone.
+          {isNative()
+            ? <button className="btn full" style={{ marginTop: 8 }} onClick={openVoiceInstall}>Installer la voix</button>
+            : ' Installez-la dans les réglages de synthèse vocale.'}
+        </section>
+      )}
 
       {empty && (
         <section className="card note">
