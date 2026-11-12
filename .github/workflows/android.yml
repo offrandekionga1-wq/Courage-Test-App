@@ -26,10 +26,12 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - uses: android-actions/setup-android@v3
-
+      # Le serveur GitHub fournit déjà l'Android SDK : on accepte les licences et on ajoute la plateforme 36.
       - name: Android SDK components
-        run: yes | sdkmanager "platforms;android-36" "build-tools;36.0.0" >/dev/null
+        run: |
+          SDKM=$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | tail -1)
+          yes | "$SDKM" --licenses >/dev/null || true
+          "$SDKM" "platforms;android-36" "build-tools;36.0.0"
 
       # Clé de signature stable : sans elle, chaque APK est signé différemment et
       # Android refuse de le installer par-dessus la version précédente.

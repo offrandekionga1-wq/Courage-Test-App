@@ -9,14 +9,21 @@ export function Lessons({ onSettings }: { onSettings: () => void }) {
   const { lang, pack } = useActive();
   const [openId, setOpenId] = useState<string | null>(null);
   const [topic, setTopic] = useState('');
+  const [tab, setTab] = useState<'lesson' | 'grammar'>('lesson');
+  const grammarTab = tab === 'grammar';
+  const shown = pack.lessons.filter((l) => (l.kind === 'grammar') === grammarTab);
   const current = pack.lessons.find((l) => l.id === openId);
 
   if (current) return <LessonView lesson={current} onBack={() => setOpenId(null)} />;
 
   return (
     <>
-      {!pack.lessons.length && <Empty>Aucune leçon pour cette langue. Générez-en une avec Claude ci-dessous.</Empty>}
-      {pack.lessons.map((l, i) => (
+      <div className="seg">
+        <button className={!grammarTab ? 'on' : ''} onClick={() => setTab('lesson')}>Leçons</button>
+        <button className={grammarTab ? 'on' : ''} onClick={() => setTab('grammar')}>Grammaire</button>
+      </div>
+      {!shown.length && <Empty>{grammarTab ? 'Aucun point de grammaire' : 'Aucune leçon'} pour cette langue. Générez-en avec Claude ci-dessous.</Empty>}
+      {shown.map((l, i) => (
         <button key={l.id} className="card lesson-item" onClick={() => setOpenId(l.id)}>
           <span className={`num${state.lessonsDone[l.id] ? ' ok' : ''}`}>{state.lessonsDone[l.id] ? '✓' : i + 1}</span>
           <div className="grow left">
@@ -27,12 +34,12 @@ export function Lessons({ onSettings }: { onSettings: () => void }) {
         </button>
       ))}
       <section className="card">
-        <input className="input" placeholder="Sujet souhaité (facultatif) : le passé, au marché…" value={topic} onChange={(e) => setTopic(e.target.value)} />
+        <input className="input" placeholder={grammarTab ? 'Sujet souhaité (facultatif) : le subjonctif…' : 'Sujet souhaité (facultatif) : au marché…'} value={topic} onChange={(e) => setTopic(e.target.value)} />
         <GenerateBar
-          label="Nouvelle leçon avec Claude"
+          label={grammarTab ? 'Nouveau point de grammaire avec Claude' : 'Nouvelle leçon avec Claude'}
           onSettings={onSettings}
           run={async () => ({
-            lessons: [await generateLesson({ apiKey: state.apiKey, model: state.model, lang, level: state.level, pack, topic: topic.trim() || undefined })],
+            lessons: [await generateLesson({ apiKey: state.apiKey, model: state.model, lang, level: state.level, pack, topic: topic.trim() || undefined }, grammarTab ? 'grammar' : undefined)],
           })}
         />
       </section>

@@ -121,7 +121,7 @@ const LessonZ = z.object({
 
 const blank = (s: string) => (s.trim() ? s.trim() : undefined);
 
-async function generate<T extends z.ZodType>(apiKey: string, model: string, schema: T, prompt: string): Promise<z.infer<T>> {
+async function generate<T extends z.ZodType>(apiKey: string, model: string, schema: T, prompt: string, signal?: AbortSignal): Promise<z.infer<T>> {
   const res = await client(apiKey).beta.messages.parse({
     model,
     max_tokens: 16000,
@@ -130,18 +130,18 @@ async function generate<T extends z.ZodType>(apiKey: string, model: string, sche
     output_config: { effort: 'medium', format: zodOutputFormat(schema) },
     system: "Tu rédiges le contenu d'une application d'apprentissage des langues destinée à des francophones. Toutes les explications sont en français. Le contenu doit être exact, naturel pour un locuteur natif et adapté au niveau demandé. Dans le doute sur une forme, choisis un autre exemple dont tu es sûr.",
     messages: [{ role: 'user', content: prompt }],
-  });
+  }, { signal });
   if (res.stop_reason === 'refusal' || !res.parsed_output) throw new Error("Claude n'a pas renvoyé de contenu exploitable.");
   return res.parsed_output;
 }
 
-interface GenOpts { apiKey: string; model: string; lang: Language; level: string; pack: Pack; topic?: string }
+interface GenOpts { apiKey: string; model: string; lang: Language; level: string; pack: Pack; topic?: string; signal?: AbortSignal }
 const about = (o: GenOpts) => `Langue : ${o.lang.name} (${o.lang.native}). Niveau : ${o.level}.${o.topic ? ` Sujet demandé : ${o.topic}.` : ''}`;
 
 export async function generateWords(o: GenOpts, n = 15): Promise<Word[]> {
   const known = o.pack.words.map((w) => w.term).join(', ');
   const out = await generate(o.apiKey, o.model, z.object({ words: z.array(WordZ) }),
-    `${about(o)}\nPropose ${n} nouveaux mots ou expressions utiles, regroupés sous un ou deux thèmes.\nMots déjà connus, à ne pas répéter : ${known || 'aucun'}.`);
+    `${about(o)}\nPropose ${n} nouveaux mots ou expressions utiles, ${o.topic ? `tous sur le thème « ${o.topic} » (mets ce thème dans le champ theme)` : 'regroupés sous un ou deux thèmes'}.\nMots déjà connus, à ne pas répéter : ${known || 'aucun'}.`, o.signal);
   return out.words.map((w) => ({
     id: `${o.lang.code}:${w.term}`, term: w.term, reading: blank(w.reading), fr: w.fr, theme: w.theme,
     example: blank(w.example), exampleFr: blank(w.exampleFr),
@@ -151,22 +151,42 @@ export async function generateWords(o: GenOpts, n = 15): Promise<Word[]> {
 export async function generateVerbs(o: GenOpts, n = 3): Promise<Verb[]> {
   const known = o.pack.verbs.map((v) => v.infinitive).join(', ');
   const out = await generate(o.apiKey, o.model, z.object({ verbs: z.array(VerbZ) }),
-    `${about(o)}\nPropose ${n} nouveaux verbes courants avec leurs formes essentielles (temps ou aspects principaux, toutes les personnes quand la langue conjugue selon la personne). Si la langue ne conjugue pas ses verbes, donne à la place les constructions qui expriment la négation, l'aspect et le futur, avec une courte phrase pour chacune.\nVerbes déjà présents, à ne pas répéter : ${known || 'aucun'}.`);
+    `${about(o)}\nPropose ${n} nouveaux verbes courants avec leurs formes essentielles (temps ou aspects principaux, toutes les personnes quand la langue conjugue selon la personne). Si la langue ne conjugue pas ses verbes, donne à la place les constructions qui expriment la négation, l'aspect et le futur, avec une courte phrase pour chacune.\nVerbes déjà présents, à ne pas répéter : ${known || 'aucun'}.`, o.signal);
   return out.verbs.map((v) => ({
     id: `${o.lang.code}:${v.infinitive}`, infinitive: v.infinitive, reading: blank(v.reading), fr: v.fr, note: blank(v.note),
     tenses: v.tenses.map((t) => ({ name: t.name, forms: t.forms.map((f) => ({ label: f.label, form: f.form, reading: blank(f.reading) })) })),
   }));
 }
 
-export async function generateLesson(o: GenOpts): Promise<Lesson> {
-  const known = o.pack.lessons.map((l) => l.title).join(' ; ');
-  const l = await generate(o.apiKey, o.model, LessonZ,
-    `${about(o)}\nRédige une nouvelle leçon qui fait suite aux précédentes : une introduction, trois ou quatre sections d'explication, cinq à huit phrases d'exemple avec leur traduction, et un quiz de trois ou quatre questions à choix multiples.\nLeçons déjà faites : ${known || 'aucune'}.`);
+export async function generateLesson(o: GenOpts, kind?: 'grammar'): Promise<Lesson> {
+  const known = o.pack.lessons.filter((l) => l.kind === kind).map((l) => l.title).join(' ; ');
+  const ask = kind === 'grammar'
+    ? `Rédige un nouveau point de grammaire précis et bien délimité (règle, exceptions, erreurs fréquentes d'un francophone), avec une introduction, trois ou quatre sections, cinq à huit phrases d'exemple traduites, et un quiz de trois ou quatre questions à choix multiples.\nPoints de grammaire déjà traités : ${known || 'aucun'}.`
+    : `Rédige une nouvelle leçon qui fait suite aux précédentes : une introduction, trois ou quatre sections d'explication, cinq à huit phrases d'exemple avec leur traduction, et un quiz de trois ou quatre questions à choix multiples.\nLeçons déjà faites : ${known || 'aucune'}.`;
+  const l = await generate(o.apiKey, o.model, LessonZ, `${about(o)}\n${ask}`, o.signal);
   return {
-    id: `${o.lang.code}:g${Date.now()}`, title: l.title, level: l.level, intro: l.intro, sections: l.sections,
+    id: `${o.lang.code}:${kind ? 'g' : 'x'}${Date.now()}`, kind, title: l.title, level: l.level, intro: l.intro, sections: l.sections,
     phrases: l.phrases.map((p) => ({ text: p.text, reading: blank(p.reading), fr: p.fr })),
     quiz: l.quiz.filter((q) => q.answer >= 0 && q.answer < q.choices.length),
   };
+}
+
+const THEMES = [
+  'Famille et relations', 'Nourriture et boissons', 'Voyage et transports', 'Maison et vie quotidienne',
+  'Travail et études', 'Santé et corps', 'Nature et météo', 'Vêtements et achats',
+  'Loisirs et culture', 'Émotions et caractère', 'Temps et calendrier', 'Ville et lieux publics',
+];
+
+export interface CourseStep { label: string; run: (o: GenOpts) => Promise<Partial<Pack>> }
+
+/** Les étapes du cours complet : 12 thèmes de 25 mots, 12 verbes, 6 leçons et 6 points de grammaire. */
+export function courseSteps(): CourseStep[] {
+  return [
+    ...THEMES.map((t): CourseStep => ({ label: `Vocabulaire : ${t}`, run: async (o) => ({ words: await generateWords({ ...o, topic: t }, 25) }) })),
+    ...[0, 1, 2].map((i): CourseStep => ({ label: `Conjugaison ${i + 1}/3`, run: async (o) => ({ verbs: await generateVerbs(o, 4) }) })),
+    ...[0, 1, 2, 3, 4, 5].map((i): CourseStep => ({ label: `Grammaire ${i + 1}/6`, run: async (o) => ({ lessons: [await generateLesson(o, 'grammar')] }) })),
+    ...[0, 1, 2, 3, 4, 5].map((i): CourseStep => ({ label: `Leçon ${i + 1}/6`, run: async (o) => ({ lessons: [await generateLesson(o)] }) })),
+  ];
 }
 
 /** Mise à jour complète d'une langue : mots, verbes et une leçon. */

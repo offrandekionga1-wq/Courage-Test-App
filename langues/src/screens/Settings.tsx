@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { allLanguages, DEFAULT_MODEL, getLanguage, getPack, mergeExtra, useStore } from '../store';
 import { BUILTIN_LANGUAGES, SUGGESTED_LANGUAGES } from '../data';
-import { explainError, generateUpdate } from '../claude';
+import { courseSteps, explainError, generateUpdate } from '../claude';
 import { isNative, openVoiceInstall, speak, ttsSupported, useVoiceStatus } from '../tts';
 import type { AppState, Language } from '../types';
 
@@ -77,6 +77,39 @@ export function Settings() {
       setMsg(explainError(e));
     } finally {
       setBusy('');
+    }
+  };
+
+  // Cours complet : étape par étape, chaque résultat est sauvegardé tout de suite, donc on peut arrêter à tout moment.
+  const [course, setCourse] = useState<{ i: number; n: number; label: string } | null>(null);
+  const abort = useRef<AbortController | null>(null);
+  const runCourse = async () => {
+    const code = state.active;
+    const steps = courseSteps();
+    const ctl = new AbortController();
+    abort.current = ctl;
+    setMsg('');
+    let pack = getPack(state, code);
+    let done = 0;
+    try {
+      for (let i = 0; i < steps.length; i++) {
+        if (ctl.signal.aborted) break;
+        setCourse({ i, n: steps.length, label: steps[i].label });
+        const add = await steps[i].run({ apiKey: state.apiKey, model: state.model, lang: active, level: state.level, pack, signal: ctl.signal });
+        pack = {
+          words: [...pack.words, ...(add.words ?? [])],
+          verbs: [...pack.verbs, ...(add.verbs ?? [])],
+          lessons: [...pack.lessons, ...(add.lessons ?? [])],
+        };
+        update((s) => mergeExtra(s, code, add));
+        done++;
+      }
+      setMsg(ctl.signal.aborted ? `Arrêté après ${done} étape${done > 1 ? 's' : ''} : ce qui est déjà généré est conservé.` : `Cours terminé : ${done} étapes.`);
+    } catch (e) {
+      setMsg(`${ctl.signal.aborted ? 'Arrêté' : explainError(e)}${done ? ` Les ${done} premières étapes sont conservées.` : ''}`);
+    } finally {
+      setCourse(null);
+      abort.current = null;
     }
   };
 
@@ -181,6 +214,19 @@ export function Settings() {
         <button className="btn full" disabled={!state.apiKey || !!busy} onClick={runUpdate}>
           {busy ? `⏳ ${busy}` : `✨ Générer du contenu en ${active.name.toLowerCase()}`}
         </button>
+        <button className="btn full" disabled={!state.apiKey || !!busy || !!course} onClick={runCourse}>
+          📚 Générer le cours complet en {active.name.toLowerCase()}
+        </button>
+        {course && (
+          <>
+            <div className="bar"><i style={{ width: `${(course.i / course.n) * 100}%` }} /></div>
+            <p className="hint">Étape {course.i + 1} / {course.n} : {course.label}</p>
+            <button className="btn warn" onClick={() => abort.current?.abort()}>Arrêter</button>
+          </>
+        )}
+        <p className="hint">
+          Le cours complet ajoute environ 300 mots, 12 verbes, 6 leçons et 6 points de grammaire, en 27 requêtes à Claude (de l'ordre de 1 à 5 $ selon le modèle choisi ; Sonnet et Haiku coûtent moins). Gardez l'écran allumé pendant la génération. Une fois créé, tout fonctionne hors ligne.
+        </p>
         <p className="hint">
           {extra ? `Contenu généré : ${extra.words.length} mots, ${extra.verbs.length} verbes, ${extra.lessons.length} leçons. ` : ''}
           {last ? `Dernière mise à jour : ${new Date(last).toLocaleDateString('fr-FR')}.` : ''}

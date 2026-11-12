@@ -33,6 +33,7 @@ export interface Lesson {
   id: string;
   title: string;
   level: string;
+  kind?: 'grammar';   // absent = leçon ordinaire
   intro: string;
   sections: { heading: string; body: string }[];
   phrases: Phrase[];
