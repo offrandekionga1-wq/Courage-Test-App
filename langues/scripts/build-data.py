@@ -18,11 +18,14 @@ Variables : CACHE_DIR (défaut scripts/.cache). Les téléchargements passent pa
 éventuel de l'environnement (HTTPS_PROXY, SSL_CERT_FILE).
 Le résultat est déterministe pour des fichiers sources identiques.
 """
-import bz2, gzip, io, json, os, re, sys, tarfile, time, unicodedata, urllib.request, zipfile
+import bz2, gzip, io, json, os, re, sys, tarfile, time, urllib.request, zipfile
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from conjugation import tenses_for  # noqa: E402  (après l'ajustement de sys.path)
 
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = Path(os.environ.get('CACHE_DIR', ROOT / 'scripts' / '.cache'))
@@ -49,8 +52,9 @@ LANGS = {
     'ja': dict(iso3='jpn', cjk=True),
     'zh': dict(iso3='cmn', freq='2018/zh_cn/zh_cn_50k.txt', fr='Chinois', cjk=True),
 }
-N_WORDS = 2000      # mots par langue au maximum
-N_SENT = 1200       # phrases par langue au maximum
+N_WORDS = 12000     # mots par langue au maximum
+N_SENT = 10000      # phrases par langue au maximum
+N_VERBS = 600       # verbes conjugués par langue au maximum
 MAX_LEN = {False: 70, True: 32}   # longueur maximale d'une phrase (caractères)
 MIN_LEN = {False: 14, True: 5}
 
@@ -317,7 +321,7 @@ def wikt_index(path: Path, wanted: set[str], glosser, cap_ok: bool = False):
 
 def words_from_wiktionary(code: str):
     c = LANGS[code]
-    freq = read_freq(code)[:12000]
+    freq = read_freq(code)[:60000]
     wanted = set(w.lower() for w in freq)
     fr = wikt_index(CACHE / f'wikt-fr/{c["fr"]}.jsonl', wanted, french_glosses, cap_ok=(code == 'de'))
     en = wikt_index(CACHE / f'wikt-en/{c["en"]}.jsonl', wanted, english_glosses) if c.get('en') else {}
@@ -422,6 +426,51 @@ def words_from_jmdict():
     return out
 
 
+# ───────────────────────── verbes conjugués ─────────────────────────
+def build_verbs(code: str, words: list[tuple]) -> list[dict]:
+    """Tables de conjugaison des verbes les plus courants, dans l'ordre de fréquence donné.
+
+    `words` fournit aussi les définitions françaises déjà retenues : on les préfère aux glosses
+    anglaises du Wiktionary quand le verbe y figure.
+    """
+    path = CACHE / f'conj/{code}.jsonl.gz'
+    if not path.exists():
+        return []
+    rank = {w[0].lower(): i for i, w in enumerate(words)}
+    french = {w[0].lower(): w[2] for w in words if not w[3]}
+    found: dict[str, dict] = {}
+    with gzip.open(path, 'rt', encoding='utf-8') as f:
+        for line in f:
+            try:
+                d = json.loads(line)
+            except ValueError:
+                continue
+            if d.get('p') != 'verb':
+                continue
+            w = d['w']
+            lw = w.lower()
+            if lw in found:
+                continue
+            # Les langues sans accord de personne (japonais, tagalog) ne rendent qu'un tableau
+            # de formes : on l'accepte s'il est assez fourni.
+            if code == 'ja' and not re.search(r'[\u3040-\u30ff\u4e00-\u9fff]', w):
+                continue
+            tenses, note = tenses_for(code, d['f'])
+            rows = sum(len(t['forms']) for t in tenses)
+            if len(tenses) < 2 and rows < 4:
+                continue
+            gloss = french.get(lw) or join_glosses([clean_gloss(g) for g in d.get('g', [])])
+            if not gloss or re.match(r'(?:obsolete|archaic|alternative|misspelling|synonym of|dated)', gloss, re.I):
+                continue
+            found[lw] = {'id': f'{code}:v:{w}', 'infinitive': w, 'fr': gloss, 'note': note,
+                         'tenses': tenses, 'rank': rank.get(lw, 10 ** 6),
+                         **({} if lw in french else {'en': 1})}
+    out = sorted(found.values(), key=lambda v: v['rank'])[:N_VERBS]
+    for v in out:
+        v.pop('rank')
+    return out
+
+
 # ───────────────────────── assemblage ─────────────────────────
 def build_language(code: str) -> dict:
     c = LANGS[code]
@@ -433,43 +482,49 @@ def build_language(code: str) -> dict:
         pass
     print(f'  {len(words)} mots, {len(sents)} phrases candidates', flush=True)
 
-    # Une phrase d'exemple par mot : la plus courte qui le contient.
-    chosen: dict[str, int] = {}
-    ex_for_word: list[int] = []
-    if cjk:
-        for term, reading, *_ in words:
-            keys = [term] + ([reading] if code == 'ja' and reading and not re.search(r'[一-鿿]', term) else [])
-            hit = -1
-            for n, (_i, text, *_r) in enumerate(sents):
-                if any(k in text for k in keys) and len(text) >= MIN_LEN[cjk] + 2:
-                    hit = n
-                    break
-            ex_for_word.append(hit)
-    else:
-        index = defaultdict(list)
-        for n, (_i, text, *_r) in enumerate(sents):
-            for t in set(tokens(text)):
-                if len(index[t]) < 40:
-                    index[t].append(n)
-        for term, *_ in words:
-            cand = index.get(term.lower(), [])
-            ex_for_word.append(cand[0] if cand else -1)
-    keep = [n for n in ex_for_word if n >= 0]
-    keep_set = set(keep)
-
-    # On complète avec des phrases riches en mots connus, jusqu'à N_SENT.
+    # Une phrase d'exemple par mot : la plus courte qui le contienne. Les phrases étant déjà
+    # triées par longueur, le premier candidat trouvé est le plus court.
     wordset = {w[0].lower() for w in words}
-    scored = []
-    for n, (_i, text, *_r) in enumerate(sents):
-        if n in keep_set:
-            continue
-        if cjk:
-            hits = sum(1 for w in wordset if len(w) > 1 and w in text) if len(text) < 20 else 0
-        else:
+    index: dict[str, list[int]] = defaultdict(list)
+    counts: list[int] = []            # nombre de mots connus par phrase, pour le classement
+    if cjk:
+        # Pas d'espaces : on relève les sous-chaînes de 1 à 4 caractères qui sont des mots connus.
+        for n, (_i, text, *_r) in enumerate(sents):
+            hits = set()
+            for i in range(len(text)):
+                for L in range(1, 5):
+                    sub = text[i:i + L]
+                    if len(sub) == L and sub in wordset:
+                        hits.add(sub)
+            for h in hits:
+                if len(index[h]) < 8:
+                    index[h].append(n)
+            counts.append(len(hits))
+    else:
+        for n, (_i, text, *_r) in enumerate(sents):
             tk = tokens(text)
-            hits = sum(1 for t in tk if t in wordset) / max(1, len(tk))
-        scored.append((-hits, len(text), n))
-    scored.sort()
+            seen_t = set(tk)
+            for t in seen_t:
+                if len(index[t]) < 8:
+                    index[t].append(n)
+            counts.append(round(100 * sum(1 for t in tk if t in wordset) / max(1, len(tk))))
+
+    ex_for_word: list[int] = []
+    for term, reading, *_ in words:
+        keys = [term.lower()]
+        if code == 'ja' and reading and not re.search(r'[\u4e00-\u9fff]', term):
+            keys.append(reading)
+        hit = -1
+        for k in keys:
+            cand = index.get(k, [])
+            if cand:
+                hit = cand[0]
+                break
+        ex_for_word.append(hit)
+    keep_set = {n for n in ex_for_word if n >= 0}
+
+    # On complète avec les phrases les plus riches en mots connus, jusqu'à N_SENT.
+    scored = sorted(((-counts[n], len(sents[n][1]), n) for n in range(len(sents)) if n not in keep_set))
     for _, _, n in scored:
         if len(keep_set) >= N_SENT:
             break
@@ -500,9 +555,11 @@ def build_language(code: str) -> dict:
             row.append(flag)
         out_words.append(row)
     names = sorted(authors, key=lambda a: authors[a])
-    data = {'v': 1, 'w': out_words, 's': sentences, 'a': names}
+    verbs = build_verbs(code, words)
+    data = {'v': 1, 'w': out_words, 's': sentences, 'a': names, 'vb': verbs}
     n_fr = sum(1 for r in out_words if len(r) < 5)
-    stats = dict(words=len(out_words), words_fr=n_fr, words_en=len(out_words) - n_fr, sentences=len(sentences), authors=len(names))
+    stats = dict(words=len(out_words), words_fr=n_fr, words_en=len(out_words) - n_fr,
+                 sentences=len(sentences), authors=len(names), verbs=len(verbs))
     print('  ', stats, flush=True)
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / f'{code}.json').write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
@@ -544,22 +601,32 @@ Remarques :
 """
 
 
-def cmd_build():
+def cmd_build(only: list[str] | None = None):
+    meta_path = OUT / 'meta.json'
     stats = {}
-    for code in LANGS:
+    # Reconstruire une seule langue garde les statistiques des autres.
+    if only and meta_path.exists():
+        try:
+            stats = json.loads(meta_path.read_text(encoding='utf-8')).get('stats', {})
+        except ValueError:
+            stats = {}
+    for code in (only or LANGS):
         stats[code] = build_language(code)
+    stats = {c: stats[c] for c in LANGS if c in stats}
     meta = {'generated': date.today().isoformat(), 'stats': stats}
     (OUT / 'meta.json').write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding='utf-8')
-    lines = [CREDITS_HEAD, '| Langue | Mots | dont glosses en anglais | Phrases | Auteurs Tatoeba |', '|---|---|---|---|---|']
+    lines = [CREDITS_HEAD, '| Langue | Mots | dont glosses en anglais | Phrases | Verbes conjugués | Auteurs Tatoeba |',
+             '|---|---|---|---|---|---|']
     for code, s in stats.items():
-        lines.append(f'| {code} | {s["words"]} | {s["words_en"]} | {s["sentences"]} | {s["authors"]} |')
+        lines.append(f'| {code} | {s["words"]} | {s["words_en"]} | {s["sentences"]} | {s["verbs"]} | {s["authors"]} |')
     lines.append(f'\nDonnées générées le {meta["generated"]}.\n')
     (ROOT / 'CREDITS.md').write_text('\n'.join(lines), encoding='utf-8')
 
 
 if __name__ == '__main__':
     what = sys.argv[1] if len(sys.argv) > 1 else 'all'
+    only = [c for c in sys.argv[2:] if c in LANGS] or None
     if what in ('fetch', 'all'):
         cmd_fetch()
     if what in ('build', 'all'):
-        cmd_build()
+        cmd_build(only)

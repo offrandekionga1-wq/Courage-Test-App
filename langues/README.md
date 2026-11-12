@@ -1,19 +1,25 @@
 # Polyglotte
 
-Application mobile (PWA) pour apprendre les langues, en français.
+Application mobile pour apprendre les langues, qui fonctionne **entièrement hors ligne** une fois installée.
 
-- **Langues intégrées** : anglais, japonais, lituanien, chinois, tagalog, espagnol, allemand, italien, portugais. D'autres s'ajoutent dans les réglages.
-- **Vocabulaire** : liste par thème, cartes à répétition espacée, exercice d'écriture, tracé au doigt pour les écritures non latines.
-- **Conjugaison** : tableaux et quiz. Pour le chinois et le tagalog, qui ne conjuguent pas selon la personne, ce sont les aspects et les constructions.
-- **Phrases** : plus d'un millier de phrases réelles par langue (Tatoeba) avec traduction française, écoute et quiz.
-- **Leçons** : explications, phrases à écouter, quiz.
-- **Discussion** : conversation simulée avec Claude, lue à voix haute, avec traduction et correction de vos phrases.
-- **Voix** : synthèse vocale du téléphone, dictée au micro quand le navigateur la propose.
-- **Données** : tout est enregistré sur le téléphone (`localStorage`), avec export et import d'une sauvegarde. L'appli fonctionne hors ligne, sauf Claude.
+- **Langues intégrées** : anglais, espagnol, allemand, italien, portugais, japonais, chinois, lituanien, tagalog. D'autres s'ajoutent dans les réglages.
+- **Langue de l'interface** : française par défaut, et traduisible dans les dix langues ci-dessus. Détectée d'après le téléphone au premier lancement, modifiable dans les réglages.
+- **Vocabulaire** : jusqu'à 12 000 mots par langue, classés par fréquence, avec définition, phrase d'exemple, cartes à répétition espacée, exercice d'écriture et tracé au doigt pour les écritures non latines.
+- **Phrases** : jusqu'à 10 000 phrases réelles par langue avec leur traduction, consultables, écoutables et jouables en quiz.
+- **Conjugaison** : jusqu'à 600 verbes par langue avec leurs tableaux complets, plus un quiz.
+- **Leçons** : des cours par situation (saluer, se déplacer, manger, urgences…) avec prononciation et quiz.
+- **Exercices** : des questions construites à partir des leçons que vous avez terminées et des mots déjà vus.
+- **Discussion** : conversation simulée avec l'IA de votre choix, lue à voix haute, avec traduction et correction.
+- **Voix** : synthèse vocale du téléphone, dictée au micro quand l'appareil la propose.
+- **Données** : tout est enregistré sur le téléphone (`localStorage`), avec export et import d'une sauvegarde.
 
-## Claude
+## Ce qui marche sans réseau, et ce qui n'en a pas besoin
 
-La discussion et la génération de nouveau contenu (mots, verbes, leçons, contenu complet d'une langue ajoutée) utilisent l'API Claude avec votre clé, saisie dans les réglages. La clé reste sur le téléphone. L'option « mise à jour automatique » ajoute de nouveaux mots une fois par jour à l'ouverture.
+Tout le contenu (mots, phrases, conjugaisons, leçons, exercices, voix) est embarqué dans l'application : **aucune connexion n'est nécessaire**. Seules la discussion avec l'IA et la génération de contenu supplémentaire passent par le réseau.
+
+## Intelligence artificielle
+
+La discussion et la génération de contenu acceptent plusieurs fournisseurs, au choix dans les réglages : **Claude (Anthropic), Gemini (Google), ChatGPT (OpenAI), Mistral, DeepSeek, Groq et OpenRouter**. Vous entrez la clé d'API du fournisseur que vous utilisez ; elle reste sur le téléphone et n'est envoyée qu'à ce fournisseur. L'usage est facturé sur votre compte chez lui. Une clé par fournisseur est conservée, pour pouvoir changer sans la ressaisir.
 
 ## Installer sur un téléphone Android
 
@@ -35,26 +41,54 @@ Sans ce secret, chaque APK a une signature différente et il faut désinstaller 
 
 ## Voix
 
-L'appli utilise le moteur de synthèse vocale d'Android. Une appli ne peut pas installer seule une voix : si la voix d'une langue manque, Polyglotte le détecte (accueil et réglages) et ouvre l'écran d'installation du téléphone, où il suffit de télécharger la voix.
+L'appli utilise le moteur de synthèse vocale d'Android. **Une application ne peut pas installer une voix elle-même** : Android ne le permet pas. Polyglotte détecte les voix manquantes, le signale au premier lancement et sur l'accueil, et ouvre l'écran d'installation du téléphone, où il suffit de télécharger la voix voulue.
 
 ## Contenu
 
-- Intégré, écrit à la main : 99 mots, 4 verbes, 3 leçons et 4 points de grammaire par langue. **Ce contenu a été rédigé par Claude et n'a pas été relu par des locuteurs natifs**, notamment pour le lituanien et le tagalog : à vérifier avant de s'y fier.
-- Intégré, issu de sources libres : jusqu'à 2 000 mots avec définition (français quand c'est possible, sinon anglais, marqué [EN]) et 1 200 à 1 900 phrases d'exemple par langue. Le lituanien et le tagalog ont peu de phrases traduites en français (171 et 854) et surtout des définitions anglaises, faute de sources françaises.
-- Licences et crédits : `CREDITS.md`, `credits/` (auteurs Tatoeba) et, dans l'appli, Réglages → Sources et licences.
-- Généré par Claude : réglages, **Générer le cours complet** (environ 300 mots, 12 verbes, 6 leçons, 6 points de grammaire). Chaque étape est sauvegardée aussitôt.
+### Issu de sources libres
+
+| Langue | Mots | Phrases | Verbes conjugués | Leçons |
+|---|---|---|---|---|
+| Anglais | 12 000 | 10 071 | 549 | 11 |
+| Espagnol | 9 976 | 10 000 | 600 | 14 |
+| Allemand | 12 000 | 10 000 | 600 | 15 |
+| Italien | 12 000 | 10 000 | 600 | 13 |
+| Portugais | 9 150 | 10 000 | 600 | 14 |
+| Japonais | 12 000 | 10 000 | 600 | 14 |
+| Chinois | 12 000 | 10 000 | — | 13 |
+| Lituanien | 3 159 | 171 | — | 14 |
+| Tagalog | 1 894 | 854 | 600 | 14 |
+
+Chiffres détaillés et à jour dans `CREDITS.md` et dans l'appli (Réglages → Sources et licences).
+
+### Limites à connaître
+
+- **Le contenu intégré est en français.** Changer la langue de l'application traduit l'interface, pas les définitions ni les traductions. L'IA peut traduire une leçon à la demande.
+- **Définitions en anglais** là où le Wiktionnaire français n'a pas d'entrée : massif pour le lituanien et le tagalog, et pour une partie du chinois. Elles sont marquées « EN » dans l'appli.
+- **Lituanien et tagalog** : peu de phrases traduites en français sur Tatoeba (171 et 854). Le lituanien n'a pas de conjugaison générée, car l'export du Wiktionary marque ses formes personnelles comme non reconnues ; les mettre dans l'appli aurait risqué d'enseigner des formes fausses.
+- **Chinois** : pas de conjugaison, la langue n'en a pas ; les constructions correspondantes sont dans les leçons.
+- **Contenu écrit à la main non relu** : les mots de départ, conjugaisons, leçons et points de grammaire livrés avec l'appli ont été rédigés par une IA, **sans relecture par un locuteur natif**. C'est en particulier le cas du lituanien et du tagalog. Même réserve pour les traductions de l'interface dans les langues autres que le français.
+- **Qualité des définitions** : elles viennent de contributeurs bénévoles et ne sont pas relues une à une ; certaines sont surprenantes ou trop générales.
+
+### Généré à la demande
+
+Réglages, **Générer le cours complet** : environ 300 mots, 12 verbes, 6 leçons et 6 points de grammaire, en 27 requêtes au fournisseur d'IA choisi. Chaque étape est sauvegardée aussitôt et fonctionne ensuite hors ligne.
 
 ## Régénérer les données libres
 
-Les fichiers `src/dict/*.json` sont produits par un script (Python 3, bibliothèque standard) :
+Les fichiers `src/dict/*.json` sont produits par des scripts Python (bibliothèque standard uniquement) :
 
 ```bash
 cd langues
-python3 -I scripts/build-data.py fetch    # télécharge ~3 Go de sources dans scripts/.cache (ignoré par git)
-python3 -I scripts/build-data.py build    # écrit src/dict/*.json, CREDITS.md, credits/*.txt
+python3 -I scripts/fetch-conjugations.py     # tables de conjugaison (gros fichiers traités en flux)
+python3 -I scripts/build-data.py fetch       # sources Tatoeba, JMdict, CC-CEDICT, Wiktionnaire, fréquences
+python3 -I scripts/build-data.py build       # écrit src/dict/*.json, CREDITS.md, credits/*.txt
+python3 -I scripts/build-courses.py          # leçons tirées des guides Wikivoyage
 ```
 
-Sources : Tatoeba (CC BY 2.0 FR), JMdict (CC BY-SA 4.0), CC-CEDICT (CC BY-SA 4.0), Wiktionnaire et Wiktionary via kaikki.org (CC BY-SA 4.0), FrequencyWords (CC BY-SA 4.0). Les phrases sans auteur sont écartées. Chaque langue est un fragment JavaScript chargé à la demande et embarqué dans l'application (aucun réseau requis, dans l'APK comme en PWA après le premier chargement).
+`CACHE_DIR` choisit où sont stockées les sources téléchargées (défaut : `scripts/.cache`, ignoré par git). `build-data.py build fr es` ne reconstruit que les langues indiquées.
+
+Sources : Tatoeba (CC BY 2.0 FR), Wikivoyage (CC BY-SA 4.0), JMdict (CC BY-SA 4.0), CC-CEDICT (CC BY-SA 4.0), Wiktionnaire et Wiktionary via kaikki.org (CC BY-SA 4.0), FrequencyWords (CC BY-SA 4.0). Les phrases sans auteur sont écartées, faute de pouvoir citer leur source. Chaque langue forme un fragment chargé à la demande, embarqué dans l'application.
 
 ## Développer
 
@@ -68,11 +102,14 @@ npx cap sync android                # copie dist/ dans le projet Android
 
 ## Organisation
 
-- `src/data/` : contenu écrit à la main (`grammar.ts` pour la grammaire, `extra.ts` pour le second lot de mots, `more.ts` pour l'espagnol, l'allemand, l'italien et le portugais)
-- `src/dict/` : dictionnaires et phrases générés par `scripts/build-data.py` (un JSON par langue)
-- `scripts/` : script de génération des données
+- `src/data/` : contenu écrit à la main (`grammar.ts`, `extra.ts`, `more.ts` pour espagnol, allemand, italien, portugais)
+- `src/dict/` : dictionnaires, phrases, conjugaisons et cours générés par les scripts (un JSON par langue)
+- `src/locales/` : traductions de l'interface, une par langue
+- `src/i18n.ts` : chaînes de référence (français) et chargement des traductions
+- `src/ai.ts` : couche commune aux fournisseurs d'IA ; `src/generate.ts` : conversation et génération de contenu
+- `src/dict.ts`, `src/course.ts` : chargement paresseux du contenu embarqué
 - `src/store.tsx` : état, sauvegarde locale, répétition espacée
-- `src/claude.ts` : appels à l'API Claude
-- `src/tts.ts` : voix et dictée (natif Android ou navigateur)
+- `src/icons.tsx`, `src/styles.css` : icônes dessinées et feuille de styles
 - `src/screens/` : les écrans
+- `scripts/` : génération des données
 - `android/` : projet Android généré par Capacitor

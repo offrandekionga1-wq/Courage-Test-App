@@ -1,35 +1,50 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AppState, Language, Pack } from './types';
 import { BUILTIN_LANGUAGES, SEED } from './data';
+import { defaultModel } from './ai';
 
 const KEY = 'polyglotte.v1';
-export const DEFAULT_MODEL = 'claude-opus-5-5';
+export const DEFAULT_PROVIDER = 'anthropic';
 
 const initial: AppState = {
   version: 1,
+  provider: DEFAULT_PROVIDER,
+  keys: {},
   apiKey: '',
-  model: DEFAULT_MODEL,
+  uiLang: '',
+  model: defaultModel(DEFAULT_PROVIDER),
   level: 'Débutant',
   voiceRate: 0.9,
   autoUpdate: false,
-  learning: ['en', 'ja', 'lt', 'zh', 'tl'],
+  learning: ['en', 'ja', 'lt', 'zh', 'tl', 'es', 'de', 'it', 'pt'],
   active: 'en',
   customLanguages: [],
   extra: {},
   srs: {},
   lessonsDone: {},
+  lessonScores: {},
   chats: {},
   lastUpdate: {},
   streak: { day: '', count: 0 },
+  voiceAsked: false,
 };
 
 function load(): AppState {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { ...initial, ...JSON.parse(raw) };
+    if (!raw) return initial;
+    const saved = { ...initial, ...JSON.parse(raw) } as AppState;
+    // Reprise des sauvegardes d'avant le choix du fournisseur : la clé Claude devient celle d'Anthropic.
+    if (saved.apiKey && !saved.keys?.anthropic) {
+      saved.keys = { ...saved.keys, anthropic: saved.apiKey };
+    }
+    return saved;
   } catch { /* stockage indisponible ou corrompu : on repart de zéro */ }
   return initial;
 }
+
+/** Clé d'API du fournisseur en cours. */
+export const activeKey = (s: AppState): string => s.keys[s.provider] ?? '';
 
 type Update = (fn: (s: AppState) => AppState) => void;
 const Ctx = createContext<{ state: AppState; update: Update } | null>(null);

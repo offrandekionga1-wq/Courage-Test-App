@@ -27,13 +27,13 @@ export interface Verb {
   tenses: Tense[];
 }
 
-export interface Phrase { text: string; reading?: string; fr: string }
+export interface Phrase { text: string; reading?: string; fr: string; en?: boolean }
 export interface QuizItem { q: string; choices: string[]; answer: number }
 export interface Lesson {
   id: string;
   title: string;
   level: string;
-  kind?: 'grammar';   // absent = leçon ordinaire
+  kind?: 'grammar' | 'course';   // absent = leçon ordinaire ; 'course' = tirée d'un guide libre
   intro: string;
   sections: { heading: string; body: string }[];
   phrases: Phrase[];
@@ -51,9 +51,15 @@ export interface ChatTurn {
 
 export interface Srs { box: number; due: number }
 
+/** Progression d'un quiz de leçon, pour bâtir les exercices. */
+export interface LessonScore { ok: number; n: number; at: number }
+
 export interface AppState {
   version: 1;
-  apiKey: string;
+  provider: string;                // identifiant du fournisseur d'IA
+  keys: Record<string, string>;    // une clé par fournisseur, gardée en changeant de fournisseur
+  apiKey: string;                  // ancienne clé Claude, reprise au premier lancement
+  uiLang: string;                  // langue de l'interface ; vide = celle du téléphone
   model: string;
   level: string;
   voiceRate: number;
@@ -64,7 +70,9 @@ export interface AppState {
   extra: Record<string, Pack>;    // contenu généré par Claude, par langue
   srs: Record<string, Srs>;       // progression par mot
   lessonsDone: Record<string, true>;
+  lessonScores: Record<string, LessonScore>;
   chats: Record<string, { scenario: string; turns: ChatTurn[] }>;
   lastUpdate: Record<string, number>;
   streak: { day: string; count: number };
+  voiceAsked: boolean;              // l'installation des voix a déjà été proposée
 }

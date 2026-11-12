@@ -1,72 +1,110 @@
 import { allLanguages, useStore } from '../store';
 import { useDict } from '../dict';
+import { useT } from '../hooks';
+import { IconWarn } from '../icons';
 import meta from '../dict/meta.json';
+import courses from '../dict/courses-meta.json';
+
+interface Stat { words: number; words_en: number; sentences: number; verbs: number; authors: number }
 
 const SOURCES: { name: string; use: string; licence: string; url: string; licenceUrl: string }[] = [
-  { name: 'Tatoeba', use: "Phrases d'exemple et leurs traductions françaises. Chaque phrase est attribuée à ses auteurs.", licence: 'CC BY 2.0 FR', url: 'https://tatoeba.org', licenceUrl: 'https://creativecommons.org/licenses/by/2.0/fr/' },
-  { name: 'JMdict (EDRDG)', use: 'Dictionnaire japonais, glosses françaises.', licence: 'CC BY-SA 4.0', url: 'https://www.edrdg.org/jmdict/j_jmdict.html', licenceUrl: 'https://www.edrdg.org/edrdg/licence.html' },
-  { name: 'CC-CEDICT', use: 'Dictionnaire chinois : pinyin et glosses anglaises de repli.', licence: 'CC BY-SA 4.0', url: 'https://cc-cedict.org', licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0/deed.fr' },
-  { name: 'Wiktionnaire (kaikki.org / wiktextract)', use: 'Glosses françaises des mots.', licence: 'CC BY-SA 4.0 et GFDL', url: 'https://fr.wiktionary.org', licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0/deed.fr' },
-  { name: 'Wiktionary anglais (kaikki.org)', use: 'Glosses anglaises de repli, pour le lituanien et le tagalog uniquement.', licence: 'CC BY-SA 4.0 et GFDL', url: 'https://en.wiktionary.org', licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0/deed.fr' },
-  { name: 'FrequencyWords (hermitdave)', use: 'Classement des mots par fréquence.', licence: 'CC BY-SA 4.0', url: 'https://github.com/hermitdave/FrequencyWords', licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0/deed.fr' },
+  {
+    name: 'Tatoeba',
+    use: "Phrases d'exemple et leurs traductions. Chaque phrase est attribuée à ses auteurs.",
+    licence: 'CC BY 2.0 FR', url: 'https://tatoeba.org',
+    licenceUrl: 'https://creativecommons.org/licenses/by/2.0/fr/',
+  },
+  {
+    name: 'Wikivoyage',
+    use: 'Guides de conversation : les leçons par situation, avec leur prononciation.',
+    licence: 'CC BY-SA 4.0', url: 'https://fr.wikivoyage.org',
+    licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0/deed.fr',
+  },
+  {
+    name: 'JMdict (EDRDG)',
+    use: 'Dictionnaire japonais, définitions françaises.',
+    licence: 'CC BY-SA 4.0', url: 'https://www.edrdg.org/jmdict/j_jmdict.html',
+    licenceUrl: 'https://www.edrdg.org/edrdg/licence.html',
+  },
+  {
+    name: 'CC-CEDICT',
+    use: 'Dictionnaire chinois : pinyin et définitions anglaises de repli.',
+    licence: 'CC BY-SA 4.0', url: 'https://cc-cedict.org',
+    licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0/deed.fr',
+  },
+  {
+    name: 'Wiktionnaire et Wiktionary (via kaikki.org)',
+    use: 'Définitions des mots et tables de conjugaison.',
+    licence: 'CC BY-SA 4.0 et GFDL', url: 'https://fr.wiktionary.org',
+    licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0/deed.fr',
+  },
+  {
+    name: 'FrequencyWords (hermitdave)',
+    use: 'Classement des mots par fréquence.',
+    licence: 'CC BY-SA 4.0', url: 'https://github.com/hermitdave/FrequencyWords',
+    licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0/deed.fr',
+  },
 ];
 
 export function Sources({ onBack }: { onBack: () => void }) {
   const { state } = useStore();
+  const { t } = useT();
   const langs = allLanguages(state);
   const dict = useDict(state.active);
-  const stats = meta.stats as Record<string, { words: number; words_en: number; sentences: number; authors: number }>;
-  const link = (href: string, text: string) => <a href={href} target="_blank" rel="noreferrer">{text}</a>;
+  const stats = meta.stats as Record<string, Stat>;
+  const courseStats = courses as Record<string, { lessons: number; phrases: number }>;
 
   return (
     <>
-      <button className="btn ghost" onClick={onBack}>‹ Retour aux réglages</button>
+      <button className="btn ghost" onClick={onBack} style={{ alignSelf: 'flex-start' }}>‹ {t('common.back')}</button>
+
       <section className="card">
-        <h3>Sources et licences</h3>
-        <p className="hint">
-          Les mots et phrases intégrés viennent de projets libres. Les fichiers de données de l'appli sont des œuvres dérivées
-          diffusées sous licence CC BY-SA 4.0. Le script qui les produit (<code>scripts/build-data.py</code>) et le fichier
-          <code> CREDITS.md</code> sont dans le dépôt du projet.
-        </p>
+        <h3>{t('sources.title')}</h3>
+        <p className="hint">{t('sources.intro')}</p>
         {SOURCES.map((s) => (
           <div key={s.name} className="word">
-            <b>{link(s.url, s.name)}</b>
+            <b><a href={s.url} target="_blank" rel="noreferrer">{s.name}</a></b>
             <small className="block">{s.use}</small>
-            <small className="block">Licence : {link(s.licenceUrl, s.licence)}</small>
+            <small className="block">
+              {t('sources.licence')} : <a href={s.licenceUrl} target="_blank" rel="noreferrer">{s.licence}</a>
+            </small>
           </div>
         ))}
       </section>
 
       <section className="card">
-        <h3>Contenu par langue</h3>
-        <p className="hint">Données générées le {meta.generated}.</p>
+        <h3>{t('sources.byLanguage')}</h3>
+        <p className="hint">{t('sources.generatedOn', { date: meta.generated })}</p>
         {langs.filter((l) => stats[l.code]).map((l) => {
           const s = stats[l.code];
+          const c = courseStats[l.code];
           return (
-            <div key={l.code} className="row between small">
-              <span style={{ whiteSpace: 'nowrap' }}>{l.flag} {l.name}</span>
-              <span>{s.words} mots{s.words_en ? ` (dont ${s.words_en} en anglais)` : ''} · {s.sentences} phrases</span>
+            <div key={l.code} className="word">
+              <b>{l.flag} {l.name}</b>
+              <small className="block">
+                {s.words.toLocaleString()} {t('sources.words')}
+                {s.words_en ? ` (${s.words_en.toLocaleString()} EN)` : ''}
+                {' · '}{s.sentences.toLocaleString()} {t('sources.sentences')}
+                {s.verbs ? ` · ${s.verbs} ${t('sources.verbs')}` : ''}
+                {c ? ` · ${c.lessons} ${t('sources.lessons')}` : ''}
+              </small>
             </div>
           );
         })}
-        <p className="hint">Les définitions marquées [EN] sont en anglais, faute d'entrée française. Ces contenus viennent de contributeurs bénévoles et n'ont pas tous été relus.</p>
+        <p className="hint">{t('sources.englishNote')}</p>
+        <p className="hint">{t('sources.contentLang')}</p>
       </section>
 
       <section className="card note">
-        <b>Contenu écrit à la main</b>
-        <p className="hint">
-          Les mots de départ, conjugaisons, leçons et points de grammaire livrés avec l'appli ont été rédigés par Claude, sans relecture
-          par des locuteurs natifs. C'est en particulier le cas du lituanien et du tagalog : à prendre avec prudence et à confronter à une
-          source fiable.
-        </p>
+        <h3><IconWarn size={16} /> {t('sources.handwritten')}</h3>
+        <p className="hint">{t('sources.handwrittenNote')}</p>
       </section>
 
       {dict && dict.authors.length > 0 && (
         <section className="card">
-          <h3>Auteurs des phrases ({dict.authors.length})</h3>
-          <p className="hint">Contributeurs Tatoeba des phrases de la langue en cours, que vous pouvez consulter sous « Phrases ».</p>
+          <h3>{t('sources.authorsOf', { n: dict.authors.length })}</h3>
           <details>
-            <summary>Afficher la liste</summary>
+            <summary className="hint">{t('sources.showList')}</summary>
             <p className="hint">{[...dict.authors].sort((a, b) => a.localeCompare(b)).join(', ')}</p>
           </details>
         </section>

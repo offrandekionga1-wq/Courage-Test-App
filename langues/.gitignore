@@ -5,3 +5,4 @@ dist
 # le .gitignore racine (ancienne appli) ignore "android" : on le réactive ici
 !android
 scripts/.cache
+scripts/__pycache__

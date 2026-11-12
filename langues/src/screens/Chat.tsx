@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { touchStreak, useStore } from '../store';
-import { useActive } from '../ui';
-import { chat, explainError, SCENARIOS } from '../claude';
+import { activeKey, touchStreak, useStore } from '../store';
+import { useActive, useT } from '../hooks';
+import { chat, explainError, SCENARIOS } from '../generate';
 import { dictationSupported, listen, speak, stopSpeaking } from '../tts';
+import { IconChat, IconMic, IconNext, IconPen, IconSpeaker } from '../icons';
 import type { ChatTurn } from '../types';
 
 export function Chat({ onSettings }: { onSettings: () => void }) {
   const { state, update } = useStore();
+  const { t, locale } = useT();
   const { lang } = useActive();
   const saved = state.chats[lang.code];
+  const key = activeKey(state);
   const [scenario, setScenario] = useState(saved?.scenario ?? SCENARIOS[0]);
   const [turns, setTurns] = useState<ChatTurn[]>(saved?.turns ?? []);
   const [partial, setPartial] = useState<ChatTurn | null>(null);
@@ -23,14 +26,17 @@ export function Chat({ onSettings }: { onSettings: () => void }) {
   useEffect(() => { endRef.current?.scrollIntoView({ block: 'end' }); }, [turns, partial]);
   useEffect(() => () => { stopSpeaking(); stopRef.current(); }, []);
 
-  const save = (t: ChatTurn[], sc = scenario) =>
-    update((s) => touchStreak({ ...s, chats: { ...s.chats, [lang.code]: { scenario: sc, turns: t } } }));
+  const save = (next: ChatTurn[], sc = scenario) =>
+    update((s) => touchStreak({ ...s, chats: { ...s.chats, [lang.code]: { scenario: sc, turns: next } } }));
 
   const ask = async (history: ChatTurn[]) => {
     setBusy(true);
     setError('');
     try {
-      const reply = await chat({ apiKey: state.apiKey, model: state.model, lang, level: state.level, scenario, turns: history }, setPartial);
+      const reply = await chat({
+        provider: state.provider, apiKey: key, model: state.model,
+        lang, level: state.level, scenario, turns: history, uiLang: locale,
+      }, setPartial);
       const next = [...history, reply];
       setTurns(next);
       save(next);
@@ -44,9 +50,9 @@ export function Chat({ onSettings }: { onSettings: () => void }) {
   };
 
   const send = () => {
-    const t = text.trim();
-    if (!t || busy) return;
-    const history: ChatTurn[] = [...turns, { role: 'user', text: t }];
+    const value = text.trim();
+    if (!value || busy) return;
+    const history: ChatTurn[] = [...turns, { role: 'user', text: value }];
     setTurns(history);
     setText('');
     ask(history);
@@ -55,16 +61,16 @@ export function Chat({ onSettings }: { onSettings: () => void }) {
   const mic = () => {
     if (listening) { stopRef.current(); return; }
     setListening(true);
-    stopRef.current = listen(lang.tts, (t) => setText((cur) => (cur ? `${cur} ${t}` : t)), () => setListening(false));
+    stopRef.current = listen(lang.tts, (s) => setText((cur) => (cur ? `${cur} ${s}` : s)), () => setListening(false));
   };
 
-  if (!state.apiKey) {
+  if (!key) {
     return (
       <section className="card center">
-        <div className="big-emoji">💬</div>
-        <h3>Discuter avec Claude</h3>
-        <p className="hint">Claude joue un interlocuteur natif, vous répond à voix haute et corrige vos phrases. Il faut d'abord ajouter votre clé API Claude.</p>
-        <button className="btn" onClick={onSettings}>Ouvrir les réglages</button>
+        <span className="icon-btn big"><IconChat size={26} /></span>
+        <h3>{t('nav.chat')}</h3>
+        <p className="hint">{t('chat.needKey')}</p>
+        <button className="btn" onClick={onSettings}>{t('nav.settings')}</button>
       </section>
     );
   }
@@ -76,49 +82,62 @@ export function Chat({ onSettings }: { onSettings: () => void }) {
   return (
     <div className="chat">
       <div className="row gap">
-        <select className="input grow" value={scenario} disabled={busy} onChange={(e) => { setScenario(e.target.value); setTurns([]); save([], e.target.value); }}>
+        <select
+          className="input grow" value={scenario} disabled={busy}
+          onChange={(e) => { setScenario(e.target.value); setTurns([]); save([], e.target.value); }}
+        >
           {SCENARIOS.map((s) => <option key={s}>{s}</option>)}
         </select>
-        <button className="btn ghost" onClick={reset} disabled={busy || !turns.length}>Effacer</button>
+        <button className="btn ghost sm" onClick={reset} disabled={busy || !turns.length}>{t('chat.newChat')}</button>
       </div>
 
-      <div className="msgs">
-        {!shown.length && (
-          <div className="center">
-            <p className="hint">Écrivez en {lang.name.toLowerCase()} (ou en français si vous bloquez), ou laissez Claude commencer.</p>
-            <button className="btn" disabled={busy} onClick={() => ask([])}>Claude commence</button>
+      {!shown.length && (
+        <section className="card center">
+          <p className="hint">{t('chat.placeholder')}</p>
+          <button className="btn" disabled={busy} onClick={() => ask([])}>{t('practice.start')}</button>
+        </section>
+      )}
+
+      {shown.map((turn, i) => (
+        <div key={i} className="chat">
+          {turn.fix && <div className="fix"><IconPen size={14} /> {turn.fix}</div>}
+          <div className={`bubble ${turn.role === 'user' ? 'me' : 'them'}`}>
+            <span>{turn.text || '…'}</span>
+            {turn.role === 'assistant' && turn.text && (
+              <div className="row gap" style={{ marginTop: 6 }}>
+                <button className="icon-btn" aria-label={t('chat.listen')} onClick={() => speak(turn.text, lang.tts, state.voiceRate)}>
+                  <IconSpeaker size={18} />
+                </button>
+                {turn.fr && (
+                  <button className="btn ghost sm" onClick={() => setShowFr((m) => ({ ...m, [i]: !m[i] }))}>
+                    {showFr[i] ? t('common.close') : t('lessons.translateWithAI').split(' ')[0]}
+                  </button>
+                )}
+              </div>
+            )}
+            {showFr[i] && turn.fr && <div className="tr">{turn.fr}</div>}
           </div>
-        )}
-        {shown.map((t, i) => (
-          <div key={i} className={`msg ${t.role}`}>
-            {t.fix && <div className="fix">✏️ {t.fix}</div>}
-            <div className="bubble">
-              <span className="term">{t.text || '…'}</span>
-              {t.role === 'assistant' && t.text && (
-                <div className="msg-tools">
-                  <button onClick={() => speak(t.text, lang.tts, state.voiceRate)}>🔊 Écouter</button>
-                  {t.fr && <button onClick={() => setShowFr((m) => ({ ...m, [i]: !m[i] }))}>{showFr[i] ? 'Masquer' : 'Traduire'}</button>}
-                </div>
-              )}
-              {showFr[i] && t.fr && <small className="block">{t.fr}</small>}
-            </div>
-          </div>
-        ))}
-        {busy && !partial && <div className="msg assistant"><div className="bubble">…</div></div>}
-        {error && <p className="verdict ko">{error}</p>}
-        {pending && <button className="btn ghost" onClick={() => ask(turns)}>Réessayer</button>}
-        <div ref={endRef} />
-      </div>
+        </div>
+      ))}
+
+      {busy && !partial && <div className="bubble them">{t('chat.thinking')}</div>}
+      {error && <p className="verdict ko">{error}</p>}
+      {pending && <button className="btn ghost" onClick={() => ask(turns)}>{t('common.retry')}</button>}
+      <div ref={endRef} />
 
       <div className="composer">
         {dictationSupported() && (
-          <button className={`icon-btn big${listening ? ' rec' : ''}`} aria-label="Dicter" onClick={mic}>🎤</button>
+          <button className="icon-btn big" aria-label={t('chat.send')} onClick={mic} style={listening ? { color: 'var(--ko)' } : undefined}>
+            <IconMic size={22} />
+          </button>
         )}
         <input
-          className="input grow" value={text} placeholder={`Votre message en ${lang.name.toLowerCase()}…`}
+          className="input grow" value={text} placeholder={t('chat.placeholder')}
           onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()}
         />
-        <button className="btn" disabled={busy || !text.trim()} onClick={send}>Envoyer</button>
+        <button className="btn" disabled={busy || !text.trim()} onClick={send} aria-label={t('chat.send')}>
+          <IconNext size={20} />
+        </button>
       </div>
     </div>
   );

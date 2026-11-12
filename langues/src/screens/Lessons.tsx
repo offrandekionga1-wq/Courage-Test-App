@@ -1,120 +1,200 @@
-import { useState } from 'react';
-import { touchStreak, useStore } from '../store';
-import { Empty, GenerateBar, SpeakBtn, useActive } from '../ui';
-import { generateLesson } from '../claude';
-import type { Lesson } from '../types';
+import { useMemo, useState } from 'react';
+import { activeKey, touchStreak, useStore } from '../store';
+import { Empty, EnTag, GenerateBar, SpeakBtn } from '../ui';
+import { useActive, useT } from '../hooks';
+import { generateLesson, translatePhrases } from '../generate';
+import { IconCheck, IconNext, IconSpark } from '../icons';
+import type { Lesson, Phrase } from '../types';
+
+type Kind = 'course' | 'lesson' | 'grammar';
 
 export function Lessons({ onSettings }: { onSettings: () => void }) {
   const { state } = useStore();
-  const { lang, pack } = useActive();
+  const { t } = useT();
+  const { lang, pack, lessons, loading } = useActive();
   const [openId, setOpenId] = useState<string | null>(null);
   const [topic, setTopic] = useState('');
-  const [tab, setTab] = useState<'lesson' | 'grammar'>('lesson');
-  const grammarTab = tab === 'grammar';
-  const shown = pack.lessons.filter((l) => (l.kind === 'grammar') === grammarTab);
-  const current = pack.lessons.find((l) => l.id === openId);
+  const [kind, setKind] = useState<Kind>('course');
 
+  const shown = useMemo(() => lessons.filter((l) => (l.kind ?? 'lesson') === kind), [lessons, kind]);
+  const current = lessons.find((l) => l.id === openId);
   if (current) return <LessonView lesson={current} onBack={() => setOpenId(null)} />;
+
+  const tabs: [Kind, string][] = [['course', 'lessons.course'], ['lesson', 'lessons.lesson'], ['grammar', 'lessons.grammar']];
 
   return (
     <>
       <div className="seg">
-        <button className={!grammarTab ? 'on' : ''} onClick={() => setTab('lesson')}>Leçons</button>
-        <button className={grammarTab ? 'on' : ''} onClick={() => setTab('grammar')}>Grammaire</button>
+        {tabs.map(([k, key]) => (
+          <button key={k} className={kind === k ? 'on' : ''} onClick={() => setKind(k)}>{t(key)}</button>
+        ))}
       </div>
-      {!shown.length && <Empty>{grammarTab ? 'Aucun point de grammaire' : 'Aucune leçon'} pour cette langue. Générez-en avec Claude ci-dessous.</Empty>}
+
+      {loading && !shown.length && <Empty>{t('common.loading')}</Empty>}
+      {!loading && !shown.length && <Empty>{t('lessons.empty')}</Empty>}
+
       {shown.map((l, i) => (
         <button key={l.id} className="card lesson-item" onClick={() => setOpenId(l.id)}>
-          <span className={`num${state.lessonsDone[l.id] ? ' ok' : ''}`}>{state.lessonsDone[l.id] ? '✓' : i + 1}</span>
-          <div className="grow left">
+          <span className={`num${state.lessonsDone[l.id] ? ' ok' : ''}`}>
+            {state.lessonsDone[l.id] ? <IconCheck size={16} /> : i + 1}
+          </span>
+          <div className="grow">
             <b>{l.title}</b>
-            <small className="block">{l.level}</small>
+            <small className="block">
+              {l.level}
+              {l.phrases.length ? ` · ${l.phrases.length}` : ''}
+              {state.lessonScores[l.id] ? ` · ${state.lessonScores[l.id].ok}/${state.lessonScores[l.id].n}` : ''}
+            </small>
           </div>
-          <span className="chev">›</span>
+          <span className="chev"><IconNext size={18} /></span>
         </button>
       ))}
-      <section className="card">
-        <input className="input" placeholder={grammarTab ? 'Sujet souhaité (facultatif) : le subjonctif…' : 'Sujet souhaité (facultatif) : au marché…'} value={topic} onChange={(e) => setTopic(e.target.value)} />
-        <GenerateBar
-          label={grammarTab ? 'Nouveau point de grammaire avec Claude' : 'Nouvelle leçon avec Claude'}
-          onSettings={onSettings}
-          run={async () => ({
-            lessons: [await generateLesson({ apiKey: state.apiKey, model: state.model, lang, level: state.level, pack, topic: topic.trim() || undefined }, grammarTab ? 'grammar' : undefined)],
-          })}
-        />
-      </section>
+
+      {kind !== 'course' && (
+        <section className="card">
+          <input className="input" placeholder={t('lessons.topicPlaceholder')} value={topic} onChange={(e) => setTopic(e.target.value)} />
+          <GenerateBar
+            label={t(kind === 'grammar' ? 'lessons.generateGrammar' : 'lessons.generate')}
+            onSettings={onSettings}
+            run={async () => ({
+              lessons: [await generateLesson({
+                provider: state.provider, apiKey: activeKey(state), model: state.model,
+                lang, level: state.level, pack, uiLang: state.uiLang || 'fr', topic: topic.trim() || undefined,
+              }, kind === 'grammar' ? 'grammar' : undefined)],
+            })}
+          />
+        </section>
+      )}
     </>
   );
 }
 
 function LessonView({ lesson, onBack }: { lesson: Lesson; onBack: () => void }) {
-  const { update } = useStore();
-  const [answers, setAnswers] = useState<Record<number, number>>({});
-  const total = lesson.quiz.length;
-  const answered = Object.keys(answers).length;
-  const right = lesson.quiz.filter((q, i) => answers[i] === q.answer).length;
+  const { state, update } = useStore();
+  const { t } = useT();
+  const done = !!state.lessonsDone[lesson.id];
+  const [translated, setTranslated] = useState<Phrase[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const phrases = translated ?? lesson.phrases;
+  const needsTranslation = lesson.phrases.some((p) => p.en);
+  const key = activeKey(state);
 
-  const pick = (qi: number, ci: number) => {
-    if (answers[qi] !== undefined) return;
-    const next = { ...answers, [qi]: ci };
-    setAnswers(next);
-    if (Object.keys(next).length === total) {
-      update((s) => touchStreak({ ...s, lessonsDone: { ...s.lessonsDone, [lesson.id]: true } }));
+  const translate = async () => {
+    setBusy(true);
+    try {
+      const lines = await translatePhrases(
+        { provider: state.provider, apiKey: key, model: state.model, uiLang: state.uiLang || 'fr' },
+        lesson.phrases,
+      );
+      if (lines.length === lesson.phrases.length) {
+        setTranslated(lesson.phrases.map((p, i) => ({ ...p, fr: lines[i] || p.fr, en: false })));
+      }
+    } catch { /* on garde la version d'origine */ } finally {
+      setBusy(false);
     }
-  };
-  const finish = () => {
-    update((s) => touchStreak({ ...s, lessonsDone: { ...s.lessonsDone, [lesson.id]: true } }));
-    onBack();
   };
 
   return (
     <>
-      <button className="back" onClick={onBack}>‹ Leçons</button>
-      <section className="card">
+      <button className="btn ghost" onClick={onBack} style={{ alignSelf: 'flex-start' }}>‹ {t('common.back')}</button>
+
+      <section className="card lesson-body">
+        <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{lesson.title}</h2>
         <small>{lesson.level}</small>
-        <h2>{lesson.title}</h2>
-        <p>{lesson.intro}</p>
+        {lesson.intro && <p>{lesson.intro}</p>}
+        {lesson.sections.map((s, i) => (
+          <div key={i}>
+            <h4>{s.heading}</h4>
+            <p>{s.body}</p>
+          </div>
+        ))}
+        {lesson.kind === 'course' && <small>{t('lessons.sourceNote')}</small>}
       </section>
-      {lesson.sections.map((s) => (
-        <section key={s.heading} className="card">
-          <h3>{s.heading}</h3>
-          <p>{s.body}</p>
-        </section>
-      ))}
-      {lesson.phrases.length > 0 && (
+
+      {phrases.length > 0 && (
         <section className="card">
-          <h3>Phrases à écouter</h3>
-          {lesson.phrases.map((p, i) => (
-            <div key={i} className="form">
-              <div className="grow">
-                <b className="term">{p.text}</b>
-                {p.reading && <small>{p.reading}</small>}
-                <span className="fr block">{p.fr}</span>
+          <h3>{t('lessons.phrases')} <small>{phrases.length}</small></h3>
+          {needsTranslation && !translated && (
+            <>
+              <small>{t('lessons.partlyEnglish')}</small>
+              {key && (
+                <button className="btn soft sm" disabled={busy} onClick={translate}>
+                  <IconSpark size={16} /> {busy ? t('settings.generating') : t('lessons.translateWithAI')}
+                </button>
+              )}
+            </>
+          )}
+          {phrases.map((p, i) => (
+            <div key={i} className="word">
+              <div className="word-main">
+                <div className="grow">
+                  <b className="term">{p.text}</b>
+                  {p.reading && <small className="block">{p.reading}</small>}
+                </div>
+                <SpeakBtn text={p.text} />
               </div>
-              <SpeakBtn text={p.text} />
+              <small className="block">{p.fr}{p.en && <EnTag />}</small>
             </div>
           ))}
         </section>
       )}
-      {total > 0 && (
-        <section className="card">
-          <h3>Quiz</h3>
-          {lesson.quiz.map((q, qi) => (
-            <div key={qi} className="quiz-q">
-              <p><b>{qi + 1}.</b> {q.q}</p>
-              <div className="choices">
-                {q.choices.map((c, ci) => {
-                  const a = answers[qi];
-                  const cls = a === undefined ? '' : ci === q.answer ? ' ok' : ci === a ? ' ko' : '';
-                  return <button key={ci} className={`choice${cls}`} onClick={() => pick(qi, ci)}>{c}</button>;
-                })}
-              </div>
-            </div>
-          ))}
-          {answered === total && <p className="verdict ok">Résultat : {right} / {total}</p>}
-        </section>
-      )}
-      <button className="btn full" onClick={finish}>Terminer la leçon</button>
+
+      {lesson.quiz.length > 0 && <Quiz lesson={lesson} />}
+
+      <button
+        className={done ? 'btn ghost full' : 'btn full'}
+        onClick={() => update((s) => {
+          const next = { ...s.lessonsDone };
+          if (done) delete next[lesson.id]; else next[lesson.id] = true;
+          return touchStreak({ ...s, lessonsDone: next });
+        })}
+      >
+        {done ? `✓ ${t('lessons.done')}` : t('lessons.markDone')}
+      </button>
     </>
+  );
+}
+
+function Quiz({ lesson }: { lesson: Lesson }) {
+  const { update } = useStore();
+  const { t } = useT();
+  const [answers, setAnswers] = useState<Record<number, number>>({});
+
+  const pick = (qi: number, ci: number) => {
+    if (qi in answers) return;
+    const next = { ...answers, [qi]: ci };
+    setAnswers(next);
+    if (Object.keys(next).length === lesson.quiz.length) {
+      const ok = lesson.quiz.filter((q, i) => next[i] === q.answer).length;
+      update((s) => touchStreak({
+        ...s,
+        lessonScores: { ...s.lessonScores, [lesson.id]: { ok, n: lesson.quiz.length, at: Date.now() } },
+      }));
+    }
+  };
+
+  const answered = Object.keys(answers).length;
+  const ok = lesson.quiz.filter((q, i) => answers[i] === q.answer).length;
+
+  return (
+    <section className="card">
+      <h3>{t('lessons.quiz')} {answered === lesson.quiz.length && <small>{ok} / {lesson.quiz.length}</small>}</h3>
+      {lesson.quiz.map((q, qi) => (
+        <div key={qi} className="stack">
+          <p style={{ fontSize: '.93rem', fontWeight: 600 }}>{q.q}</p>
+          <div className="choices">
+            {q.choices.map((c, ci) => {
+              const chosen = answers[qi];
+              const state = chosen === undefined ? ''
+                : ci === q.answer ? ' ok'
+                : ci === chosen ? ' ko' : '';
+              return (
+                <button key={ci} className={`choice${state}`} disabled={chosen !== undefined} onClick={() => pick(qi, ci)}>{c}</button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </section>
   );
 }

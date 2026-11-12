@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { isDue, isKnown, review, shuffle, useStore } from '../store';
-import { Empty, GenerateBar, SpeakBtn, useActive } from '../ui';
-import { generateWords } from '../claude';
+import { activeKey, isDue, isKnown, review, shuffle, useStore } from '../store';
+import { Empty, EnTag, GenerateBar, SearchField, SpeakBtn } from '../ui';
+import { useActive, useT } from '../hooks';
+import { useDict } from '../dict';
+import { generateWords } from '../generate';
+import { IconCheck, IconClose } from '../icons';
 import type { Word } from '../types';
 
 type Mode = 'list' | 'cards' | 'write' | 'trace';
@@ -9,77 +12,112 @@ const nonLatin = (s: string) => /[^\u0000-ɏḀ-ỿ]/.test(s);
 
 export function Vocab({ onSettings }: { onSettings: () => void }) {
   const { state } = useStore();
-  const { lang, pack, words } = useActive();
+  const { t } = useT();
+  const { lang, pack, words, loading } = useActive();
   const [mode, setMode] = useState<Mode>('list');
-  const hasScript = words.some((w) => nonLatin(w.term));
+  const hasScript = useMemo(() => words.slice(0, 200).some((w) => nonLatin(w.term)), [words]);
+
+  const tabs: [Mode, string][] = [['list', 'vocab.list'], ['cards', 'vocab.cards'], ['write', 'vocab.write']];
+  if (hasScript) tabs.push(['trace', 'vocab.trace']);
 
   return (
     <>
       <div className="seg">
-        <button className={mode === 'list' ? 'on' : ''} onClick={() => setMode('list')}>Liste</button>
-        <button className={mode === 'cards' ? 'on' : ''} onClick={() => setMode('cards')}>Cartes</button>
-        <button className={mode === 'write' ? 'on' : ''} onClick={() => setMode('write')}>Écrire</button>
-        {hasScript && <button className={mode === 'trace' ? 'on' : ''} onClick={() => setMode('trace')}>Tracer</button>}
+        {tabs.map(([m, k]) => (
+          <button key={m} className={mode === m ? 'on' : ''} onClick={() => setMode(m)}>{t(k)}</button>
+        ))}
       </div>
 
-      {!words.length && <Empty>Aucun mot pour cette langue. Générez-en avec Claude ci-dessous.</Empty>}
-      {mode === 'list' && <List words={words} />}
+      {loading && !words.length && <Empty>{t('common.loading')}</Empty>}
+      {!loading && !words.length && <Empty>{t('vocab.empty')}</Empty>}
+      {mode === 'list' && words.length > 0 && <List words={words} />}
       {mode === 'cards' && words.length > 0 && <Cards words={words} />}
       {mode === 'write' && words.length > 0 && <Write words={words} />}
-      {mode === 'trace' && <Trace words={words.filter((w) => nonLatin(w.term))} />}
+      {mode === 'trace' && <Trace words={words.filter((w) => nonLatin(w.term)).slice(0, 300)} />}
 
       {mode === 'list' && (
         <GenerateBar
-          label="Nouveaux mots avec Claude"
+          label={t('lessons.generate')}
           onSettings={onSettings}
-          run={async () => ({ words: await generateWords({ apiKey: state.apiKey, model: state.model, lang, level: state.level, pack }) })}
+          run={async () => ({
+            words: await generateWords({
+              provider: state.provider, apiKey: activeKey(state), model: state.model,
+              lang, level: state.level, pack, uiLang: state.uiLang || 'fr',
+            }),
+          })}
         />
       )}
     </>
   );
 }
 
-function List({ words }: { words: Word[] }) {
+function WordRow({ w, open, onToggle }: { w: Word; open: boolean; onToggle: () => void }) {
   const { state } = useStore();
-  const themes = useMemo(() => {
-    const m = new Map<string, Word[]>();
-    words.forEach((w) => m.set(w.theme, [...(m.get(w.theme) ?? []), w]));
-    return [...m];
-  }, [words]);
+  const dict = useDict(state.active);
+  const isEn = dict?.enGloss.has(w.id);
+  return (
+    <div className="word" onClick={onToggle}>
+      <div className="word-main">
+        <span className={`dot${isKnown(state, w.id) ? ' ok' : ''}`} />
+        <div className="grow">
+          <b className="term">{w.term}</b>
+          {w.reading && <small className="block">{w.reading}</small>}
+        </div>
+        <span className="fr">{w.fr}{isEn && <EnTag />}</span>
+        <SpeakBtn text={w.term} />
+      </div>
+      {open && w.example && (
+        <div className="example">
+          <span className="row gap"><span className="grow">{w.example}</span><SpeakBtn text={w.example} /></span>
+          <small>{w.exampleFr}</small>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function List({ words }: { words: Word[] }) {
+  const { t } = useT();
+  const [q, setQ] = useState('');
   const [open, setOpen] = useState<string | null>(null);
+  const [limit, setLimit] = useState(80);
+
+  const found = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return words;
+    return words.filter((w) =>
+      w.term.toLowerCase().includes(needle) || w.fr.toLowerCase().includes(needle) || (w.reading ?? '').toLowerCase().includes(needle));
+  }, [words, q]);
+
+  // Les mots arrivent par ordre de fréquence : on les groupe par tranches, du plus courant au plus rare.
+  const groups = useMemo(() => {
+    const m = new Map<string, Word[]>();
+    for (const w of found.slice(0, limit)) m.set(w.theme, [...(m.get(w.theme) ?? []), w]);
+    return [...m];
+  }, [found, limit]);
+
   return (
     <>
-      {themes.map(([theme, ws]) => (
+      <SearchField value={q} onChange={(v) => { setQ(v); setLimit(80); }} placeholder={t('vocab.search')} />
+      {!found.length && <Empty>{t('vocab.noResult')}</Empty>}
+      {groups.map(([theme, ws]) => (
         <section key={theme} className="card">
           <h3>{theme} <small>{ws.length}</small></h3>
-          {ws.map((w) => (
-            <div key={w.id} className="word" onClick={() => setOpen(open === w.id ? null : w.id)}>
-              <div className="word-main">
-                <span className={`dot${isKnown(state, w.id) ? ' ok' : ''}`} />
-                <div className="grow">
-                  <b className="term">{w.term}</b>
-                  {w.reading && <small>{w.reading}</small>}
-                </div>
-                <span className="fr">{w.fr}</span>
-                <SpeakBtn text={w.term} />
-              </div>
-              {open === w.id && w.example && (
-                <div className="example">
-                  <span>{w.example} <SpeakBtn text={w.example} /></span>
-                  <small>{w.exampleFr}</small>
-                </div>
-              )}
-            </div>
-          ))}
+          {ws.map((w) => <WordRow key={w.id} w={w} open={open === w.id} onToggle={() => setOpen(open === w.id ? null : w.id)} />)}
         </section>
       ))}
+      {found.length > limit && (
+        <button className="btn ghost full" onClick={() => setLimit(limit + 200)}>
+          {t('vocab.more', { n: (found.length - limit).toLocaleString() })}
+        </button>
+      )}
     </>
   );
 }
 
+/** File de révision : les mots à revoir d'abord, 15 au maximum, figés à l'ouverture. */
 function useQueue(words: Word[]) {
   const { state } = useStore();
-  // La file est figée à l'ouverture : les mots à revoir d'abord, 15 au maximum.
   const [queue] = useState(() => {
     const due = shuffle(words.filter((w) => isDue(state, w.id)));
     return (due.length ? due : shuffle(words)).slice(0, 15);
@@ -89,18 +127,20 @@ function useQueue(words: Word[]) {
 }
 
 function Done({ onAgain }: { onAgain: () => void }) {
+  const { t } = useT();
   return (
     <section className="card center">
       <div className="big-emoji">🎉</div>
-      <h3>Série terminée</h3>
-      <p className="hint">Les mots reviendront au bon moment grâce à la répétition espacée.</p>
-      <button className="btn" onClick={onAgain}>Recommencer</button>
+      <h3>{t('vocab.done')}</h3>
+      <p className="hint">{t('vocab.doneHint')}</p>
+      <button className="btn" onClick={onAgain}>{t('vocab.again')}</button>
     </section>
   );
 }
 
 function Cards({ words }: { words: Word[] }) {
   const { update } = useStore();
+  const { t } = useT();
   const q = useQueue(words);
   const [shown, setShown] = useState(false);
   if (!q.word) return <Done onAgain={q.restart} />;
@@ -116,136 +156,141 @@ function Cards({ words }: { words: Word[] }) {
         {shown ? (
           <div className="answer">
             <b>{w.fr}</b>
-            {w.example && <p>{w.example}<br /><small>{w.exampleFr}</small></p>}
+            {w.example && <p className="hint">{w.example}<br />{w.exampleFr}</p>}
           </div>
-        ) : <p className="hint">Touchez pour voir la traduction</p>}
+        ) : <small>{t('vocab.show')}</small>}
       </section>
       {shown && (
         <div className="row gap">
-          <button className="btn warn grow" onClick={() => answer(false)}>À revoir</button>
-          <button className="btn grow" onClick={() => answer(true)}>Je savais</button>
+          <button className="btn warn grow" onClick={() => answer(false)}><IconClose size={18} />{t('vocab.dontKnow')}</button>
+          <button className="btn grow" onClick={() => answer(true)}><IconCheck size={18} />{t('vocab.know')}</button>
         </div>
       )}
     </>
   );
 }
 
-const clean = (s: string) => s.toLowerCase().normalize('NFC').replace(/\(.*?\)/g, '').replace(/[.!?¿¡,;:'’\-\s]/g, '');
-function accepted(w: Word): string[] {
-  const alts = [w.term, ...(w.reading ? w.reading.split('·') : [])];
-  return alts.map(clean).filter(Boolean);
-}
-
 function Write({ words }: { words: Word[] }) {
   const { update } = useStore();
+  const { t } = useT();
   const q = useQueue(words);
-  const [val, setVal] = useState('');
-  const [res, setRes] = useState<null | boolean>(null);
-  if (!q.word) return <Done onAgain={q.restart} />;
+  const [value, setValue] = useState('');
+  const [verdict, setVerdict] = useState<null | boolean>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { inputRef.current?.focus(); }, [q.i]);
+  if (!q.word) return <Done onAgain={() => { q.restart(); setValue(''); setVerdict(null); }} />;
   const w = q.word;
+  const clean = (s: string) => s.trim().toLowerCase().replace(/[.,!?;:¡¿]/g, '');
   const check = () => {
-    if (res !== null) { setRes(null); setVal(''); q.next(); return; }
-    const ok = accepted(w).includes(clean(val));
-    setRes(ok);
+    const ok = clean(value) === clean(w.term) || clean(value) === clean(w.reading ?? '\u0000');
+    setVerdict(ok);
     update((s) => review(s, w.id, ok));
   };
+  const next = () => { setValue(''); setVerdict(null); q.next(); };
   return (
     <>
       <p className="progress">{q.i + 1} / {q.total}</p>
-      <section className="card center">
-        <p className="hint">Écrivez dans la langue étudiée</p>
-        <b className="xl">{w.fr}</b>
+      <section className="card">
+        <b style={{ fontSize: '1.1rem' }}>{w.fr}</b>
+        <small>{t('vocab.typeAnswer')}</small>
         <input
-          className="input" autoFocus autoCapitalize="off" autoCorrect="off" spellCheck={false}
-          value={val} placeholder="Votre réponse" disabled={res !== null}
-          onChange={(e) => setVal(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && check()}
+          ref={inputRef} className="input" value={value} autoCapitalize="off" autoCorrect="off" spellCheck={false}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') (verdict === null ? check() : next()); }}
         />
-        {res !== null && (
-          <div className={`verdict ${res ? 'ok' : 'ko'}`}>
-            {res ? 'Correct !' : 'Réponse attendue :'}
-            <b className="term"> {w.term}</b> {w.reading && <small>{w.reading}</small>} <SpeakBtn text={w.term} />
-          </div>
-        )}
-        <button className="btn" onClick={check}>{res === null ? 'Vérifier' : 'Suivant'}</button>
+        {verdict === null
+          ? <button className="btn full" disabled={!value.trim()} onClick={check}>{t('vocab.check')}</button>
+          : (
+            <>
+              <p className={`verdict ${verdict ? 'ok' : 'ko'}`}>
+                {verdict ? t('vocab.correct') : t('vocab.wrong', { answer: w.term })}
+              </p>
+              <div className="row gap">
+                <SpeakBtn text={w.term} />
+                <button className="btn grow" onClick={next}>{t('vocab.next')}</button>
+              </div>
+            </>
+          )}
       </section>
     </>
   );
 }
 
+/** Tracé au doigt, pour les écritures non latines : le caractère sert de modèle sous le tracé. */
 function Trace({ words }: { words: Word[] }) {
+  const { t } = useT();
   const [i, setI] = useState(0);
-  const [guide, setGuide] = useState(true);
-  const ref = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
-  const w = words[i % Math.max(words.length, 1)];
+  const w = words[i];
 
   const clear = () => {
-    const c = ref.current;
-    c?.getContext('2d')?.clearRect(0, 0, c.width, c.height);
+    const c = canvasRef.current;
+    const ctx = c?.getContext('2d');
+    if (c && ctx) ctx.clearRect(0, 0, c.width, c.height);
   };
-  useEffect(() => {
-    const c = ref.current;
-    if (!c) return;
-    const dpr = window.devicePixelRatio || 1;
-    const size = c.clientWidth;
-    c.width = size * dpr;
-    c.height = size * dpr;
-    const ctx = c.getContext('2d')!;
-    ctx.scale(dpr, dpr);
-    ctx.lineWidth = 9;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = getComputedStyle(c).color;
-  }, [i]);
+  useEffect(clear, [i]);
 
-  if (!w) return <Empty>Aucun mot à tracer.</Empty>;
-  const pos = (e: React.PointerEvent) => {
-    const r = ref.current!.getBoundingClientRect();
-    return [e.clientX - r.left, e.clientY - r.top] as const;
+  useEffect(() => {
+    const c = canvasRef.current;
+    if (!c) return;
+    const ratio = window.devicePixelRatio || 1;
+    c.width = c.clientWidth * ratio;
+    c.height = c.clientHeight * ratio;
+    const ctx = c.getContext('2d');
+    if (ctx) {
+      ctx.scale(ratio, ratio);
+      ctx.lineWidth = 7;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('color');
+    }
+  }, []);
+
+  if (!w) return <Empty>{t('vocab.empty')}</Empty>;
+
+  const at = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
   };
-  const down = (e: React.PointerEvent) => {
+  const down = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
     drawing.current = true;
-    ref.current!.setPointerCapture(e.pointerId);
-    const ctx = ref.current!.getContext('2d')!;
-    const [x, y] = pos(e);
+    const p = at(e);
     ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + 0.1, y + 0.1);
-    ctx.stroke();
+    ctx.moveTo(p.x, p.y);
+    e.currentTarget.setPointerCapture(e.pointerId);
   };
-  const move = (e: React.PointerEvent) => {
+  const move = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drawing.current) return;
-    const ctx = ref.current!.getContext('2d')!;
-    const [x, y] = pos(e);
-    ctx.lineTo(x, y);
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    const p = at(e);
+    ctx.lineTo(p.x, p.y);
     ctx.stroke();
   };
-  const go = (d: number) => { setI((n) => (n + d + words.length) % words.length); };
-  const len = [...w.term].length;
+  const up = () => { drawing.current = false; };
 
   return (
     <>
+      <p className="progress">{i + 1} / {words.length}</p>
       <section className="card center">
-        <div className="row between full">
-          <div className="left"><b>{w.fr}</b>{w.reading && <small> · {w.reading}</small>}</div>
-          <SpeakBtn text={w.term} />
-        </div>
-        <div className="trace">
-          {guide && <span className="guide" style={{ fontSize: `min(${78 / len}vw, ${380 / len}px)` }}>{w.term}</span>}
+        <b className="term xl">{w.term}</b>
+        <small>{w.reading} · {w.fr}</small>
+        <div className="trace-wrap">
+          <div className="ghost-char">{w.term.slice(0, 1)}</div>
           <canvas
-            ref={ref} onPointerDown={down} onPointerMove={move}
-            onPointerUp={() => (drawing.current = false)} onPointerCancel={() => (drawing.current = false)}
+            ref={canvasRef} className="trace"
+            onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
           />
         </div>
-        <div className="row gap full">
-          <button className="btn ghost grow" onClick={() => go(-1)}>‹</button>
-          <button className="btn ghost grow" onClick={clear}>Effacer</button>
-          <button className="btn ghost grow" onClick={() => setGuide((g) => !g)}>{guide ? 'Cacher' : 'Modèle'}</button>
-          <button className="btn ghost grow" onClick={() => go(1)}>›</button>
+        <div className="row gap">
+          <button className="btn ghost" onClick={clear}>{t('vocab.clear')}</button>
+          <SpeakBtn text={w.term} />
+          <button className="btn grow" onClick={() => { setI((n) => (n + 1) % words.length); }}>{t('vocab.next')}</button>
         </div>
       </section>
-      <p className="hint center">Repassez sur le modèle avec le doigt, puis essayez sans.</p>
     </>
   );
 }

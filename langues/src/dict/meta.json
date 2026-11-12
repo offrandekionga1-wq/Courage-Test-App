@@ -2,67 +2,76 @@
  "generated": "2026-11-12",
  "stats": {
   "en": {
-   "words": 2000,
-   "words_fr": 2000,
+   "words": 12000,
+   "words_fr": 12000,
    "words_en": 0,
-   "sentences": 1882,
-   "authors": 491
+   "sentences": 10071,
+   "authors": 1163,
+   "verbs": 549
   },
   "es": {
-   "words": 2000,
-   "words_fr": 2000,
+   "words": 9976,
+   "words_fr": 9976,
    "words_en": 0,
-   "sentences": 1879,
-   "authors": 413
+   "sentences": 10000,
+   "authors": 908,
+   "verbs": 600
   },
   "de": {
-   "words": 2000,
-   "words_fr": 2000,
+   "words": 12000,
+   "words_fr": 12000,
    "words_en": 0,
-   "sentences": 1904,
-   "authors": 382
+   "sentences": 10000,
+   "authors": 758,
+   "verbs": 600
   },
   "it": {
-   "words": 2000,
-   "words_fr": 2000,
+   "words": 12000,
+   "words_fr": 12000,
    "words_en": 0,
-   "sentences": 1801,
-   "authors": 304
+   "sentences": 10000,
+   "authors": 591,
+   "verbs": 600
   },
   "pt": {
-   "words": 2000,
-   "words_fr": 2000,
+   "words": 9150,
+   "words_fr": 9150,
    "words_en": 0,
-   "sentences": 1747,
-   "authors": 354
+   "sentences": 10000,
+   "authors": 714,
+   "verbs": 600
   },
   "lt": {
-   "words": 1615,
-   "words_fr": 523,
-   "words_en": 1092,
+   "words": 3159,
+   "words_fr": 765,
+   "words_en": 2394,
    "sentences": 171,
-   "authors": 69
+   "authors": 69,
+   "verbs": 0
   },
   "tl": {
    "words": 1894,
    "words_fr": 275,
    "words_en": 1619,
    "sentences": 854,
-   "authors": 163
+   "authors": 163,
+   "verbs": 600
   },
   "ja": {
-   "words": 2000,
-   "words_fr": 2000,
+   "words": 12000,
+   "words_fr": 12000,
    "words_en": 0,
-   "sentences": 1240,
-   "authors": 286
+   "sentences": 10000,
+   "authors": 763,
+   "verbs": 600
   },
   "zh": {
-   "words": 2000,
-   "words_fr": 1193,
-   "words_en": 807,
-   "sentences": 1482,
-   "authors": 303
+   "words": 12000,
+   "words_fr": 3896,
+   "words_en": 8104,
+   "sentences": 10000,
+   "authors": 719,
+   "verbs": 0
   }
  }
 }

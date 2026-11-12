@@ -1,0 +1,80 @@
+{
+ "en": {
+  "lessons": 11,
+  "phrases": 305,
+  "en": 0,
+  "sources": [
+   "fr"
+  ]
+ },
+ "es": {
+  "lessons": 14,
+  "phrases": 593,
+  "en": 138,
+  "sources": [
+   "fr",
+   "en"
+  ]
+ },
+ "de": {
+  "lessons": 15,
+  "phrases": 609,
+  "en": 181,
+  "sources": [
+   "fr",
+   "en"
+  ]
+ },
+ "it": {
+  "lessons": 13,
+  "phrases": 480,
+  "en": 142,
+  "sources": [
+   "fr",
+   "en"
+  ]
+ },
+ "pt": {
+  "lessons": 14,
+  "phrases": 515,
+  "en": 96,
+  "sources": [
+   "fr",
+   "en"
+  ]
+ },
+ "ja": {
+  "lessons": 14,
+  "phrases": 498,
+  "en": 192,
+  "sources": [
+   "fr",
+   "en"
+  ]
+ },
+ "zh": {
+  "lessons": 13,
+  "phrases": 551,
+  "en": 138,
+  "sources": [
+   "fr",
+   "en"
+  ]
+ },
+ "lt": {
+  "lessons": 14,
+  "phrases": 378,
+  "en": 145,
+  "sources": [
+   "en"
+  ]
+ },
+ "tl": {
+  "lessons": 14,
+  "phrases": 461,
+  "en": 271,
+  "sources": [
+   "en"
+  ]
+ }
+}
