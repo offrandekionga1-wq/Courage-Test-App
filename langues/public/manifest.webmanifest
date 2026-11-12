@@ -1,0 +1,15 @@
+{
+  "name": "Polyglotte",
+  "short_name": "Polyglotte",
+  "description": "Apprendre les langues : vocabulaire, conjugaison, leçons et discussion avec Claude.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f5f1",
+  "theme_color": "#0f766e",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
