@@ -41,9 +41,9 @@ export function Conjugation({ onSettings }: { onSettings: () => void }) {
 }
 
 function Browse({ verbs }: { verbs: Verb[] }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const { state } = useStore();
-  const dict = useDict(state.active);
+  const dict = useDict(state.active, locale);
   const [q, setQ] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
   const [limit, setLimit] = useState(40);

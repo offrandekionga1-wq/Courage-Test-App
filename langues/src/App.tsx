@@ -3,7 +3,6 @@ import { activeKey, allLanguages, getLanguage, getPack, isDue, isKnown, mergeExt
 import { generateWords } from './generate';
 import { hasDict, loadDict } from './dict';
 import { hasSentences, loadSentences } from './sentences';
-import { hasCourse, loadCourse } from './course';
 import { useActive, useT } from './hooks';
 import { Vocab } from './screens/Vocab';
 import { Phrases } from './screens/Phrases';
@@ -14,6 +13,7 @@ import { Chat } from './screens/Chat';
 import { Settings } from './screens/Settings';
 import { isNative, openVoiceInstall, useVoiceStatus } from './tts';
 import { TAB_ICONS, IconFlame, IconNext, IconSettings, IconWarn } from './icons';
+import { localName } from './terms';
 import type { Language } from './types';
 
 export type Tab = 'home' | 'vocab' | 'phrases' | 'conj' | 'lessons' | 'practice' | 'chat' | 'settings';
@@ -28,7 +28,7 @@ const TABS: [Tab, string][] = [
 
 export function App() {
   const { state, update } = useStore();
-  const { t } = useT();
+  const { t, locale } = useT();
   const [tab, setTab] = useState<Tab>('home');
   const [toast, setToast] = useState('');
   const [pickLang, setPickLang] = useState(false);
@@ -50,7 +50,7 @@ export function App() {
     }, 10)
       .then((words) => {
         update((s) => mergeExtra(s, code, { words }));
-        setToast(`+${words.length} · ${lang.name}`);
+        setToast(`+${words.length} · ${localName(lang, locale)}`);
         setTimeout(() => setToast(''), 4000);
       })
       // Échec silencieux, mais on note la tentative pour ne pas relancer en boucle.
@@ -65,12 +65,11 @@ export function App() {
     if (isNative() || !navigator.onLine) return;
     const code = state.active;
     const id = setTimeout(() => {
-      if (hasDict(code)) loadDict(code);
-      if (hasCourse(code)) loadCourse(code);
-      if (hasSentences(code)) loadSentences(code);
+      if (hasDict(code)) loadDict(code, locale);
+      if (hasSentences(code)) loadSentences(code, locale);
     }, 5000);
     return () => clearTimeout(id);
-  }, [state.active]);
+  }, [state.active, locale]);
 
   // Premier lancement sur Android : si des voix manquent, on propose d'ouvrir l'écran
   // d'installation du téléphone. Une application ne peut pas installer une voix elle-même.
@@ -92,7 +91,7 @@ export function App() {
             onClick={() => setPickLang(true)}
           >
             <span className="flag">{lang.flag}</span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lang.name}</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{localName(lang, locale)}</span>
             <span className="chev"><IconNext size={16} /></span>
           </button>
           <button className="icon-btn" aria-label={t('nav.settings')} onClick={goSettings}>
@@ -118,7 +117,7 @@ export function App() {
             <h3>{t('settings.voice')}</h3>
             <p className="hint">
               {t('settings.missingVoices', {
-                list: langs.filter((l) => voices[l.tts] === false).map((l) => l.name).join(', '),
+                list: langs.filter((l) => voices[l.tts] === false).map((l) => localName(l, locale)).join(', '),
               })}
             </p>
             <div className="row gap" style={{ marginTop: 12 }}>
@@ -169,7 +168,7 @@ function LanguageSheet({ langs, current, onPick, onClose, onManage }: {
   onClose: () => void;
   onManage: () => void;
 }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   return (
     <div className="sheet-back" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
@@ -178,7 +177,7 @@ function LanguageSheet({ langs, current, onPick, onClose, onManage }: {
         {langs.map((l) => (
           <button key={l.code} className={`sheet-item${l.code === current ? ' on' : ''}`} onClick={() => onPick(l.code)}>
             <span className="flag">{l.flag}</span>
-            <span className="grow">{l.name}<small className="block">{l.native}</small></span>
+            <span className="grow">{localName(l, locale)}<small className="block">{l.native}</small></span>
           </button>
         ))}
         <button className="btn ghost full" style={{ marginTop: 10 }} onClick={onManage}>{t('settings.myLanguages')}</button>
@@ -189,7 +188,7 @@ function LanguageSheet({ langs, current, onPick, onClose, onManage }: {
 
 function Home({ go }: { go: (t: Tab) => void }) {
   const { state } = useStore();
-  const { t } = useT();
+  const { t, locale } = useT();
   const { lang, words, verbs, lessons, loading } = useActive();
   const known = words.filter((w) => isKnown(state, w.id)).length;
   const due = words.filter((w) => isDue(state, w.id)).length;
@@ -213,7 +212,7 @@ function Home({ go }: { go: (t: Tab) => void }) {
       <section className="hero">
         <div className="hero-flag">{lang.flag}</div>
         <div className="grow">
-          <h2>{lang.name}</h2>
+          <h2>{localName(lang, locale)}</h2>
           <p>{lang.native}</p>
         </div>
         <div className="streak">
@@ -237,7 +236,7 @@ function Home({ go }: { go: (t: Tab) => void }) {
 
       {voice === false && (
         <section className="card note">
-          <div className="row gap"><IconWarn size={18} /><span>{t('home.noVoice', { lang: lang.name })}</span></div>
+          <div className="row gap"><IconWarn size={18} /><span>{t('home.noVoice', { lang: localName(lang, locale) })}</span></div>
           {isNative()
             ? <button className="btn full" onClick={openVoiceInstall}>{t('home.installVoice')}</button>
             : <small>{t('home.installVoiceWeb')}</small>}

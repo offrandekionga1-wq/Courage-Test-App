@@ -1,80 +1,181 @@
 {
  "en": {
-  "lessons": 11,
-  "phrases": 305,
-  "en": 0,
-  "sources": [
-   "fr"
-  ]
+  "fr": {
+   "lessons": 11,
+   "phrases": 305,
+   "en": 0,
+   "sources": [
+    "fr"
+   ]
+  }
  },
  "es": {
-  "lessons": 14,
-  "phrases": 593,
-  "en": 138,
-  "sources": [
-   "fr",
-   "en"
-  ]
+  "fr": {
+   "lessons": 14,
+   "phrases": 600,
+   "en": 141,
+   "sources": [
+    "fr",
+    "en"
+   ]
+  },
+  "en": {
+   "lessons": 14,
+   "phrases": 447,
+   "en": 0,
+   "sources": [
+    "en"
+   ]
+  }
  },
  "de": {
-  "lessons": 15,
-  "phrases": 609,
-  "en": 181,
-  "sources": [
-   "fr",
-   "en"
-  ]
+  "fr": {
+   "lessons": 15,
+   "phrases": 611,
+   "en": 182,
+   "sources": [
+    "fr",
+    "en"
+   ]
+  },
+  "en": {
+   "lessons": 14,
+   "phrases": 435,
+   "en": 0,
+   "sources": [
+    "en"
+   ]
+  }
  },
  "it": {
-  "lessons": 13,
-  "phrases": 480,
-  "en": 142,
-  "sources": [
-   "fr",
-   "en"
-  ]
+  "fr": {
+   "lessons": 13,
+   "phrases": 485,
+   "en": 143,
+   "sources": [
+    "fr",
+    "en"
+   ]
+  },
+  "en": {
+   "lessons": 14,
+   "phrases": 394,
+   "en": 0,
+   "sources": [
+    "en"
+   ]
+  }
  },
  "pt": {
-  "lessons": 14,
-  "phrases": 515,
-  "en": 96,
-  "sources": [
-   "fr",
-   "en"
-  ]
+  "fr": {
+   "lessons": 14,
+   "phrases": 543,
+   "en": 102,
+   "sources": [
+    "fr",
+    "en"
+   ]
+  },
+  "en": {
+   "lessons": 14,
+   "phrases": 341,
+   "en": 0,
+   "sources": [
+    "en"
+   ]
+  }
  },
  "ja": {
-  "lessons": 14,
-  "phrases": 498,
-  "en": 192,
-  "sources": [
-   "fr",
-   "en"
-  ]
+  "fr": {
+   "lessons": 14,
+   "phrases": 498,
+   "en": 192,
+   "sources": [
+    "fr",
+    "en"
+   ]
+  },
+  "en": {
+   "lessons": 15,
+   "phrases": 430,
+   "en": 0,
+   "sources": [
+    "en"
+   ]
+  }
  },
  "zh": {
-  "lessons": 13,
-  "phrases": 551,
-  "en": 138,
-  "sources": [
-   "fr",
-   "en"
-  ]
+  "fr": {
+   "lessons": 13,
+   "phrases": 553,
+   "en": 139,
+   "sources": [
+    "fr",
+    "en"
+   ]
+  },
+  "en": {
+   "lessons": 14,
+   "phrases": 377,
+   "en": 0,
+   "sources": [
+    "en"
+   ]
+  }
+ },
+ "ko": {
+  "fr": {
+   "lessons": 13,
+   "phrases": 319,
+   "en": 130,
+   "sources": [
+    "fr",
+    "en"
+   ]
+  },
+  "en": {
+   "lessons": 13,
+   "phrases": 319,
+   "en": 0,
+   "sources": [
+    "en"
+   ]
+  }
  },
  "lt": {
-  "lessons": 14,
-  "phrases": 378,
-  "en": 145,
-  "sources": [
-   "en"
-  ]
+  "fr": {
+   "lessons": 14,
+   "phrases": 378,
+   "en": 145,
+   "sources": [
+    "en"
+   ]
+  },
+  "en": {
+   "lessons": 14,
+   "phrases": 378,
+   "en": 0,
+   "sources": [
+    "en"
+   ]
+  }
  },
  "tl": {
-  "lessons": 14,
-  "phrases": 461,
-  "en": 271,
-  "sources": [
-   "en"
-  ]
+  "fr": {
+   "lessons": 14,
+   "phrases": 463,
+   "en": 271,
+   "sources": [
+    "en"
+   ]
+  },
+  "en": {
+   "lessons": 14,
+   "phrases": 463,
+   "en": 0,
+   "sources": [
+    "en"
+   ]
+  }
  }
 }

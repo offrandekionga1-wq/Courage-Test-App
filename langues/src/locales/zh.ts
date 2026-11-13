@@ -180,4 +180,11 @@ export const strings: Record<string, string> = {
   'common.of': '/',
   'common.english': 'EN',
   'common.englishTip': '没有法语来源，故为英语释义',
+
+  'quiz.meaning': '“{term}”是什么意思？',
+  'quiz.say': '“{text}”怎么说？',
+  'quiz.fill': '填空：',
+  'lessons.theme': '主题',
+  'lessons.rules': '规则',
+  'content.fallback': '此内容暂无你的语言版本，以{lang}显示。',
 };

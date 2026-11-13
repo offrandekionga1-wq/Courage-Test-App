@@ -9,8 +9,8 @@ type Mode = 'list' | 'quiz';
 
 export function Phrases() {
   const { lang } = useActive();
-  const { t } = useT();
-  const dict = useSentences(lang.code);
+  const { t, locale } = useT();
+  const dict = useSentences(lang.code, locale);
   const [mode, setMode] = useState<Mode>('list');
 
   if (dict === undefined) return <Empty>{t('phrases.loading')}</Empty>;

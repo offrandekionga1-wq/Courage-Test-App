@@ -16,7 +16,7 @@ const initial: AppState = {
   level: 'Débutant',
   voiceRate: 0.9,
   autoUpdate: false,
-  learning: ['en', 'ja', 'lt', 'zh', 'tl', 'es', 'de', 'it', 'pt'],
+  learning: ['en', 'ja', 'lt', 'zh', 'tl', 'es', 'de', 'it', 'pt', 'ko'],
   active: 'en',
   customLanguages: [],
   extra: {},
@@ -72,8 +72,8 @@ export const getLanguage = (s: AppState, code: string): Language =>
 
 const EMPTY: Pack = { words: [], verbs: [], lessons: [] };
 /** Contenu intégré + contenu généré par Claude pour une langue. */
-export function getPack(s: AppState, code: string): Pack {
-  const seed = SEED[code] ?? EMPTY;
+export function getPack(s: AppState, code: string, withSeed = true): Pack {
+  const seed = withSeed ? (SEED[code] ?? EMPTY) : EMPTY;
   const extra = s.extra[code] ?? EMPTY;
   return {
     words: [...seed.words, ...extra.words],

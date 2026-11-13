@@ -1,8 +1,10 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { activeKey, getLanguage, getPack, mergeExtra, useStore } from './store';
 import { useDict } from './dict';
-import { useCourse, useGrammar } from './course';
+import { useCourse, useWikibooks } from './course';
+import { useGrammarPoints } from './grammar';
 import { useVocabLessons } from './lessons';
+import { term, translateNote } from './terms';
 import { hasFurigana, plainText, Ruby } from './ruby';
 import { speak } from './tts';
 import { explainError } from './generate';
@@ -12,7 +14,8 @@ import type { Language, Lesson, Pack, Word } from './types';
 
 /** Mots du dictionnaire intégré qui ne doublonnent pas ceux du pack. */
 export function useAllWords(code: string, pack: Pack): Word[] {
-  const dict = useDict(code);
+  const { locale } = useT();
+  const dict = useDict(code, locale);
   return useMemo(() => {
     if (!dict) return pack.words;
     const have = new Set(pack.words.map((w) => w.term.toLowerCase()));
@@ -22,38 +25,61 @@ export function useAllWords(code: string, pack: Pack): Word[] {
 
 export interface Active {
   lang: Language;
-  /** Contenu écrit à la main et contenu créé par l'IA. */
+  /** Contenu écrit à la main (en français seulement) et contenu créé par l'IA. */
   pack: Pack;
   /** `pack.words` plus le dictionnaire intégré. */
   words: Word[];
   /** `pack.verbs` plus les verbes conjugués du dictionnaire. */
   verbs: Pack['verbs'];
-  /** `pack.lessons` plus les leçons du guide de conversation. */
+  /** Leçons du guide, de vocabulaire, de grammaire, plus celles de l'IA. */
   lessons: Lesson[];
+  /** Langue dans laquelle les définitions sont rédigées (celle de l'interface, ou un repli). */
+  explain: string;
   loading: boolean;
 }
 
 export function useActive(): Active {
   const { state } = useStore();
+  const { t, locale } = useT();
   const code = state.active;
-  const pack = getPack(state, code);
-  const dict = useDict(code);
-  const course = useCourse(code);
+  // Le contenu écrit à la main est en français : on ne l'affiche qu'avec l'interface française.
+  const pack = useMemo(() => getPack(state, code, locale === 'fr'), [state, code, locale]);
+  const dict = useDict(code, locale);
+  const course = useCourse(code, locale, t);
   const words = useAllWords(code, pack);
   const verbs = useMemo(() => {
-    if (!dict?.verbs.length) return pack.verbs;
+    const own = (dict?.verbs ?? []).map((v) => ({
+      ...v,
+      note: v.note ? translateNote(v.note, locale) : undefined,
+      tenses: v.tenses.map((x) => ({ ...x, name: term(x.name, locale) })),
+    }));
     const have = new Set(pack.verbs.map((v) => v.infinitive.toLowerCase()));
-    return [...pack.verbs, ...dict.verbs.filter((v) => !have.has(v.infinitive.toLowerCase()))];
-  }, [dict, pack.verbs]);
-  // Les leçons référencent les mots par leur rang dans le dictionnaire : il faut lui passer
+    return [...pack.verbs, ...own.filter((v) => !have.has(v.infinitive.toLowerCase()))];
+  }, [dict, pack.verbs, locale]);
+  // Les leçons référencent les mots par leur graphie dans le dictionnaire : il faut lui passer
   // `dict.words`, et non la liste combinée, qui commence par le contenu écrit à la main.
-  const vocabLessons = useVocabLessons(code, dict?.words ?? []);
-  const grammar = useGrammar(code);
+  const vocabLessons = useVocabLessons(code, dict?.words ?? [], locale, t);
+  const rules = useGrammarPoints(code, locale, t);
+  const wikibooks = useWikibooks(code, locale);
   const lessons = useMemo(
-    () => [...(course ?? []), ...(vocabLessons ?? []), ...(grammar ?? []), ...pack.lessons],
-    [course, vocabLessons, grammar, pack.lessons],
+    () => {
+      const withFallback = (ls: Lesson[]) => dict && dict.explain !== locale
+        ? ls.map((l) => (l.explain ? l : { ...l, explain: dict.explain })) : ls;
+      return [
+        ...(course ?? []),
+        ...withFallback(vocabLessons ?? []),
+        ...(rules ?? []),
+        ...(wikibooks ?? []),
+        ...pack.lessons,
+      ];
+    },
+    [course, vocabLessons, rules, wikibooks, pack.lessons, dict, locale],
   );
-  return { lang: getLanguage(state, code), pack, words, verbs, lessons, loading: dict === undefined };
+  return {
+    lang: getLanguage(state, code), pack, words, verbs, lessons,
+    explain: dict?.explain ?? locale,
+    loading: dict === undefined,
+  };
 }
 
 export function SpeakBtn({ text, big, lang }: { text: string; big?: boolean; lang?: string }) {

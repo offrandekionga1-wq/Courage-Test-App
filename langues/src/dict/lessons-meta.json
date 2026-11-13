@@ -1,6 +1,6 @@
 {
  "de": {
-  "lessons": 1036,
+  "lessons": 448,
   "levels": [
    "A1",
    "A2",
@@ -11,7 +11,7 @@
   ]
  },
  "en": {
-  "lessons": 1110,
+  "lessons": 438,
   "levels": [
    "A1",
    "A2",
@@ -22,37 +22,37 @@
   ]
  },
  "es": {
-  "lessons": 592,
+  "lessons": 106,
   "levels": [
    "A1",
    "A2",
-   "B1",
-   "B2",
-   "C1"
+   "B1"
   ]
  },
  "it": {
-  "lessons": 847,
+  "lessons": 437,
   "levels": [
    "A1",
    "A2",
    "B1",
    "B2",
-   "C1"
+   "C1",
+   "C2"
   ]
  },
  "pt": {
-  "lessons": 525,
+  "lessons": 431,
   "levels": [
    "A1",
    "A2",
    "B1",
    "B2",
-   "C1"
+   "C1",
+   "C2"
   ]
  },
  "zh": {
-  "lessons": 1648,
+  "lessons": 424,
   "levels": [
    "A1",
    "A2",
@@ -63,7 +63,7 @@
   ]
  },
  "lt": {
-  "lessons": 196,
+  "lessons": 200,
   "levels": [
    "A1",
    "A2",
@@ -72,7 +72,7 @@
   ]
  },
  "tl": {
-  "lessons": 212,
+  "lessons": 204,
   "levels": [
    "A1",
    "A2",
@@ -81,7 +81,18 @@
   ]
  },
  "ja": {
-  "lessons": 1236,
+  "lessons": 429,
+  "levels": [
+   "A1",
+   "A2",
+   "B1",
+   "B2",
+   "C1",
+   "C2"
+  ]
+ },
+ "ko": {
+  "lessons": 439,
   "levels": [
    "A1",
    "A2",

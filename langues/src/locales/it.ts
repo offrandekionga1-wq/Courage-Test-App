@@ -180,4 +180,11 @@ export const strings: Record<string, string> = {
   'common.of': 'di',
   'common.english': 'EN',
   'common.englishTip': 'Definizione in inglese, nessuna fonte francese disponibile',
+
+  'quiz.meaning': 'Che cosa significa «{term}»?',
+  'quiz.say': 'Come si dice «{text}»?',
+  'quiz.fill': 'Completa la frase:',
+  'lessons.theme': 'Tema',
+  'lessons.rules': 'Regole',
+  'content.fallback': 'Questo contenuto non è ancora disponibile nella tua lingua: mostrato in {lang}.',
 };

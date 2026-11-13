@@ -31,6 +31,7 @@ PAGES = {
     'pt': ('Guide linguistique portugais', 'Portuguese phrasebook'),
     'ja': ('Guide linguistique japonais', 'Japanese phrasebook'),
     'zh': ('Guide linguistique mandarin', 'Chinese phrasebook'),
+    'ko': ('Guide linguistique coréen', 'Korean phrasebook'),
     'lt': (None, 'Lithuanian phrasebook'),
     'tl': (None, 'Tagalog phrasebook'),
 }
@@ -38,22 +39,22 @@ PAGES = {
 # Regroupement des sections du guide en leçons, dans un ordre pédagogique.
 # (titre de la leçon, niveau, sections du guide à y verser)
 PLAN: list[tuple[str, str, tuple[str, ...]]] = [
-    ('Premiers mots', 'Débutant', ('Base', 'Basics', 'Bases')),
-    ('Les nombres', 'Débutant', ('Nombres', 'Numbers')),
-    ('Le temps qui passe', 'Débutant', ('Temps', 'Heure', 'Durée', 'Jours', 'Mois', 'La date et l’heure',
+    ('@c_first', '@beginner', ('Base', 'Basics', 'Bases')),
+    ('@c_numbers', '@beginner', ('Nombres', 'Numbers')),
+    ('@c_time', '@beginner', ('Temps', 'Heure', 'Durée', 'Jours', 'Mois', 'La date et l’heure',
                                         "La date et l'heure", 'Time', 'Clock time', 'Duration', 'Days', 'Months',
                                         'Writing time and date')),
-    ('Les couleurs', 'Débutant', ('Couleurs', 'Colors', 'Colours')),
-    ('En cas de problème', 'Élémentaire', ('Problèmes', 'Problems')),
-    ('Se déplacer', 'Élémentaire', ('Transports', 'Bus et train', 'Orientation', 'Taxi',
+    ('@c_colours', '@beginner', ('Couleurs', 'Colors', 'Colours')),
+    ('@c_problems', '@elementary', ('Problèmes', 'Problems')),
+    ('@c_transport', '@elementary', ('Transports', 'Bus et train', 'Orientation', 'Taxi',
                                     'Transportation', 'Bus and train', 'Directions')),
-    ('Se loger', 'Élémentaire', ('Logement', 'Lodging')),
-    ("L'argent", 'Élémentaire', ('Argent', 'Money')),
-    ('Au restaurant', 'Élémentaire', ('Repas', 'Eating', 'Food')),
-    ('Au bar', 'Intermédiaire', ('Bars', 'Bars and clubs')),
-    ('Faire des achats', 'Intermédiaire', ('Achat', 'Achats', 'Shopping')),
-    ('Conduire', 'Intermédiaire', ('Conduire', 'Driving')),
-    ('Face aux autorités', 'Intermédiaire', ('Autorités', 'Authority')),
+    ('@c_lodging', '@elementary', ('Logement', 'Lodging')),
+    ('@c_money', '@elementary', ('Argent', 'Money')),
+    ('@c_eating', '@elementary', ('Repas', 'Eating', 'Food')),
+    ('@c_bars', '@intermediate', ('Bars', 'Bars and clubs')),
+    ('@c_shopping', '@intermediate', ('Achat', 'Achats', 'Shopping')),
+    ('@c_driving', '@intermediate', ('Conduire', 'Driving')),
+    ('@c_authority', '@intermediate', ('Autorités', 'Authority')),
 ]
 PRONUNCIATION = ('Prononciation', 'Voyelles', 'Consonnes', 'diphtongues', 'Diphtongues',
                  'Pronunciation', 'Vowels', 'Consonants', 'Common diphthongs', 'Diphthongs')
@@ -135,11 +136,12 @@ def _clean_target(s: str) -> tuple[str, str]:
         say = m.group(1).strip()
         s = s[:m.start()] + s[m.end():]
     s = unwiki(s)
-    s = re.sub(r'\s*\([^)]*\)\s*$', '', s).strip()
+    # Les précisions entre parenthèses (« for a female », « informal ») ne font pas partie de la phrase.
+    s = re.sub(r'\s*\([^)]*\)', '', s).strip()
     return s.strip(' /'), say
 
 
-def phrases_in(body: str, source_lang: str = 'fr') -> list[dict]:
+def phrases_in(body: str, source_lang: str = 'fr', explain: str = 'fr') -> list[dict]:
     """Phrases d'un guide, quel que soit le gabarit employé par la page.
 
     Trois formes existent : {{Traduction|fr|cible|prononciation|}}, le modèle « Guide linguistique »
@@ -174,6 +176,9 @@ def phrases_in(body: str, source_lang: str = 'fr') -> list[dict]:
             src = unwiki(m.group(1)).strip()
             target, say = _clean_target(m.group(2))
             if not target or len(target) > 90 or not src:
+                continue
+            if explain == 'en':
+                out.append({'t': target, 'f': src, 'r': say[:60]})
                 continue
             fr = translate(src)
             # Une amorce sans lettre (un nombre, une date) n'a pas besoin de traduction.
@@ -213,27 +218,7 @@ def paragraphs_in(body: str) -> list[str]:
 
 
 # ───────────────────── fabrication des leçons ─────────────────────
-def make_quiz(phrases: list[dict], n: int = 4) -> list[dict]:
-    """Quiz « Comment dit-on… ? » : la bonne réponse et trois autres phrases de la même leçon."""
-    pool = [p for p in phrases if 3 < len(p['t']) < 40]
-    quiz = []
-    if len(pool) < 4:
-        return quiz
-    step = max(1, len(pool) // n)
-    for i in range(0, min(n * step, len(pool)), step):
-        good = pool[i]
-        others = [p for j, p in enumerate(pool) if j != i and p['t'] != good['t']]
-        if len(others) < 3:
-            break
-        picks = [others[(i * 7 + k * 3) % len(others)] for k in range(3)]
-        if len({p['t'] for p in picks} | {good['t']}) < 4:
-            continue
-        choices = [picks[0]['t'], good['t'], picks[1]['t'], picks[2]['t']]
-        quiz.append({'q': f'Comment dit-on « {good["f"]} » ?', 'choices': choices, 'answer': 1})
-    return quiz
-
-
-def build(code: str, sources: list[tuple[str, str]]) -> dict:
+def build(code: str, sources: list[tuple[str, str]], explain: str = 'fr') -> dict:
     """sources = [(wikitexte, langue du guide)], le guide français en premier s'il existe."""
     sections: list[tuple[str, str, str]] = []
     for text, lang in sources:
@@ -251,8 +236,8 @@ def build(code: str, sources: list[tuple[str, str]]) -> dict:
     pron_secs = [(t, b, lang) for t, b, lang in sections if t in PRONUNCIATION]
     # Si le guide français décrit la prononciation, on s'en tient à lui : mélanger deux systèmes
     # de transcription (français et anglais) induirait l'élève en erreur.
-    if any(lang == 'fr' for _, _, lang in pron_secs):
-        pron_secs = [x for x in pron_secs if x[2] == 'fr']
+    if any(lang == explain for _, _, lang in pron_secs):
+        pron_secs = [x for x in pron_secs if x[2] == explain]
     pron_defs, pron_paras = [], []
     for t, b, lang in pron_secs:
         pron_defs += defs_in(b)
@@ -264,23 +249,23 @@ def build(code: str, sources: list[tuple[str, str]]) -> dict:
             if d:
                 groups.setdefault(t, []).extend(f'{k} : {v}' for k, v in d)
         lessons.append({
-            'id': f'{code}:c0', 'title': 'Prononciation', 'level': 'Débutant', 'kind': 'grammar',
-            'intro': (pron_paras[0] if pron_paras else "Comment se prononcent les lettres de cette langue."),
+            'id': f'{code}:c0', 'title': '@c_pron', 'level': '@beginner', 'kind': 'grammar',
+            'intro': (pron_paras[0] if pron_paras else '@c_pron_intro'),
             'sections': [{'heading': t, 'body': ' · '.join(v)} for t, v in groups.items()][:6],
-            'phrases': [], 'quiz': [],
+            'phrases': [],
         })
 
     # 2. Leçon de grammaire, si le guide en contient une.
     for t in GRAMMAR_SECTIONS:
         cand = bodies(t)
-        fr_first = [x for x in cand if x[1] == 'fr'] or cand
+        fr_first = [x for x in cand if x[1] == explain] or cand
         paras = paragraphs_in(fr_first[0][0]) if fr_first else []
         if len(paras) >= 1:
             lessons.append({
-                'id': f'{code}:c1', 'title': 'Notions de grammaire', 'level': 'Débutant', 'kind': 'grammar',
+                'id': f'{code}:c1', 'title': '@c_grammar', 'level': '@beginner', 'kind': 'grammar',
                 'intro': paras[0],
-                'sections': [{'heading': f'Point {i + 1}', 'body': p} for i, p in enumerate(paras[1:6])],
-                'phrases': [], 'quiz': [],
+                'sections': [{'heading': f'{i + 1}', 'body': p} for i, p in enumerate(paras[1:6])],
+                'phrases': [],
             })
             break
 
@@ -290,8 +275,8 @@ def build(code: str, sources: list[tuple[str, str]]) -> dict:
         phrases, paras = [], []
         for k in keys:
             for body, lang in bodies(k):
-                phrases += phrases_in(body, lang)
-                if lang == 'fr':
+                phrases += phrases_in(body, lang, explain)
+                if lang == explain:
                     paras += paragraphs_in(body)
         # Le français l'emporte sur l'anglais quand les deux guides donnent la même phrase.
         phrases.sort(key=lambda p: p.get('en', 0))
@@ -302,15 +287,15 @@ def build(code: str, sources: list[tuple[str, str]]) -> dict:
                 uniq.append(p)
         if len(uniq) < 4:
             continue
-        intro = paras[0] if paras else f'Les phrases utiles pour ce thème : {title.lower()}.'
+        intro = paras[0] if paras else '@c_intro'
         lessons.append({
             'id': f'{code}:c{n}', 'title': title, 'level': level,
             'intro': intro[:600],
-            'sections': [{'heading': 'À retenir', 'body': p[:800]} for p in paras[1:4]],
-            'phrases': uniq[:80], 'quiz': make_quiz(uniq),
+            'sections': [{'heading': '@c_remember', 'body': p[:800]} for p in paras[1:4]],
+            'phrases': uniq[:80],
         })
         n += 1
-    return {'v': 1, 'lessons': lessons, 'source': 'wikivoyage-' + source_lang}
+    return {'v': 2, 'lessons': lessons, 'source': 'wikivoyage-' + source_lang}
 
 
 def main() -> None:
@@ -324,22 +309,21 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     stats = {}
     for code, (fr_page, en_page) in PAGES.items():
-        srcs: list[tuple[str, str]] = []
-        if fr_page and fr_page in pages.get('fr', {}):
-            srcs.append((pages['fr'][fr_page], 'fr'))
-        if en_page and en_page in pages.get('en', {}):
-            srcs.append((pages['en'][en_page], 'en'))
-        if not srcs:
-            print(f'• {code}: aucun guide trouvé', flush=True)
-            continue
-        src = srcs[0][1]
-        data = build(code, srcs)
-        nph = sum(len(l['phrases']) for l in data['lessons'])
-        nen = sum(1 for l in data['lessons'] for p in l['phrases'] if p.get('en'))
-        print(f'• {code}: {len(data["lessons"])} leçons, {nph} phrases ({nen} en anglais)', flush=True)
-        (OUT / f'{code}-course.json').write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
-        stats[code] = {'lessons': len(data['lessons']), 'phrases': nph, 'en': nen,
-                       'sources': [s[1] for s in srcs]}
+        fr_src = [(pages['fr'][fr_page], 'fr')] if fr_page and fr_page in pages.get('fr', {}) else []
+        en_src = [(pages['en'][en_page], 'en')] if en_page and en_page in pages.get('en', {}) else []
+        # Version française : guide français complété par l'anglais traduit. Version anglaise :
+        # guide anglais seul. Les autres langues d'interface reprennent la version anglaise.
+        for explain, srcs in (('fr', fr_src + en_src), ('en', en_src)):
+            if not srcs:
+                continue
+            data = build(code, srcs, explain)
+            nph = sum(len(l['phrases']) for l in data['lessons'])
+            nen = sum(1 for l in data['lessons'] for p in l['phrases'] if p.get('en'))
+            print(f'• {code} ({explain}): {len(data["lessons"])} leçons, {nph} phrases ({nen} en anglais)', flush=True)
+            (OUT / f'{code}-course-{explain}.json').write_text(
+                json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+            stats.setdefault(code, {})[explain] = {'lessons': len(data['lessons']), 'phrases': nph, 'en': nen,
+                                                   'sources': [x[1] for x in srcs]}
     (OUT / 'courses-meta.json').write_text(json.dumps(stats, ensure_ascii=False, indent=1), encoding='utf-8')
 
 

@@ -19,6 +19,7 @@ URL = 'https://kaikki.org/dictionary/{n}/kaikki.org-dictionary-{n}.jsonl'
 NAMES = {
     'es': 'Spanish', 'de': 'German', 'it': 'Italian', 'pt': 'Portuguese',
     'en': 'English', 'lt': 'Lithuanian', 'tl': 'Tagalog', 'ja': 'Japanese', 'zh': 'Chinese',
+    'ko': 'Korean',
 }
 # On ne garde que les catégories utiles : verbes (conjugaison) et, pour l'allemand, les noms (genre + pluriel).
 KEEP_POS = {'verb', 'noun', 'adj'}

@@ -180,4 +180,11 @@ export const strings: Record<string, string> = {
   'common.of': '／',
   'common.english': 'EN',
   'common.englishTip': 'フランス語の出典がないため英語の語義です',
+
+  'quiz.meaning': '「{term}」の意味は？',
+  'quiz.say': '「{text}」はどう言いますか？',
+  'quiz.fill': '空欄を埋めてください：',
+  'lessons.theme': 'テーマ',
+  'lessons.rules': 'ルール',
+  'content.fallback': 'このコンテンツはまだあなたの言語にありません。{lang}で表示しています。',
 };

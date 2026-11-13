@@ -181,4 +181,11 @@ export const strings: Record<string, string> = {
   'common.of': 'iš',
   'common.english': 'EN',
   'common.englishTip': 'Reikšmė angliškai, nes prancūziško šaltinio nėra',
+
+  'quiz.meaning': 'Ką reiškia „{term}“?',
+  'quiz.say': 'Kaip pasakyti „{text}“?',
+  'quiz.fill': 'Užpildykite tarpą:',
+  'lessons.theme': 'Tema',
+  'lessons.rules': 'Taisyklės',
+  'content.fallback': 'Šio turinio dar nėra jūsų kalba: rodoma {lang} kalba.',
 };

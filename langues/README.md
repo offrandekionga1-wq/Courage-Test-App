@@ -120,3 +120,10 @@ npx cap sync android                # copie dist/ dans le projet Android
 - `src/screens/` : les écrans
 - `scripts/` : génération des données
 - `android/` : projet Android généré par Capacitor
+
+## Contenu par langue de l'apprenant, coréen, grammaire
+
+- La langue de l'interface est celle de l'apprenant : définitions, traductions de phrases, titres de leçons, noms de temps et de langues sont fournis dans cette langue (`src/dict/<étudiée>-<expliquée>.json`). Si la paire n'existe pas (lituanien, tagalog, ou peu de données), l'appli se rabat sur l'anglais puis le français et l'indique.
+- Le coréen est ajouté comme langue à apprendre et langue d'interface (traductions de l'interface et contenus rédigés par une IA, **non relus par un locuteur natif**).
+- Programme de grammaire pour les dix langues (`scripts/grammar/<langue>.py`, expliqué en français et en anglais) : chaque règle est illustrée par des phrases Tatoeba retrouvées par motif et par des exercices à trous (`scripts/build-grammar-points.py`). Ces textes sont rédigés par une IA et **non relus par un locuteur natif**, surtout pour le lituanien et le tagalog ; à vérifier avec une source fiable.
+- Chaîne de génération : `fetch-glosses.py`, `build-data.py`, `build-lessons.py`, `build-courses.py`, `build-grammar-points.py`.

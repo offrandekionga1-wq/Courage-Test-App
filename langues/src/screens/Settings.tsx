@@ -1,3 +1,4 @@
+import { localName } from '../terms';
 import { useRef, useState } from 'react';
 import { activeKey, allLanguages, getLanguage, getPack, mergeExtra, useStore } from '../store';
 import { BUILTIN_LANGUAGES, SUGGESTED_LANGUAGES } from '../data';
@@ -19,7 +20,7 @@ export function Settings() {
 
 function SettingsMain({ onSources }: { onSources: () => void }) {
   const { state, update } = useStore();
-  const { t } = useT();
+  const { t, locale } = useT();
   const set = (patch: Partial<AppState>) => update((s) => ({ ...s, ...patch }));
   const langs = allLanguages(state);
   const active = getLanguage(state, state.active);
@@ -162,7 +163,7 @@ function SettingsMain({ onSources }: { onSources: () => void }) {
             <div key={l.code} className="form">
               <label className="grow row gap">
                 <input type="checkbox" checked={state.learning.includes(l.code)} onChange={() => toggle(l.code)} />
-                <span>{l.flag} {l.name} <small>{l.native}</small></span>
+                <span>{l.flag} {localName(l, locale)} <small>{l.native}</small></span>
               </label>
               {ttsSupported() && (
                 <small title={voice[l.tts] ? t('settings.voiceInstalled') : t('settings.voiceMissing')}>
@@ -179,7 +180,7 @@ function SettingsMain({ onSources }: { onSources: () => void }) {
         })}
         {missing.length > 0 && (
           <div className="card note">
-            <span>{t('settings.missingVoices', { list: missing.map((l) => l.name).join(', ') })}</span>
+            <span>{t('settings.missingVoices', { list: missing.map((l) => localName(l, locale)).join(', ') })}</span>
             {isNative()
               ? <button className="btn full" onClick={openVoiceInstall}>{t('settings.installVoices')}</button>
               : <small>{t('home.installVoiceWeb')}</small>}
@@ -192,7 +193,7 @@ function SettingsMain({ onSources }: { onSources: () => void }) {
         <div className="row gap">
           <select className="input grow" value={pick} onChange={(e) => setPick(e.target.value)}>
             <option value="">{t('settings.choose')}</option>
-            {available.map((l) => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
+            {available.map((l) => <option key={l.code} value={l.code}>{l.flag} {localName(l, locale)}</option>)}
           </select>
           <button className="btn" disabled={!pick} onClick={addPicked}><IconPlus size={18} /></button>
         </div>
@@ -243,10 +244,10 @@ function SettingsMain({ onSources }: { onSources: () => void }) {
           <span>{t('settings.autoUpdate')}</span>
         </label>
         <button className="btn full" disabled={!key || !!busy} onClick={runUpdate}>
-          <IconSpark size={18} /> {busy || t('settings.generate', { lang: active.name })}
+          <IconSpark size={18} /> {busy || t('settings.generate', { lang: localName(active, locale) })}
         </button>
         <button className="btn ghost full" disabled={!key || !!busy || !!course} onClick={runCourse}>
-          {t('settings.generateCourse', { lang: active.name })}
+          {t('settings.generateCourse', { lang: localName(active, locale) })}
         </button>
         {course && (
           <>

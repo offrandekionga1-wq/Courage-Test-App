@@ -24,64 +24,56 @@ WIKT = {
     'en': ('Anglais', None), 'es': ('Espagnol', None), 'de': ('Allemand', None),
     'it': ('Italien', None), 'pt': ('Portugais', None), 'zh': ('Chinois', None),
     'lt': ('Lituanien', 'Lithuanian'), 'tl': ('Tagalog', 'Tagalog'), 'ja': (None, None),
+    'ko': ('Coréen', 'Korean'),
 }
 
 # Découpage en niveaux : (nom, premier rang, dernier rang, mots par leçon)
 LEVELS = [
-    ('A1', 0, 600, 18),
-    ('A2', 600, 1800, 20),
-    ('B1', 1800, 4000, 22),
-    ('B2', 4000, 9000, 25),
-    ('C1', 9000, 20000, 25),
-    ('C2', 20000, 40000, 25),
+    ('A1', 0, 500, 18),
+    ('A2', 500, 1500, 20),
+    ('B1', 1500, 3500, 22),
+    ('B2', 3500, 6000, 25),
+    ('C1', 6000, 8500, 25),
+    ('C2', 8500, 20000, 25),
 ]
-
-LEVEL_INTRO = {
-    'A1': "Les tout premiers mots : ceux qu'on rencontre dès les premières phrases.",
-    'A2': "Le vocabulaire de la vie courante, pour tenir une conversation simple.",
-    'B1': "De quoi raconter, expliquer et comprendre l'essentiel d'un texte ordinaire.",
-    'B2': "Un vocabulaire plus large, pour suivre une discussion suivie et lire sans peine.",
-    'C1': "Les mots moins courants : la nuance, les domaines spécialisés, la langue écrite.",
-    'C2': "Le fond du dictionnaire : termes rares, techniques ou littéraires.",
-}
 
 # Thèmes retenus : clé reconnue dans les catégories du Wiktionnaire → titre affiché.
 THEMES: dict[str, str] = {
-    'la famille': 'La famille', 'la cuisine': 'La cuisine', 'la médecine': 'La médecine',
-    'l’anatomie': 'Le corps', 'anatomie': 'Le corps', 'la politique': 'La politique',
-    'l’économie': 'L’économie', 'la finance': 'L’argent', 'commerce': 'Le commerce',
-    'travail': 'Le travail', 'l’éducation': "L’école", 'sport': 'Le sport',
-    'la musique': 'La musique', 'la religion': 'La religion', 'droit': 'Le droit',
-    'militaire': "L’armée", 'la géographie': 'La géographie', 'transport': 'Les transports',
-    'la technique': 'La technique', 'l’informatique': "L’informatique",
-    'la physique': 'La physique', 'la chimie': 'La chimie', 'mathématiques': 'Les mathématiques',
-    'la biologie': 'La biologie', 'la botanique': 'Les plantes', 'la zoologie': 'Les animaux',
-    'l’architecture': "L’architecture", 'la linguistique': 'La langue', 'la grammaire': 'La langue',
-    'l’histoire': "L’histoire", 'temps': 'Le temps qui passe', 'la mort': 'La vie et la mort',
-    'l’électricité': "L’électricité", 'la mécanique': 'La mécanique', 'l’industrie': "L’industrie",
-    'la marine': 'La mer', 'la chasse': 'La chasse', 'la pêche': 'La pêche',
-    'l’agriculture': "L’agriculture", 'la météorologie': 'La météo', 'l’astronomie': "L’astronomie",
-    'la couture': 'Les vêtements', 'l’habillement': 'Les vêtements', 'la danse': 'La danse',
-    'le théâtre': 'Le théâtre', 'la photographie': 'La photographie', 'la peinture': "L’art",
-    'la psychologie': 'La psychologie', 'la philosophie': 'La philosophie',
+    'la famille': 'family', 'la cuisine': 'cooking', 'la médecine': 'medicine',
+    'l’anatomie': 'body', 'anatomie': 'body', 'la politique': 'politics',
+    'l’économie': 'economy', 'la finance': 'money', 'commerce': 'trade',
+    'travail': 'work', 'l’éducation': 'school', 'sport': 'sport',
+    'la musique': 'music', 'la religion': 'religion', 'droit': 'law',
+    'militaire': 'army', 'la géographie': 'geography', 'transport': 'transport',
+    'la technique': 'technology', 'l’informatique': 'computing',
+    'la physique': 'physics', 'la chimie': 'chemistry', 'mathématiques': 'maths',
+    'la biologie': 'biology', 'la botanique': 'plants', 'la zoologie': 'animals',
+    'l’architecture': 'architecture', 'la linguistique': 'language', 'la grammaire': 'language',
+    'l’histoire': 'history', 'temps': 'time', 'la mort': 'life',
+    'l’électricité': 'electricity', 'la mécanique': 'mechanics', 'l’industrie': 'industry',
+    'la marine': 'sea', 'la chasse': 'hunting', 'la pêche': 'fishing',
+    'l’agriculture': 'farming', 'la météorologie': 'weather', 'l’astronomie': 'astronomy',
+    'la couture': 'clothes', 'l’habillement': 'clothes', 'la danse': 'dance',
+    'le théâtre': 'theatre', 'la photographie': 'photography', 'la peinture': 'art',
+    'la psychologie': 'psychology', 'la philosophie': 'philosophy',
 }
 # Catégories directes (« Animaux en allemand ») → titre affiché.
 DIRECT = {
-    'Animaux': 'Les animaux', 'Oiseaux': 'Les oiseaux', 'Poissons': 'Les poissons',
-    'Insectes': 'Les insectes', 'Plantes': 'Les plantes', 'Arbres': 'Les arbres',
-    'Fruits': 'Les fruits', 'Légumes': 'Les légumes', 'Aliments': 'La nourriture',
-    'Boissons': 'Les boissons', 'Couleurs': 'Les couleurs', 'Vêtements': 'Les vêtements',
-    'Métiers': 'Les métiers', 'Maladies': 'La santé', 'Meubles': 'La maison',
-    'Outils': 'Les outils', 'Instruments de musique': 'La musique', 'Pays': 'Les pays',
-    'Villes': 'Les villes', 'Parties du corps': 'Le corps', 'Sentiments': 'Les sentiments',
-    'Émotions': 'Les sentiments', 'Nombres': 'Les nombres', 'Jours': 'Le temps qui passe',
-    'Mois': 'Le temps qui passe', 'Saisons': 'Le temps qui passe', 'Unités de mesure': 'Les mesures',
+    'Animaux': 'animals', 'Oiseaux': 'birds', 'Poissons': 'fish',
+    'Insectes': 'insects', 'Plantes': 'plants', 'Arbres': 'trees',
+    'Fruits': 'fruits', 'Légumes': 'vegetables', 'Aliments': 'food',
+    'Boissons': 'drinks', 'Couleurs': 'colours', 'Vêtements': 'clothes',
+    'Métiers': 'jobs', 'Maladies': 'health', 'Meubles': 'home',
+    'Outils': 'tools', 'Instruments de musique': 'music', 'Pays': 'countries',
+    'Villes': 'cities', 'Parties du corps': 'body', 'Sentiments': 'feelings',
+    'Émotions': 'feelings', 'Nombres': 'numbers', 'Jours': 'time',
+    'Mois': 'time', 'Saisons': 'time', 'Unités de mesure': 'measures',
 }
 # Repli par nature du mot, quand aucun thème ne ressort.
 POS_TITLE = {
-    'noun': 'Noms courants', 'verb': 'Verbes courants', 'adj': 'Adjectifs courants',
-    'adv': 'Adverbes', 'pron': 'Pronoms', 'num': 'Nombres', 'conj': 'Mots de liaison',
-    'prep': 'Prépositions', 'intj': 'Interjections', 'particle': 'Particules',
+    'noun': 'nouns', 'verb': 'verbs', 'adj': 'adjectives',
+    'adv': 'adverbs', 'pron': 'pronouns', 'num': 'numbers', 'conj': 'linkers',
+    'prep': 'prepositions', 'intj': 'interjections', 'particle': 'particles',
 }
 
 LEX_RE = re.compile(r'^Lexique en \S+ (?:de |du |des |de l’|de la |d’)(.+)$')
@@ -135,6 +127,18 @@ def themes_for_language(code: str) -> tuple[dict[str, str], dict[str, str], set[
                     if head in DIRECT:
                         theme[w] = DIRECT[head]
                         break
+    # Nature des mots d'après les extractions compactes, pour les langues sans fichier complet.
+    for name in (f'gloss/en-{code}.jsonl.gz', f'gloss/fr-{code}.jsonl.gz'):
+        path = CACHE / name
+        if not path.exists():
+            continue
+        with gzip.open(path, 'rt', encoding='utf-8') as f:
+            for line in f:
+                try:
+                    d = json.loads(line)
+                except ValueError:
+                    continue
+                pos.setdefault(d['w'].lower(), d.get('p', ''))
     return theme, pos, coarse
 
 
@@ -145,13 +149,13 @@ def japanese_themes() -> tuple[dict[str, str], dict[str, str], set[str]]:
     """
     import xml.etree.ElementTree as ET
     field_map = {
-        'food': 'La cuisine', 'med': 'La médecine', 'comp': "L’informatique", 'bus': 'Le travail',
-        'law': 'Le droit', 'sports': 'Le sport', 'music': 'La musique', 'mil': "L’armée",
-        'math': 'Les mathématiques', 'physics': 'La physique', 'chem': 'La chimie',
-        'biol': 'La biologie', 'bot': 'Les plantes', 'zool': 'Les animaux', 'archit': "L’architecture",
-        'ling': 'La langue', 'relig': 'La religion', 'econ': "L’économie", 'finc': "L’argent",
-        'astron': "L’astronomie", 'geogr': 'La géographie', 'agric': "L’agriculture",
-        'cloth': 'Les vêtements', 'anat': 'Le corps', 'psych': 'La psychologie', 'hist': "L’histoire",
+        'food': 'cooking', 'med': 'medicine', 'comp': 'computing', 'bus': 'work',
+        'law': 'law', 'sports': 'sport', 'music': 'music', 'mil': 'army',
+        'math': 'maths', 'physics': 'physics', 'chem': 'chemistry',
+        'biol': 'biology', 'bot': 'plants', 'zool': 'animals', 'archit': 'architecture',
+        'ling': 'language', 'relig': 'religion', 'econ': 'economy', 'finc': 'money',
+        'astron': 'astronomy', 'geogr': 'geography', 'agric': 'farming',
+        'cloth': 'clothes', 'anat': 'body', 'psych': 'psychology', 'hist': 'history',
     }
     pos_map = [('verb', ('v1', 'v5', 'vs', 'vk', 'vz')), ('adj', ('adj-i', 'adj-na', 'adj-no')),
                ('noun', ('n',)), ('adv', ('adv',)), ('pron', ('pn',)), ('num', ('num',)),
@@ -184,27 +188,11 @@ def japanese_themes() -> tuple[dict[str, str], dict[str, str], set[str]]:
     return theme, pos, coarse
 
 
-def make_quiz(words: list[tuple[int, str, str]], pick: int = 6) -> list[dict]:
-    """Quiz de la leçon : reconnaître le sens d'un mot parmi les autres mots de la leçon."""
-    if len(words) < 4:
-        return []
-    quiz = []
-    step = max(1, len(words) // pick)
-    for n in range(0, min(pick * step, len(words)), step):
-        _, term, gloss = words[n]
-        others = [g for i, (_, _, g) in enumerate(words) if i != n and g != gloss]
-        if len(others) < 3:
-            break
-        picks = [others[(n * 5 + k * 7) % len(others)] for k in range(3)]
-        if len({*picks, gloss}) < 4:
-            continue
-        choices = [picks[0], gloss, picks[1], picks[2]]
-        quiz.append({'q': f'Que signifie « {term} » ?', 'choices': choices, 'answer': 1})
-    return quiz
-
-
 def build(code: str) -> dict | None:
-    src = OUT / f'{code}.json'
+    # Liste de référence : le dictionnaire expliqué en anglais, le plus complet ; pour l'anglais
+    # lui-même, celui qui est expliqué en français. Les leçons désignent les mots par leur graphie,
+    # si bien qu'un même fichier sert quelle que soit la langue de l'apprenant.
+    src = OUT / (f'{code}-en.json' if code != 'en' else 'en-fr.json')
     if not src.exists():
         print(f'• {code}: pas de dictionnaire', flush=True)
         return None
@@ -226,13 +214,13 @@ def build(code: str) -> dict | None:
             key = theme.get(item[1]) or theme.get(item[1].lower())
             if not key:
                 p = pos.get(item[1]) or pos.get(item[1].lower()) or ''
-                key = POS_TITLE.get(p, 'Vocabulaire courant')
+                key = POS_TITLE.get(p, 'common')
             groups[key].append(item)
         # Les leçons thématiques passent avant celles qui ne sont qu'un repli par nature de mot :
         # « La cuisine » est plus parlant que « Noms courants ».
         def order(kv: tuple[str, list]) -> tuple:
             title, items = kv
-            generic = title in set(POS_TITLE.values()) | {'Vocabulaire courant'}
+            generic = title in set(POS_TITLE.values()) | {'common'}
             return (generic, -len(items), title)
 
         for title, items in sorted(groups.items(), key=order):
@@ -243,17 +231,13 @@ def build(code: str) -> dict | None:
                 if len(part) < 8:
                     break
                 n += 1
-                label = f'{title} ({k + 1})' if len(parts) > 1 else title
-                lessons.append({
-                    'id': f'{code}:n{n}',
-                    'title': label,
-                    'level': level,
-                    'intro': f'{LEVEL_INTRO[level]} Thème : {title.lower()}.',
-                    'words': [i for i, _, _ in part],
-                    'quiz': make_quiz(part),
-                })
+                # Titre et présentation sont composés par l'application, dans la langue de
+                # l'apprenant, à partir de la clé du thème et du niveau ; le quiz aussi.
+                lessons.append({'id': f'{code}:{level}:{title}:{k + 1}', 't': title,
+                                'k': k + 1 if len(parts) > 1 else 0, 'level': level,
+                                'words': [t for _, t, _ in part]})
     print(f'  {len(lessons)} leçons', flush=True)
-    out = {'v': 1, 'lessons': lessons}
+    out = {'v': 2, 'lessons': lessons}
     (OUT / f'{code}-lessons.json').write_text(json.dumps(out, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
     return {'lessons': len(lessons), 'levels': sorted({l['level'] for l in lessons})}
 

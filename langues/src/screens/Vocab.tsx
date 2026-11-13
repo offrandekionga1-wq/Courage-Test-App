@@ -54,7 +54,8 @@ export function Vocab({ onSettings }: { onSettings: () => void }) {
 
 function WordRow({ w, open, onToggle }: { w: Word; open: boolean; onToggle: () => void }) {
   const { state } = useStore();
-  const dict = useDict(state.active);
+  const { locale } = useT();
+  const dict = useDict(state.active, locale);
   const isEn = dict?.enGloss.has(w.id);
   return (
     <div className="word" onClick={onToggle}>

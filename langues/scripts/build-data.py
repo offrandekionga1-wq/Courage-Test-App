@@ -50,11 +50,18 @@ LANGS = {
     'lt': dict(iso3='lit', freq='2018/lt/lt_full.txt', fr='Lituanien', en='Lithuanian'),
     'tl': dict(iso3='tgl', freq='2016/tl/tl_full.txt', fr='Tagalog', en='Tagalog'),
     'ja': dict(iso3='jpn', cjk=True),
+    'ko': dict(iso3='kor', freq='2018/ko/ko_full.txt', fr='Coréen', cjk=True),
     'zh': dict(iso3='cmn', freq='2018/zh_cn/zh_cn_full.txt', fr='Chinois', cjk=True),
 }
-N_WORDS = 40000     # mots par langue au maximum
-N_SENT = 90000      # phrases par langue au maximum
-N_VERBS = 6000      # verbes conjugués par langue au maximum
+# Langue dans laquelle les définitions et les traductions sont écrites -> code Tatoeba.
+# Changer la langue de l'application change la langue d'explication : l'apprenant lit le sens des
+# mots et la traduction des phrases dans sa propre langue, pas dans une langue intermédiaire.
+EXPLAIN = {'fr': 'fra', 'en': 'eng', 'es': 'spa', 'de': 'deu', 'it': 'ita',
+           'pt': 'por', 'ja': 'jpn', 'zh': 'cmn', 'ko': 'kor'}
+
+N_WORDS = 10000     # mots par couple (langue étudiée, langue d'explication)
+N_SENT = 10000      # phrases par couple au maximum
+N_VERBS = 3000      # verbes conjugués par langue au maximum
 MAX_LEN = {False: 110, True: 46}  # longueur maximale d'une phrase (caractères)
 MIN_LEN = {False: 14, True: 5}
 
@@ -87,8 +94,10 @@ def sources_for(code: str) -> list[tuple[str, str]]:
     i = c['iso3']
     out += [(f'{TATOEBA}/per_language/{i}/{i}_sentences_detailed.tsv.bz2', f'tatoeba/{i}_sentences_detailed.tsv.bz2'),
             (f'{TATOEBA}/per_language/{i}/{i}-fra_links.tsv.bz2', f'tatoeba/{i}-fra_links.tsv.bz2')]
-    if i != 'eng':
-        out.append((f'{TATOEBA}/per_language/{i}/{i}-eng_links.tsv.bz2', f'tatoeba/{i}-eng_links.tsv.bz2'))
+    for pivot in EXPLAIN.values():
+        if pivot != i:
+            out.append((f'{TATOEBA}/per_language/{i}/{i}-{pivot}_links.tsv.bz2',
+                        f'tatoeba/{i}-{pivot}_links.tsv.bz2'))
     if c.get('freq'):
         out.append((f'{FREQ}/{c["freq"]}', f'freq/{code}.txt'))
     if c.get('fr'):
@@ -101,14 +110,18 @@ def sources_for(code: str) -> list[tuple[str, str]]:
 
 
 def cmd_fetch():
-    fetch(f'{TATOEBA}/per_language/fra/fra_sentences_detailed.tsv.bz2', 'tatoeba/fra_sentences_detailed.tsv.bz2')
-    fetch(f'{TATOEBA}/per_language/eng/eng_sentences_detailed.tsv.bz2', 'tatoeba/eng_sentences_detailed.tsv.bz2')
+    for pivot in EXPLAIN.values():
+        fetch(f'{TATOEBA}/per_language/{pivot}/{pivot}_sentences_detailed.tsv.bz2',
+              f'tatoeba/{pivot}_sentences_detailed.tsv.bz2')
     fetch(f'{TATOEBA}/transcriptions.tar.bz2', 'tatoeba/transcriptions.tar.bz2')
     fetch(JMDICT, 'JMdict.gz')
     fetch(CEDICT, 'cedict.zip')
     for code in LANGS:
         for url, name in sources_for(code):
-            fetch(url, name)
+            try:
+                fetch(url, name)
+            except Exception as e:
+                print(f'  (absent : {name} — {e})', flush=True)
 
 
 # ───────────────────────── utilitaires ─────────────────────────
@@ -255,7 +268,7 @@ def load_readings() -> dict:
     return r
 
 
-def load_sentences(code: str):
+def load_sentences(code: str, explain: str = 'fr'):
     """[(id, texte, traduction, auteur, auteur de la traduction, traduction anglaise ?)].
 
     La traduction française est préférée ; là où elle manque — c'est courant en lituanien et en
@@ -264,8 +277,11 @@ def load_sentences(code: str):
     c = LANGS[code]
     i = c['iso3']
     cjk = c.get('cjk', False)
-    link: dict[str, tuple[str, str]] = {}     # id de la phrase -> (id de la traduction, 'fra' | 'eng')
-    for pivot in ('fra', 'eng'):
+    link: dict[str, tuple[str, str]] = {}     # id de la phrase -> (id de la traduction, pivot)
+    wanted = EXPLAIN.get(explain, 'fra')
+    # La langue de l'apprenant d'abord ; l'anglais et le français ne servent que de repli.
+    order = [wanted] + [p for p in ('eng', 'fra') if p != wanted]
+    for pivot in order:
         if pivot == i:
             continue
         path = CACHE / f'tatoeba/{i}-{pivot}_links.tsv.bz2'
@@ -291,8 +307,32 @@ def load_sentences(code: str):
             ttext = ttext.strip()
             if len(ttext) > 130 or re.search(r'\d{4,}', text):
                 continue
-            out.append((p[0], text, ttext, p[3], tuser, pivot == 'eng'))
-    out.sort(key=lambda s: (len(s[1]), int(s[0])))
+            out.append((p[0], text, ttext, p[3], tuser, pivot != wanted))
+    # Les phrases traduites dans la langue de l'apprenant passent devant ; à l'intérieur de chaque
+    # groupe, les plus courtes d'abord.
+    out.sort(key=lambda s: (s[5], len(s[1]), int(s[0])))
+    return out
+
+
+def load_glosses(explain: str, target: str) -> dict[str, tuple[str, str]]:
+    """mot (minuscule) -> (graphie, définitions assemblées), dans la langue d'explication."""
+    path = CACHE / f'gloss/{explain}-{target}.jsonl.gz'
+    if not path.exists():
+        return {}
+    out: dict[str, tuple[str, str]] = {}
+    with gzip.open(path, 'rt', encoding='utf-8') as f:
+        for line in f:
+            try:
+                d = json.loads(line)
+            except ValueError:
+                continue
+            w = d['w']
+            lw = w.lower()
+            if lw in out:
+                continue
+            gl = join_glosses([clean_gloss(g) for g in d.get('g', [])])
+            if gl:
+                out[lw] = (w, gl)
     return out
 
 
@@ -356,32 +396,38 @@ def wikt_index(path: Path, wanted: set[str], glosser, cap_ok: bool = False):
     return idx
 
 
-def words_from_wiktionary(code: str):
-    c = LANGS[code]
-    freq = read_freq(code)[:120000]
-    wanted = set(w.lower() for w in freq)
-    fr = wikt_index(CACHE / f'wikt-fr/{c["fr"]}.jsonl', wanted, french_glosses, cap_ok=(code == 'de'))
-    en = wikt_index(CACHE / f'wikt-en/{c["en"]}.jsonl', wanted, english_glosses) if c.get('en') else {}
-    cedict = load_cedict() if code == 'zh' else {}
+def words_for(code: str, explain: str, freq: list[str], cedict: dict, readings: dict,
+              extra_native: dict | None = None, extra_fallback: dict | None = None):
+    """Mots les plus fréquents de `code` dont on a une définition écrite en `explain`.
+
+    Faute d'entrée dans la langue de l'apprenant, on se rabat sur l'anglais, signalé comme tel :
+    mieux vaut une définition anglaise que pas de mot du tout.
+    """
+    native = {**load_glosses(explain, code), **(extra_native or {})}
+    fallback = {**(load_glosses('en', code) if explain != 'en' else {}), **(extra_fallback or {})}
+    cjk = LANGS[code].get('cjk', False)
     out, seen = [], set()
     for w in freq:
         lw = w.lower()
-        if lw in seen or lw in FRAGMENTS or (len(lw) < 2 and not c.get('cjk')) or (code == 'zh' and not re.search(r'[一-鿿]', lw)):
+        if lw in seen or lw in FRAGMENTS or (len(lw) < 2 and not cjk):
             continue
-        reading, flag, gloss, term = '', '', '', None
-        if lw in fr:
-            term, gl = fr[lw][0], fr[lw][1]
-            gloss = join_glosses(gl)
-        elif lw in en:
-            term, gl = en[lw][0], en[lw][1]
-            gloss, flag = join_glosses(gl), 'en'
+        if code == 'zh' and not re.search(r'[\u4e00-\u9fff]', lw):
+            continue
+        term, gloss, flag = None, '', ''
+        if lw in native:
+            term, gloss = native[lw]
+        elif lw in fallback:
+            term, gloss = fallback[lw]
+            flag = 'en'
         elif code == 'zh' and lw in cedict:
-            term, flag = lw, 'en'
-            gloss = join_glosses(cedict[lw][1])
+            term, gloss, flag = lw, join_glosses(cedict[lw][1]), 'en'
         if not gloss:
             continue
+        reading = ''
         if code == 'zh' and lw in cedict:
             reading = cedict[lw][0]
+        elif code in ('ja', 'ko'):
+            reading = readings.get(term or w, '')
         seen.add(lw)
         out.append((term or w, reading, gloss, flag))
         if len(out) >= N_WORDS:
@@ -410,11 +456,17 @@ def load_cedict() -> dict:
     return d
 
 
-def words_from_jmdict():
-    """Mots japonais les plus courants (étiquettes de priorité JMdict) ayant une glose française."""
+_jm: dict | None = None
+
+
+def jmdict_data() -> dict:
+    """JMdict, lu une fois : mots par ordre de priorité, lectures, définitions françaises et anglaises."""
+    global _jm
+    if _jm is not None:
+        return _jm
     xml_lang = '{http://www.w3.org/XML/1998/namespace}lang'
     rank_of = {'news1': 30, 'ichi1': 30, 'spec1': 30, 'gai1': 40, 'news2': 50, 'ichi2': 60, 'spec2': 60, 'gai2': 70}
-    items = []
+    items, reading, fre, eng = [], {}, {}, {}
     with gzip.open(CACHE / 'JMdict.gz') as f:
         for _, el in ET.iterparse(f):
             if el.tag != 'entry':
@@ -423,9 +475,7 @@ def words_from_jmdict():
             for k in el.findall('k_ele'):
                 pri = [p.text for p in k.findall('ke_pri')]
                 if kanji is None or pri:
-                    kanji = kanji or k.findtext('keb')
-                    if pri:
-                        kanji = k.findtext('keb')
+                    kanji = k.findtext('keb') if (pri or kanji is None) else kanji
                 for p in pri:
                     best = min(best, int(p[2:]) if p.startswith('nf') else rank_of.get(p, 999))
             for r in el.findall('r_ele'):
@@ -434,47 +484,43 @@ def words_from_jmdict():
                     reb = r.findtext('reb')
                 for p in pri:
                     best = min(best, int(p[2:]) if p.startswith('nf') else rank_of.get(p, 999))
-            if best < 999:
+            term = kanji or reb
+            if term and term not in reading:
                 fr, en = [], []
-                for s in el.findall('sense'):
-                    if s.find('misc') is not None and any('usually written using kana' not in (m.text or '') and 'rare' in (m.text or '') for m in s.findall('misc')):
-                        continue
-                    for g in s.findall('gloss'):
+                for sense in el.findall('sense'):
+                    for g in sense.findall('gloss'):
                         lang = g.get(xml_lang, 'eng')
                         if lang == 'fre' and g.text:
                             fr.append(clean_gloss(g.text))
                         elif lang == 'eng' and g.text:
                             en.append(clean_gloss(g.text))
-                term = kanji or reb
+                reading[term] = reb if reb and reb != term else ''
                 if fr:
-                    items.append((best, int(el.findtext('ent_seq')), term, reb, join_glosses(fr), ''))
-                elif en:
-                    items.append((best + 100, int(el.findtext('ent_seq')), term, reb, join_glosses(en), 'en'))
+                    fre[term] = (term, join_glosses(fr))
+                if en:
+                    eng[term] = (term, join_glosses(en))
+                # Les mots sans étiquette de priorité viennent après tous les autres.
+                items.append((best, int(el.findtext('ent_seq')), term))
             el.clear()
     items.sort()
-    out, seen = [], set()
-    for _, _, term, reb, gloss, flag in items:
-        if term in seen:
-            continue
-        seen.add(term)
-        out.append((term, reb if reb != term else '', gloss, flag))
-        if len(out) >= N_WORDS:
-            break
-    return out
+    _jm = {'order': [t for _, _, t in items], 'reading': reading, 'fre': fre, 'eng': eng}
+    return _jm
 
 
 # ───────────────────────── verbes conjugués ─────────────────────────
-def build_verbs(code: str, words: list[tuple]) -> list[dict]:
+def build_verbs(code: str, freq: list[str]) -> list[dict]:
     """Tables de conjugaison des verbes les plus courants, dans l'ordre de fréquence donné.
 
-    `words` fournit aussi les définitions françaises déjà retenues : on les préfère aux glosses
-    anglaises du Wiktionary quand le verbe y figure.
+    Les tableaux ne dépendent pas de la langue de l'apprenant : ils sont écrits une seule fois par
+    langue étudiée. La définition jointe est anglaise ; l'application la remplace par celle du
+    dictionnaire de l'apprenant quand le verbe y figure.
     """
     path = CACHE / f'conj/{code}.jsonl.gz'
     if not path.exists():
         return []
-    rank = {w[0].lower(): i for i, w in enumerate(words)}
-    french = {w[0].lower(): w[2] for w in words if not w[3]}
+    rank = {}
+    for i, w in enumerate(freq):
+        rank.setdefault(w.lower(), i)
     found: dict[str, dict] = {}
     with gzip.open(path, 'rt', encoding='utf-8') as f:
         for line in f:
@@ -488,36 +534,92 @@ def build_verbs(code: str, words: list[tuple]) -> list[dict]:
             lw = w.lower()
             if lw in found:
                 continue
-            # Les langues sans accord de personne (japonais, tagalog) ne rendent qu'un tableau
-            # de formes : on l'accepte s'il est assez fourni.
             if code == 'ja' and not re.search(r'[\u3040-\u30ff\u4e00-\u9fff]', w):
+                continue
+            if code == 'ko' and not re.search(r'[\uac00-\ud7a3]', w):
                 continue
             tenses, note = tenses_for(code, d['f'])
             rows = sum(len(t['forms']) for t in tenses)
             if len(tenses) < 2 and rows < 4:
                 continue
-            gloss = french.get(lw) or join_glosses([clean_gloss(g) for g in d.get('g', [])])
+            gloss = join_glosses([clean_gloss(g) for g in d.get('g', [])])
             if not gloss or re.match(r'(?:obsolete|archaic|alternative|misspelling|synonym of|dated)', gloss, re.I):
                 continue
-            found[lw] = {'id': f'{code}:v:{w}', 'infinitive': w, 'fr': gloss, 'note': note,
-                         'tenses': tenses, 'rank': rank.get(lw, 10 ** 6),
-                         **({} if lw in french else {'en': 1})}
+            found[lw] = {'id': f'{code}:v:{w}', 'infinitive': w, 'en': gloss, 'note': note,
+                         'tenses': tenses, 'rank': rank.get(lw, 10 ** 6)}
     out = sorted(found.values(), key=lambda v: v['rank'])[:N_VERBS]
     for v in out:
         v.pop('rank')
     return out
 
 
+def headwords_by_corpus(code: str, skip: set[str]) -> list[str]:
+    """Mots du dictionnaire classés par leur fréquence dans les phrases Tatoeba.
+
+    Sert au coréen : ses mots portent des particules collées, si bien que les listes de fréquence
+    donnent rarement la forme du dictionnaire. On compte donc les entrées du dictionnaire telles
+    qu'elles apparaissent à l'intérieur des phrases.
+    """
+    heads = {w for w, _ in load_glosses('en', code).values()} | {w for w, _ in load_glosses('fr', code).values()}
+    heads = {h for h in heads if h.lower() not in skip and 1 < len(h) <= 6}
+    path = CACHE / f'tatoeba/{LANGS[code]["iso3"]}_sentences_detailed.tsv.bz2'
+    if not heads or not path.exists():
+        return []
+    counts: dict[str, int] = defaultdict(int)
+    with opener(path) as f:
+        for line in f:
+            p = line.rstrip('\n').split('\t')
+            if len(p) < 3:
+                continue
+            text = p[2]
+            for i in range(len(text)):
+                for L in range(2, 7):
+                    sub = text[i:i + L]
+                    if len(sub) == L and sub in heads:
+                        counts[sub] += 1
+    return [w for w, _ in sorted(counts.items(), key=lambda kv: -kv[1])]
+
+
 # ───────────────────────── assemblage ─────────────────────────
 def build_language(code: str) -> dict:
+    """Produit un jeu de fichiers par langue d'explication, et rend les statistiques du lot."""
+    print(f'• {code}', flush=True)
+    cedict = load_cedict() if code == 'zh' else {}
+    readings: dict = {}
+    extra: dict[str, dict] = {}
+    if code == 'ja':
+        jm = jmdict_data()
+        freq, readings = jm['order'], jm['reading']
+        extra = {'fr': jm['fre'], 'en': jm['eng']}
+    else:
+        freq = read_freq(code)[:200000]
+        if code == 'ko':
+            freq += headwords_by_corpus(code, {w.lower() for w in freq[:50000]})
+    verbs = build_verbs(code, freq)
+    OUT.mkdir(parents=True, exist_ok=True)
+    (OUT / f'{code}-verbs.json').write_text(
+        json.dumps({'v': 1, 'vb': verbs}, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+    print(f'  {len(verbs)} verbes conjugués', flush=True)
+    stats = {'verbs': len(verbs), 'pairs': {}}
+    for explain in EXPLAIN:
+        if explain == code:
+            continue        # on n'apprend pas une langue dans cette même langue
+        got = build_pair(code, explain, freq, cedict, readings,
+                         extra.get(explain), extra.get('en') if explain != 'en' else None)
+        if got:
+            stats['pairs'][explain] = got
+    return stats
+
+
+def build_pair(code: str, explain: str, freq: list[str], cedict: dict, readings: dict,
+               extra_native: dict | None, extra_fallback: dict | None) -> dict | None:
     c = LANGS[code]
     cjk = c.get('cjk', False)
-    print(f'• {code}', flush=True)
-    words = words_from_jmdict() if code == 'ja' else words_from_wiktionary(code)
-    sents = load_sentences(code)
-    if code == 'tl':  # pas de liste de fréquence fiable partout : on complète avec la fréquence dans Tatoeba
-        pass
-    print(f'  {len(words)} mots, {len(sents)} phrases candidates', flush=True)
+    words = words_for(code, explain, freq, cedict, readings, extra_native, extra_fallback)
+    if len(words) < 300:
+        print(f'  {explain} : trop peu de définitions ({len(words)}), ignoré', flush=True)
+        return None
+    sents = load_sentences(code, explain)
 
     # Une phrase d'exemple par mot : la plus courte qui le contienne. Les phrases étant déjà
     # triées par longueur, le premier candidat trouvé est le plus court.
@@ -561,12 +663,12 @@ def build_language(code: str) -> dict:
     keep_set = {n for n in ex_for_word if n >= 0}
 
     # On complète avec les phrases les plus riches en mots connus, jusqu'à N_SENT.
-    scored = sorted(((-counts[n], len(sents[n][1]), n) for n in range(len(sents)) if n not in keep_set))
-    for _, _, n in scored:
+    scored = sorted(((sents[n][5], -counts[n], len(sents[n][1]), n) for n in range(len(sents)) if n not in keep_set))
+    for *_, n in scored:
         if len(keep_set) >= N_SENT:
             break
         keep_set.add(n)
-    order = sorted(keep_set)
+    order = sorted(keep_set, key=lambda n: (len(sents[n][1]), n))
     remap = {n: k for k, n in enumerate(order)}
 
     readings = load_readings() if code in ('ja', 'zh') else {}
@@ -591,7 +693,6 @@ def build_language(code: str) -> dict:
         term, reading, gloss, flag = w
         out_words.append([term, reading, gloss, flag or ''])
     names = sorted(authors, key=lambda a: authors[a])
-    verbs = build_verbs(code, words)
     # Les mots portent leur exemple en clair : l'écran du vocabulaire n'a alors pas besoin du
     # fichier des phrases, qui pèse plusieurs mégaoctets et ne sert qu'à l'écran « Phrases ».
     # [terme, lecture, définition, « en » si la définition est anglaise, exemple]
@@ -599,19 +700,27 @@ def build_language(code: str) -> dict:
         if ex >= 0:
             sid, text, ftext, _au, _fu, is_en = sents[ex]
             row.append([text, ftext, rd.get(sid, ''), 1 if is_en else 0])
-    data = {'v': 2, 'w': out_words, 'vb': verbs}
+    data = {'v': 3, 'w': out_words}
     sentence_data = {'v': 2, 's': sentences, 'a': names}
     n_fr = sum(1 for r in out_words if not r[3])
     n_sent_en = sum(1 for r in sentences if len(r) > 6)
-    stats = dict(words=len(out_words), words_fr=n_fr, words_en=len(out_words) - n_fr,
-                 sentences=len(sentences), sentences_en=n_sent_en, authors=len(names), verbs=len(verbs))
-    print('  ', stats, flush=True)
+    stats = dict(words=len(out_words), words_en=len(out_words) - n_fr,
+                 sentences=len(sentences), sentences_other=n_sent_en, authors=len(names))
+    print(f'  {explain} :', stats, flush=True)
+    # Une paire dont presque tout est déjà de repli n'apporte rien de plus que la version
+    # anglaise : on ne l'écrit pas, l'appli se rabat sur l'anglais (et le dit).
+    if explain != 'en' and stats['words_en'] > 0.8 * stats['words'] and stats['sentences_other'] > 0.8 * stats['sentences']:
+        for suffix in ('', '-sentences'):
+            (OUT / f'{code}-{explain}{suffix}.json').unlink(missing_ok=True)
+        print(f'  {explain} : trop de repli, paire non écrite', flush=True)
+        return None
     OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / f'{code}.json').write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
-    (OUT / f'{code}-sentences.json').write_text(
+    (OUT / f'{code}-{explain}.json').write_text(
+        json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+    (OUT / f'{code}-{explain}-sentences.json').write_text(
         json.dumps(sentence_data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
     CREDITS_DIR.mkdir(exist_ok=True)
-    (CREDITS_DIR / f'tatoeba-{code}.txt').write_text(
+    (CREDITS_DIR / f'tatoeba-{code}-{explain}.txt').write_text(
         'Auteurs des phrases Tatoeba utilisées pour cette langue (originales et traductions françaises).\n'
         'Chaque phrase est consultable avec son auteur sur https://tatoeba.org/sentences/show/<numéro>.\n\n'
         + '\n'.join(sorted(names, key=str.lower)) + '\n', encoding='utf-8')
@@ -663,11 +772,11 @@ def cmd_build(only: list[str] | None = None):
     meta = {'generated': date.today().isoformat(), 'stats': stats}
     (OUT / 'meta.json').write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding='utf-8')
     lines = [CREDITS_HEAD,
-             '| Langue | Mots | dont définitions anglaises | Phrases | dont traduction anglaise | Verbes conjugués | Auteurs Tatoeba |',
-             '|---|---|---|---|---|---|---|']
-    for code, s in stats.items():
-        lines.append(f'| {code} | {s["words"]} | {s["words_en"]} | {s["sentences"]} '
-                     f'| {s.get("sentences_en", 0)} | {s["verbs"]} | {s["authors"]} |')
+             '| Langue étudiée | Expliquée en | Mots | dont définitions anglaises | Phrases | dont traduction de repli |',
+             '|---|---|---|---|---|---|']
+    for code, st in stats.items():
+        for explain, x in st.get('pairs', {}).items():
+            lines.append(f'| {code} | {explain} | {x["words"]} | {x["words_en"]} | {x["sentences"]} | {x["sentences_other"]} |')
     lines.append(f'\nDonnées générées le {meta["generated"]}.\n')
     (ROOT / 'CREDITS.md').write_text('\n'.join(lines), encoding='utf-8')
 

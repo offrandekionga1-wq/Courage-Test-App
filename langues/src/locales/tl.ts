@@ -181,4 +181,11 @@ export const strings: Record<string, string> = {
   'common.of': 'sa',
   'common.english': 'EN',
   'common.englishTip': 'Kahulugan sa Ingles, walang Pranses na pinagkunan',
+
+  'quiz.meaning': 'Ano ang ibig sabihin ng “{term}”?',
+  'quiz.say': 'Paano sasabihin ang “{text}”?',
+  'quiz.fill': 'Punan ang patlang:',
+  'lessons.theme': 'Paksa',
+  'lessons.rules': 'Mga tuntunin',
+  'content.fallback': 'Wala pa ang nilalamang ito sa iyong wika: ipinapakita sa {lang}.',
 };

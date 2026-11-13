@@ -44,6 +44,8 @@ export interface Lesson {
   words?: Word[];
   /** Page d'origine, pour les leçons tirées d'un wiki. */
   source?: string;
+  /** Langue dans laquelle la leçon est rédigée, quand ce n'est pas celle de l'interface. */
+  explain?: string;
 }
 
 export interface Pack { words: Word[]; verbs: Verb[]; lessons: Lesson[] }

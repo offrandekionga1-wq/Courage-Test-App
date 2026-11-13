@@ -195,6 +195,14 @@ export const fr = {
   'common.of': 'sur',
   'common.english': 'EN',
   'common.englishTip': 'Définition en anglais, faute de source française',
+
+  // Contenus générés
+  'quiz.meaning': 'Que signifie « {term} » ?',
+  'quiz.say': 'Comment dit-on « {text} » ?',
+  'quiz.fill': 'Complète la phrase :',
+  'lessons.theme': 'Thème',
+  'lessons.rules': 'Règles',
+  'content.fallback': 'Ce contenu n’existe pas encore dans votre langue : il est affiché en {lang}.',
 };
 
 export type Key = keyof typeof fr;
@@ -210,12 +218,13 @@ export const UI_LANGUAGES: { code: string; label: string; flag: string }[] = [
   { code: 'pt', label: 'Português', flag: '🇵🇹' },
   { code: 'ja', label: '日本語', flag: '🇯🇵' },
   { code: 'zh', label: '中文', flag: '🇨🇳' },
+  { code: 'ko', label: '한국어', flag: '🇰🇷' },
   { code: 'lt', label: 'Lietuvių', flag: '🇱🇹' },
   { code: 'tl', label: 'Tagalog', flag: '🇵🇭' },
 ];
 
 /** Traductions de l'interface vérifiées par un locuteur : aucune pour l'instant, le français mis à part. */
-export const UNREVIEWED = new Set(['lt', 'tl', 'ja', 'zh', 'it', 'pt', 'de', 'es', 'en']);
+export const UNREVIEWED = new Set(['lt', 'tl', 'ja', 'zh', 'ko', 'it', 'pt', 'de', 'es', 'en']);
 
 const locales = import.meta.glob<Dict>('./locales/*.ts', { import: 'strings' });
 const cache = new Map<string, Promise<Dict>>();

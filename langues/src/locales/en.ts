@@ -181,4 +181,11 @@ export const strings: Record<string, string> = {
   'common.of': 'of',
   'common.english': 'EN',
   'common.englishTip': 'English definition, no French source available',
+
+  'quiz.meaning': 'What does “{term}” mean?',
+  'quiz.say': 'How do you say “{text}”?',
+  'quiz.fill': 'Fill in the blank:',
+  'lessons.theme': 'Topic',
+  'lessons.rules': 'Rules',
+  'content.fallback': 'This content isn’t available in your language yet: shown in {lang}.',
 };

@@ -195,8 +195,8 @@ main {
   background: var(--bg-tint); border: 1px solid var(--line);
 }
 .seg button {
-  flex: 1; padding: 8px 6px; border-radius: 10px; font-size: .86rem; font-weight: 600;
-  color: var(--ink-2); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex: 1; padding: 8px 6px; border-radius: 10px; font-size: .84rem; font-weight: 600; line-height: 1.2;
+  color: var(--ink-2); min-width: 0; overflow-wrap: anywhere; hyphens: auto;
 }
 .seg button.on { background: var(--card); color: var(--brand); box-shadow: var(--shadow); }
 

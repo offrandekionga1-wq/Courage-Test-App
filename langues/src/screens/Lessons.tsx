@@ -5,6 +5,7 @@ import { useActive, useT } from '../hooks';
 import { hasFurigana, readingWorthShowing } from '../ruby';
 import { generateLesson, translatePhrases } from '../generate';
 import { IconCheck, IconNext, IconSpark } from '../icons';
+import { languageName } from '../terms';
 import type { Lesson, Phrase } from '../types';
 
 type Kind = 'vocab' | 'course' | 'grammar' | 'lesson';
@@ -109,7 +110,7 @@ export function Lessons({ onSettings }: { onSettings: () => void }) {
 
 function LessonView({ lesson, onBack }: { lesson: Lesson; onBack: () => void }) {
   const { state, update } = useStore();
-  const { t } = useT();
+  const { t, locale } = useT();
   const done = !!state.lessonsDone[lesson.id];
   const [translated, setTranslated] = useState<Phrase[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -139,10 +140,13 @@ function LessonView({ lesson, onBack }: { lesson: Lesson; onBack: () => void }) 
       <section className="card lesson-body">
         <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{lesson.title}</h2>
         <small>{lesson.level}</small>
+        {lesson.explain && lesson.explain !== locale && (
+          <p className="hint">{t('content.fallback', { lang: languageName(lesson.explain, locale, lesson.explain) })}</p>
+        )}
         {lesson.intro && <p>{lesson.intro}</p>}
         {lesson.sections.map((s, i) => (
           <div key={i}>
-            <h4>{s.heading}</h4>
+            {s.heading && <h4>{s.heading}</h4>}
             {/* Les tableaux repris des wikis gardent une ligne par entrée. */}
             <p style={{ whiteSpace: 'pre-line' }}>{s.body}</p>
           </div>
@@ -240,7 +244,7 @@ function Quiz({ lesson }: { lesson: Lesson }) {
       <h3>{t('lessons.quiz')} {answered === lesson.quiz.length && <small>{ok} / {lesson.quiz.length}</small>}</h3>
       {lesson.quiz.map((q, qi) => (
         <div key={qi} className="stack">
-          <p style={{ fontSize: '.93rem', fontWeight: 600 }}>{q.q}</p>
+          <p style={{ fontSize: '.93rem', fontWeight: 600, whiteSpace: 'pre-line' }}>{q.q}</p>
           <div className="choices">
             {q.choices.map((c, ci) => {
               const chosen = answers[qi];

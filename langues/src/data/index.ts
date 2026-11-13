@@ -22,11 +22,11 @@ export const BUILTIN_LANGUAGES: Language[] = [
   { code: 'de', name: 'Allemand', native: 'Deutsch', flag: '🇩🇪', tts: 'de-DE' },
   { code: 'it', name: 'Italien', native: 'Italiano', flag: '🇮🇹', tts: 'it-IT' },
   { code: 'pt', name: 'Portugais', native: 'Português', flag: '🇵🇹', tts: 'pt-PT' },
+  { code: 'ko', name: 'Coréen', native: '한국어', flag: '🇰🇷', tts: 'ko-KR' },
 ];
 
 /** Langues proposées dans « Ajouter une langue » (leur contenu est généré par Claude). */
 export const SUGGESTED_LANGUAGES: Language[] = [
-  { code: 'ko', name: 'Coréen', native: '한국어', flag: '🇰🇷', tts: 'ko-KR' },
   { code: 'ru', name: 'Russe', native: 'Русский', flag: '🇷🇺', tts: 'ru-RU' },
   { code: 'ar', name: 'Arabe', native: 'العربية', flag: '🇸🇦', tts: 'ar-SA' },
   { code: 'sw', name: 'Swahili', native: 'Kiswahili', flag: '🇹🇿', tts: 'sw-TZ' },
