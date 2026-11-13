@@ -188,4 +188,9 @@ export const strings: Record<string, string> = {
   'lessons.theme': 'Paksa',
   'lessons.rules': 'Mga tuntunin',
   'content.fallback': 'Wala pa ang nilalamang ito sa iyong wika: ipinapakita sa {lang}.',
+  'lessons.path': 'Landas',
+  'lessons.mine': 'Aking mga aralin',
+  'lessons.continue': 'Magpatuloy',
+  'lessons.next': 'Susunod na aralin',
+  'lessons.pathIntro': '{n} aralin, mula sa batayan hanggang mataas na antas: bawat antas ay nagsasalitan ng balarila, pang-araw-araw na sitwasyon at bokabularyo.',
 };

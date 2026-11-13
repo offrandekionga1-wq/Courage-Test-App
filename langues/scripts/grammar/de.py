@@ -116,3 +116,9 @@ pt('C1', 'konjunktiv1', ('Le subjonctif I : discours rapporté',
  [("Er sagte, er sei müde.", "Il a dit qu'il était fatigué.", "He said he was tired.")],
  r", (?:er|sie|es|man) (sei|habe|könne|werde|müsse|wolle)\b", ['sei', 'habe', 'könne', 'werde']),
 ]
+
+POINTS.insert(0, pt('A1', 'aussprache', ("Prononciation",
+ "ä, ö, ü : voyelles « inflexées » (Bär, schön, über ; ü comme le « u » français). ei se dit « aï » (mein), ie un « i » long (Liebe), eu / äu « oï » (heute, Häuser).\nch : doux après e, i, ä, ö, ü et consonnes (ich, Milch) ; rauque après a, o, u (Bach, Buch). sch = « ch » français (Schule). z = « ts » (Zeit). w = « v » (Wasser), v = « f » (Vater). s devant voyelle = « z » (Sonne) ; sp et st en début de mot = « chp », « cht » (Sport, Straße). ß = « ss ».\nLes consonnes finales s'assourdissent : Tag se dit « tak », und « ount ».\nh après voyelle est muet et allonge la voyelle (Kuh) ; ailleurs, il s'aspire (Haus).\nL'accent tombe sur la première syllabe du radical (Arbeit, verstehen)."),
+ ('Pronunciation',
+ "ä, ö, ü: “umlaut” vowels (Bär, schön, über; ü like French “u”). ei sounds like “eye” (mein), ie is a long “ee” (Liebe), eu / äu like “oy” (heute, Häuser).\nch: soft after e, i, ä, ö, ü and consonants (ich, Milch); throaty after a, o, u (Bach, Buch). sch = “sh” (Schule). z = “ts” (Zeit). w = “v” (Wasser), v = “f” (Vater). s before a vowel = “z” (Sonne); sp and st at the start of a word = “shp”, “sht” (Sport, Straße). ß = “ss”.\nFinal consonants are devoiced: Tag sounds like “tahk”, und like “oont”.\nh after a vowel is silent and lengthens it (Kuh); elsewhere it is breathed (Haus).\nStress falls on the first syllable of the stem (Arbeit, verstehen)."),
+ [("Ich spreche ein bisschen Deutsch.", "Je parle un peu allemand.", "I speak a little German."), ("Die Straße ist schön.", "La rue est belle.", "The street is beautiful.")]))

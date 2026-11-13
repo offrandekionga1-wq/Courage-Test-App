@@ -4,7 +4,7 @@
  * étudiée, langue de l'apprenant) n'existe pas, on se rabat sur l'anglais puis le français, et
  * l'écran le signale.
  */
-export const EXPLAIN_LANGS = ['fr', 'en', 'es', 'de', 'it', 'pt', 'ja', 'zh', 'ko'];
+export const EXPLAIN_LANGS = ['fr', 'en', 'es', 'de', 'it', 'pt', 'ja', 'zh', 'ko', 'lt', 'tl'];
 
 /** Langues d'explication à essayer, de la préférée à la dernière ressource. */
 export function explainChain(locale: string, studied: string): string[] {

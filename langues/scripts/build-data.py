@@ -57,7 +57,7 @@ LANGS = {
 # Changer la langue de l'application change la langue d'explication : l'apprenant lit le sens des
 # mots et la traduction des phrases dans sa propre langue, pas dans une langue intermédiaire.
 EXPLAIN = {'fr': 'fra', 'en': 'eng', 'es': 'spa', 'de': 'deu', 'it': 'ita',
-           'pt': 'por', 'ja': 'jpn', 'zh': 'cmn', 'ko': 'kor'}
+           'pt': 'por', 'ja': 'jpn', 'zh': 'cmn', 'ko': 'kor', 'lt': 'lit', 'tl': 'tgl'}
 
 N_WORDS = 10000     # mots par couple (langue étudiée, langue d'explication)
 N_SENT = 10000      # phrases par couple au maximum
@@ -189,7 +189,14 @@ SKIP_POS = {'name', 'symbol', 'character', 'prefix', 'suffix', 'abbrev', 'contra
 
 def join_glosses(gl: list[str]) -> str:
     seen, keep = set(), []
-    short = [g for g in gl if len(g) <= 60]
+    # Une définition trop longue est raccourcie à sa première partie plutôt qu'écartée : c'est
+    # souvent le sens principal (« we, us (refers to the speaker…) » → « we, us »).
+    short = []
+    for g in gl:
+        if len(g) > 60:
+            g = re.split(r' \(|; | – | — ', g)[0].strip(' ,;:')
+        if 0 < len(g) <= 60:
+            short.append(g)
     for g in (short or gl):
         k = g.lower()
         if k in seen:
@@ -293,6 +300,30 @@ def load_sentences(code: str, explain: str = 'fr'):
                 p = line.rstrip('\n').split('\t')
                 if len(p) == 2 and p[1] in have and p[0] not in link:
                     link[p[0]] = (p[1], pivot)
+        if pivot == wanted and wanted != 'eng' and i != 'eng':
+            # Traductions indirectes : la phrase est traduite en anglais, et cette traduction
+            # anglaise l'est à son tour dans la langue de l'apprenant (Tatoeba les montre aussi).
+            # Elles passent avant tout repli dans une autre langue.
+            via = defaultdict(list)
+            p_ie = CACHE / f'tatoeba/{i}-eng_links.tsv.bz2'
+            p_ex = CACHE / f'tatoeba/eng-{wanted}_links.tsv.bz2'
+            if p_ie.exists() and p_ex.exists():
+                with opener(p_ie) as f:
+                    for line in f:
+                        p = line.rstrip('\n').split('\t')
+                        if len(p) == 2 and p[0] not in link:
+                            via[p[0]].append(p[1])
+                e2x: dict[str, str] = {}
+                with opener(p_ex) as f:
+                    for line in f:
+                        p = line.rstrip('\n').split('\t')
+                        if len(p) == 2 and p[1] in have and p[0] not in e2x:
+                            e2x[p[0]] = p[1]
+                for sid, eids in via.items():
+                    for e in eids:
+                        if e in e2x:
+                            link[sid] = (e2x[e], wanted)
+                            break
     out = []
     with opener(CACHE / f'tatoeba/{i}_sentences_detailed.tsv.bz2') as f:
         for line in f:
@@ -319,20 +350,127 @@ def load_glosses(explain: str, target: str) -> dict[str, tuple[str, str]]:
     path = CACHE / f'gloss/{explain}-{target}.jsonl.gz'
     if not path.exists():
         return {}
-    out: dict[str, tuple[str, str]] = {}
+    # Un même mot a souvent plusieurs entrées (homographes) : on les réunit toutes, puis on range
+    # les sens pour mettre en tête celui qu'un débutant rencontre (voir rank_entries).
+    entries: dict[str, list[tuple[str, str, list[str]]]] = defaultdict(list)
     with gzip.open(path, 'rt', encoding='utf-8') as f:
         for line in f:
             try:
                 d = json.loads(line)
             except ValueError:
                 continue
-            w = d['w']
-            lw = w.lower()
-            if lw in out:
+            gl = [clean_gloss(g) for g in d.get('g', [])]
+            gl = [g for g in gl if g and not BAD_GLOSS.search(g)]
+            if gl and d.get('p', '') not in BAD_POS:
+                entries[d['w'].lower()].append((d['w'], d.get('p', ''), gl))
+    heads = {}
+    if explain == 'en':
+        # Les mots anglais dont la table de traduction renvoie à ce mot : le sens courant.
+        heads = {lw: [h.strip().lower() for h in g.split(',')] for lw, (_, g) in load_trans_glosses(target, 'en').items()}
+    out: dict[str, tuple[str, str]] = {}
+    pending: dict[str, tuple[str, str]] = {}
+    for lw, items in entries.items():
+        ranked = rank_entries(items, heads.get(lw, []))
+        gl = [g for _, _, lst in ranked[:2] for g in lst]
+        m = FORM_LINK.search(gl[0]) if explain == 'en' else None
+        if m:
+            pending[lw] = (ranked[0][0], m.group(1).lower())
+            continue
+        gl = [g for g in gl if not FORM_LINK.search(g)]
+        joined = join_glosses(gl)
+        if joined:
+            out[lw] = (ranked[0][0], joined)
+    # « ligatured form of atin » → les définitions de « atin ».
+    for lw, (w, ref) in pending.items():
+        if ref in out:
+            out[lw] = (w, out[ref][1])
+    return out
+
+
+# Sens inutiles pour un apprenant : nom des lettres, lectures historiques, valeurs numériques.
+BAD_GLOSS = re.compile(r'(?:name of the (?:Latin|Hangul|Greek|Cyrillic)[^,;]* letter|\bletter [A-Z]/[a-z]\b'
+                       r'|MC reading|\bromanization of\b|^\d+[⁰¹²³⁴⁵⁶⁷⁸⁹]+$|^[一-鿿]$'
+                       r'|^A counter for (?:poems|animals))', re.I)
+BAD_POS = {'syllable', 'character', 'affix', 'prefix', 'suffix', 'symbol', 'name', 'letter', 'romanization'}
+FORM_LINK = re.compile(r'\b(?:allomorph|form|spelling|contraction|clipping|abbreviation) of (\S+?)(?:\s|,|;|$)', re.I)
+FUNCTION_POS = {'pron', 'particle', 'det', 'conj', 'adv', 'postp', 'prep', 'num', 'intj', 'verb'}
+
+
+def rank_entries(items: list[tuple[str, str, list[str]]], heads: list[str]) -> list:
+    """Range les entrées homographes : celle que désignent les tables de traduction, puis les mots
+    grammaticaux (les plus fréquents sont surtout des pronoms, particules et verbes), puis l'ordre
+    du Wiktionnaire."""
+    def score(k: int) -> tuple:
+        _, pos, gl = items[k]
+        words = {x.strip().lower() for g in gl for x in re.split(r'[,;]', g)}
+        words |= {t for g in gl for t in re.findall(r'[a-z]+', g.lower())}
+        hit = min((i for i, h in enumerate(heads) if h in words), default=99)
+        # Le mot anglais le plus courant qui renvoie ici désigne le sens usuel ; à défaut, les
+        # mots grammaticaux passent avant les noms rares.
+        return (hit != 0, -(pos in FUNCTION_POS), hit, k)
+    return [items[k] for k in sorted(range(len(items)), key=score)]
+
+
+_trans_cache: dict[tuple[str, str], dict] = {}
+
+
+def clean_tr(x: str) -> str:
+    """Une traduction des tables du Wiktionary, sans précision entre parenthèses ; vide si c'est
+    une abréviation ou un fragment (« n.h », « tion », « ako, ko) »)."""
+    x = re.sub(r'\s*\([^()]*\)', '', x).strip()
+    if not x or '.' in x or '(' in x or ')' in x or x.lower() in ('tion',) or len(x) > 40:
+        return ''
+    return x
+
+
+def load_trans_glosses(target: str, explain: str) -> dict[str, tuple[str, str]]:
+    """Définitions par pont : mot de `target` → mots de `explain` rangés sous le même sens anglais.
+
+    Les sens des mots anglais les plus fréquents passent d'abord : ils portent les acceptions
+    courantes. Trois équivalents au plus par mot.
+    """
+    key = (target, explain)
+    if key in _trans_cache:
+        return _trans_cache[key]
+    path = CACHE / 'trans/en-translations.jsonl.gz'
+    out: dict[str, tuple[str, str]] = {}
+    if not path.exists():
+        _trans_cache[key] = out
+        return out
+    rank: dict[str, int] = {}
+    for n, w in enumerate(read_freq('en')[:60000]):
+        rank.setdefault(w, n)
+    rows = []
+    with gzip.open(path, 'rt', encoding='utf-8') as f:
+        for line in f:
+            if target != 'en' and f'"{target}"' not in line:
                 continue
-            gl = join_glosses([clean_gloss(g) for g in d.get('g', [])])
-            if gl:
-                out[lw] = (w, gl)
+            d = json.loads(line)
+            tr = d['t']
+            # Pour l'anglais étudié, le mot anglais est la tête d'entrée elle-même.
+            words = [clean_tr(x) for x in ([d['w']] if target == 'en' else tr.get(target) or [])]
+            words = [x for x in words if x]
+            if not words or any('Abakada' in x for v in tr.values() for x in v):
+                continue        # noms des lettres de l'alphabet
+            gl = [d['w']] if explain == 'en' else [clean_tr(x) for x in tr.get(explain) or []]
+            gl = [x for x in gl if x]
+            if not gl:
+                continue
+            rows.append((rank.get(d['w'].lower(), 10 ** 6), words, gl))
+    rows.sort(key=lambda r: r[0])
+    acc: dict[str, tuple[str, list[str]]] = {}
+    for _r, words, gl in rows:
+        for w in words:
+            lw = w.lower()
+            term, lst = acc.setdefault(lw, (w, []))
+            for g in gl:
+                g = clean_gloss(g)
+                if g and g not in lst and len(lst) < 3:
+                    lst.append(g)
+    for lw, (w, lst) in acc.items():
+        if lst:
+            out[lw] = (w, ', '.join(lst))
+    _trans_cache[key] = out
     return out
 
 
@@ -403,7 +541,7 @@ def words_for(code: str, explain: str, freq: list[str], cedict: dict, readings: 
     Faute d'entrée dans la langue de l'apprenant, on se rabat sur l'anglais, signalé comme tel :
     mieux vaut une définition anglaise que pas de mot du tout.
     """
-    native = {**load_glosses(explain, code), **(extra_native or {})}
+    native = {**load_trans_glosses(code, explain), **load_glosses(explain, code), **(extra_native or {})}
     fallback = {**(load_glosses('en', code) if explain != 'en' else {}), **(extra_fallback or {})}
     cjk = LANGS[code].get('cjk', False)
     out, seen = [], set()
@@ -459,6 +597,53 @@ def load_cedict() -> dict:
 _jm: dict | None = None
 
 
+SINGLE_KANA = set('はがをにでともかよねへやの')
+AFTER_WORD = set('はがをにでともかよねへやの、。！？」') | {''}
+
+
+def ja_corpus_counts(terms: set[str]) -> dict[str, int]:
+    """Nombre d'occurrences de chaque mot dans les phrases japonaises de Tatoeba.
+
+    Le japonais ne sépare pas les mots : on cherche chaque sous-chaîne de 1 à 6 caractères. Un mot
+    d'un seul kana (は, を…) se retrouve dans quantité d'autres mots : son compte est divisé.
+    """
+    path = CACHE / 'tatoeba/jpn_sentences_detailed.tsv.bz2'
+    counts: dict[str, int] = defaultdict(int)
+    if not path.exists():
+        return counts
+    kana = re.compile(r'^[぀-ヿ]+$')
+    with opener(path) as f:
+        for line in f:
+            p = line.rstrip('\n').split('\t')
+            if len(p) < 3:
+                continue
+            s = p[2]
+            n = len(s)
+            for i in range(n):
+                for k in range(1, 7):
+                    if i + k > n:
+                        break
+                    sub = s[i:i + k]
+                    if sub not in terms:
+                        continue
+                    if k == 1:
+                        # Un kana seul ne compte que s'il s'agit d'une particule ; un kanji seul,
+                        # que s'il forme un mot à lui seul (suivi d'une particule ou d'une
+                        # ponctuation) : sinon 行 compterait toutes les occurrences de 行く.
+                        if kana.match(sub):
+                            if sub not in SINGLE_KANA:
+                                continue
+                        elif s[i + 1:i + 2] not in AFTER_WORD:
+                            continue
+                    counts[sub] += 1
+    for t in list(counts):
+        if re.search(r'[0-9０-９]', t):
+            counts[t] = 0
+        elif kana.match(t) and len(t) <= 2:
+            counts[t] //= 4 if len(t) == 1 else 2
+    return counts
+
+
 def jmdict_data() -> dict:
     """JMdict, lu une fois : mots par ordre de priorité, lectures, définitions françaises et anglaises."""
     global _jm
@@ -466,7 +651,7 @@ def jmdict_data() -> dict:
         return _jm
     xml_lang = '{http://www.w3.org/XML/1998/namespace}lang'
     rank_of = {'news1': 30, 'ichi1': 30, 'spec1': 30, 'gai1': 40, 'news2': 50, 'ichi2': 60, 'spec2': 60, 'gai2': 70}
-    items, reading, fre, eng = [], {}, {}, {}
+    items, reading, fre, eng, ger, spa = [], {}, {}, {}, {}, {}
     with gzip.open(CACHE / 'JMdict.gz') as f:
         for _, el in ET.iterparse(f):
             if el.tag != 'entry':
@@ -486,24 +671,36 @@ def jmdict_data() -> dict:
                     best = min(best, int(p[2:]) if p.startswith('nf') else rank_of.get(p, 999))
             term = kanji or reb
             if term and term not in reading:
-                fr, en = [], []
+                fr, en, de, es = [], [], [], []
                 for sense in el.findall('sense'):
                     for g in sense.findall('gloss'):
                         lang = g.get(xml_lang, 'eng')
-                        if lang == 'fre' and g.text:
-                            fr.append(clean_gloss(g.text))
-                        elif lang == 'eng' and g.text:
-                            en.append(clean_gloss(g.text))
+                        if not g.text:
+                            continue
+                        {'fre': fr, 'eng': en, 'ger': de, 'spa': es}.get(lang, []).append(clean_gloss(g.text))
                 reading[term] = reb if reb and reb != term else ''
                 if fr:
                     fre[term] = (term, join_glosses(fr))
                 if en:
                     eng[term] = (term, join_glosses(en))
+                if de:
+                    ger[term] = (term, join_glosses(de))
+                if es:
+                    spa[term] = (term, join_glosses(es))
                 # Les mots sans étiquette de priorité viennent après tous les autres.
                 items.append((best, int(el.findtext('ent_seq')), term))
             el.clear()
     items.sort()
-    _jm = {'order': [t for _, _, t in items], 'reading': reading, 'fre': fre, 'eng': eng}
+    # Les étiquettes de priorité de JMdict sont grossières (des milliers de mots ex æquo, rangés
+    # alors par numéro d'entrée, c'est-à-dire presque par ordre des kana). On classe donc les mots
+    # prioritaires d'après leur fréquence réelle dans les phrases japonaises de Tatoeba.
+    counts = ja_corpus_counts({t for b, _, t in items if b < 999})
+    prio = [t for b, _, t in items if b < 999]
+    ranked = sorted(prio, key=lambda t: -counts.get(t, 0))
+    order = [t for t in ranked if counts.get(t, 0) >= 3]
+    got = set(order)
+    order += [t for _, _, t in items if t not in got]
+    _jm = {'order': order, 'reading': reading, 'fre': fre, 'eng': eng, 'ger': ger, 'spa': spa}
     return _jm
 
 
@@ -590,7 +787,7 @@ def build_language(code: str) -> dict:
     if code == 'ja':
         jm = jmdict_data()
         freq, readings = jm['order'], jm['reading']
-        extra = {'fr': jm['fre'], 'en': jm['eng']}
+        extra = {'fr': jm['fre'], 'en': jm['eng'], 'de': jm['ger'], 'es': jm['spa']}
     else:
         freq = read_freq(code)[:200000]
         if code == 'ko':

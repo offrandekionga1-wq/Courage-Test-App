@@ -43,7 +43,11 @@ export function useActive(): Active {
   const { t, locale } = useT();
   const code = state.active;
   // Le contenu écrit à la main est en français : on ne l'affiche qu'avec l'interface française.
-  const pack = useMemo(() => getPack(state, code, locale === 'fr'), [state, code, locale]);
+  // Mémorisé sur le seul contenu de la langue : recalculer à chaque changement d'état (une
+  // réponse, une série de jours) renouvelait les listes et relançait les quiz en cours.
+  const extra = state.extra[code];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const pack = useMemo(() => getPack(state, code, locale === 'fr'), [extra, code, locale]);
   const dict = useDict(code, locale);
   const course = useCourse(code, locale, t);
   const words = useAllWords(code, pack);

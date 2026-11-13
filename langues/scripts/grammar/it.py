@@ -110,3 +110,9 @@ pt('B2', 'passato-remoto', ('Le passé simple (passato remoto) et le passif',
  [("Dante nacque a Firenze.", "Dante naquit à Florence.", "Dante was born in Florence."), ("Qui si parla italiano.", "Ici on parle italien.", "Italian is spoken here.")],
  r"\b(fu|furono|disse|fece|ebbe|venne|vide|andò|nacque|morì)\b", None),
 ]
+
+POINTS.insert(0, pt('A1', 'pronuncia', ("Prononciation",
+ "L'italien se lit comme il s'écrit et toutes les voyelles se prononcent (u = « ou »).\nc et g devant e, i : « tch », « dj » (cena, gelato) ; devant a, o, u : durs (casa, gatto). ch et gh devant e, i restent durs (chiesa, spaghetti). ci, gi devant a, o, u : le i ne s'entend pas (ciao, giorno).\ngn = « gn » (bagno). gli = « l » mouillé (figlio). sc devant e, i = « ch » français (scena) ; sch = « sk » (scherzo). z = « ts » ou « dz » (pizza, zero). h est muet.\nLes consonnes doubles se prolongent et changent le sens : pala / palla, caro / carro.\nL'accent tombe le plus souvent sur l'avant-dernière syllabe ; il ne s'écrit que sur la dernière (città, perché)."),
+ ('Pronunciation',
+ "Italian is read as it is written and every vowel is pronounced (u = “oo”).\nc and g before e, i: “ch”, “j” (cena, gelato); before a, o, u: hard (casa, gatto). ch and gh before e, i stay hard (chiesa, spaghetti). ci, gi before a, o, u: the i is not heard (ciao, giorno).\ngn = “ny” (bagno). gli = a soft “ly” (figlio). sc before e, i = “sh” (scena); sch = “sk” (scherzo). z = “ts” or “dz” (pizza, zero). h is silent.\nDouble consonants are held longer and change the meaning: pala / palla, caro / carro.\nStress usually falls on the second-to-last syllable; it is written only on the last (città, perché)."),
+ [("Ciao, come stai?", "Salut, comment vas-tu ?", "Hi, how are you?"), ("Mio figlio mangia gli spaghetti.", "Mon fils mange des spaghettis.", "My son is eating spaghetti.")]))

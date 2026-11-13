@@ -189,4 +189,9 @@ export const strings: Record<string, string> = {
   'lessons.theme': '주제',
   'lessons.rules': '규칙',
   'content.fallback': '이 내용은 아직 사용자의 언어로 제공되지 않아 {lang}(으)로 표시됩니다.',
+  'lessons.path': '학습 경로',
+  'lessons.mine': '내 수업',
+  'lessons.continue': '계속하기',
+  'lessons.next': '다음 수업',
+  'lessons.pathIntro': '기초부터 고급까지 {n}개 수업: 각 단계마다 문법, 일상 상황, 어휘를 번갈아 배웁니다.',
 };

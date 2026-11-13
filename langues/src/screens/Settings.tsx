@@ -1,4 +1,4 @@
-import { localName } from '../terms';
+import { localName, term, toKey } from '../terms';
 import { useRef, useState } from 'react';
 import { activeKey, allLanguages, getLanguage, getPack, mergeExtra, useStore } from '../store';
 import { BUILTIN_LANGUAGES, SUGGESTED_LANGUAGES } from '../data';
@@ -11,7 +11,7 @@ import { Sources } from './Sources';
 import { IconDownload, IconPlus, IconSpark, IconTrash, IconUpload, IconWarn } from '../icons';
 import type { AppState, Language } from '../types';
 
-const LEVELS = ['Débutant', 'Élémentaire', 'Intermédiaire', 'Avancé'];
+const LEVELS = ['@beginner', '@elementary', '@intermediate', '@advanced'];
 
 export function Settings() {
   const [sources, setSources] = useState(false);
@@ -76,7 +76,7 @@ function SettingsMain({ onSources }: { onSources: () => void }) {
   const genOpts = () => ({
     provider: state.provider, apiKey: key, model: state.model,
     lang: active, level: state.level, pack: getPack(state, state.active),
-    uiLang: state.uiLang || 'fr',
+    uiLang: locale,
   });
 
   const runUpdate = async () => {
@@ -84,7 +84,7 @@ function SettingsMain({ onSources }: { onSources: () => void }) {
     setBusy(t('settings.generating'));
     const code = state.active;
     try {
-      const add = await generateUpdate(genOpts(), setBusy);
+      const add = await generateUpdate(genOpts(), (k) => setBusy(`${t(k)}…`));
       update((s) => mergeExtra(s, code, add));
       setMsg('✓');
     } catch (e) {
@@ -102,7 +102,7 @@ function SettingsMain({ onSources }: { onSources: () => void }) {
     setMsg('');
     try {
       for (const [i, step] of steps.entries()) {
-        setCourse({ i, n: steps.length, label: step.label });
+        setCourse({ i, n: steps.length, label: `${t(step.label.split('|')[0])} ${step.label.split('|')[1] ?? ''}` });
         const add = await step.run({ ...genOpts(), signal: ctrl.signal });
         update((s) => mergeExtra(s, code, add));   // chaque étape est enregistrée aussitôt
         if (ctrl.signal.aborted) break;
@@ -235,8 +235,8 @@ function SettingsMain({ onSources }: { onSources: () => void }) {
           </select>
         </label>
         <label className="field">{t('settings.level')}
-          <select className="input" value={state.level} onChange={(e) => set({ level: e.target.value })}>
-            {LEVELS.map((l) => <option key={l}>{l}</option>)}
+          <select className="input" value={toKey(state.level)} onChange={(e) => set({ level: e.target.value })}>
+            {LEVELS.map((l) => <option key={l} value={l}>{term(l, locale)}</option>)}
           </select>
         </label>
         <label className="check">

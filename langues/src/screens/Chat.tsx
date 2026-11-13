@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { activeKey, touchStreak, useStore } from '../store';
 import { useActive, useT } from '../hooks';
 import { chat, explainError, SCENARIOS } from '../generate';
+import { term, toKey } from '../terms';
 import { dictationSupported, listen, speak, stopSpeaking } from '../tts';
 import { IconChat, IconMic, IconNext, IconPen, IconSpeaker } from '../icons';
 import type { ChatTurn } from '../types';
@@ -12,7 +13,7 @@ export function Chat({ onSettings }: { onSettings: () => void }) {
   const { lang } = useActive();
   const saved = state.chats[lang.code];
   const key = activeKey(state);
-  const [scenario, setScenario] = useState(saved?.scenario ?? SCENARIOS[0]);
+  const [scenario, setScenario] = useState(toKey(saved?.scenario ?? SCENARIOS[0]));
   const [turns, setTurns] = useState<ChatTurn[]>(saved?.turns ?? []);
   const [partial, setPartial] = useState<ChatTurn | null>(null);
   const [text, setText] = useState('');
@@ -86,7 +87,7 @@ export function Chat({ onSettings }: { onSettings: () => void }) {
           className="input grow" value={scenario} disabled={busy}
           onChange={(e) => { setScenario(e.target.value); setTurns([]); save([], e.target.value); }}
         >
-          {SCENARIOS.map((s) => <option key={s}>{s}</option>)}
+          {SCENARIOS.map((s) => <option key={s} value={s}>{term(s, locale)}</option>)}
         </select>
         <button className="btn ghost sm" onClick={reset} disabled={busy || !turns.length}>{t('chat.newChat')}</button>
       </div>

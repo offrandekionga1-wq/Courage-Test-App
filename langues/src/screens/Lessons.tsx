@@ -6,64 +6,98 @@ import { hasFurigana, readingWorthShowing } from '../ruby';
 import { generateLesson, translatePhrases } from '../generate';
 import { IconCheck, IconNext, IconSpark } from '../icons';
 import { languageName } from '../terms';
+import { buildPath, LEVELS, nextInPath, takeOpenRequest } from '../path';
 import type { Lesson, Phrase } from '../types';
 
-type Kind = 'vocab' | 'course' | 'grammar' | 'lesson';
-const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
-const PAGE = 30;
+type Kind = 'path' | 'vocab' | 'course' | 'grammar' | 'mine';
+const PAGE = 40;
 
 export function Lessons({ onSettings }: { onSettings: () => void }) {
   const { state } = useStore();
-  const { t } = useT();
+  const { t, locale } = useT();
   const { lang, pack, lessons, loading } = useActive();
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(() => takeOpenRequest());
   const [topic, setTopic] = useState('');
-  const [kind, setKind] = useState<Kind>('vocab');
-  const [level, setLevel] = useState('A1');
+  const [kind, setKind] = useState<Kind>('path');
+  const [level, setLevel] = useState<string>(() => {
+    const first = nextInPath(buildPath(lessons), state.lessonsDone);
+    return first?.cefr ?? 'A1';
+  });
   const [limit, setLimit] = useState(PAGE);
 
-  const ofKind = useMemo(() => lessons.filter((l) => (l.kind ?? 'lesson') === kind), [lessons, kind]);
-  // Les leçons de vocabulaire sont nombreuses : on les présente niveau par niveau.
-  const byLevel = kind === 'vocab';
+  const path = useMemo(() => buildPath(lessons), [lessons]);
+  // Leçons créées par l'IA ou écrites à la main : sans niveau du cadre européen, hors parcours.
+  const mine = useMemo(() => lessons.filter((l) => !l.cefr && !l.source), [lessons]);
+  const ofKind = useMemo(() => {
+    if (kind === 'path') return path;
+    if (kind === 'mine') return mine;
+    return lessons.filter((l) => l.kind === kind && (l.cefr || l.source));
+  }, [lessons, path, mine, kind]);
+  const byLevel = kind !== 'mine';
   const shown = useMemo(
-    () => (byLevel ? ofKind.filter((l) => l.level === level) : ofKind),
+    () => (byLevel ? ofKind.filter((l) => (l.cefr ?? 'A1') === level || (!l.cefr && level === 'A1')) : ofKind),
     [ofKind, byLevel, level],
   );
+  const levels = useMemo(() => LEVELS.filter((lv) => ofKind.some((l) => l.cefr === lv)), [ofKind]);
 
+  // Dans le parcours, une leçon terminée propose la suivante.
+  const order = kind === 'path' ? path : shown;
   const current = lessons.find((l) => l.id === openId);
-  if (current) return <LessonView lesson={current} onBack={() => setOpenId(null)} />;
+  if (current) {
+    const idx = order.findIndex((l) => l.id === current.id);
+    const next = idx >= 0 ? order[idx + 1] : undefined;
+    return (
+      <LessonView
+        key={current.id}
+        lesson={current}
+        onBack={() => setOpenId(null)}
+        onNext={next ? () => { setOpenId(next.id); if (next.cefr) setLevel(next.cefr); window.scrollTo(0, 0); } : undefined}
+        nextTitle={next?.title}
+      />
+    );
+  }
 
   const tabs: [Kind, string][] = [
-    ['vocab', 'lessons.vocabTab'],
-    ['course', 'lessons.course'],
+    ['path', 'lessons.path'],
     ['grammar', 'lessons.grammar'],
-    ['lesson', 'lessons.lesson'],
+    ['course', 'lessons.course'],
+    ['vocab', 'lessons.vocabTab'],
+    ...(mine.length ? [['mine', 'lessons.mine'] as [Kind, string]] : []),
   ];
+  const nextUp = nextInPath(path, state.lessonsDone);
+  const kindLabel = (l: Lesson) => t(l.kind === 'grammar' ? 'lessons.grammar' : l.kind === 'course' ? 'lessons.course' : 'lessons.vocabTab');
 
   return (
     <>
       <div className="seg">
         {tabs.map(([k, key]) => (
-          <button
-            key={k}
-            className={kind === k ? 'on' : ''}
-            onClick={() => { setKind(k); setLimit(PAGE); }}
-          >{t(key)}</button>
+          <button key={k} className={kind === k ? 'on' : ''} onClick={() => { setKind(k); setLimit(PAGE); }}>{t(key)}</button>
         ))}
       </div>
 
-      {byLevel && (
+      {byLevel && levels.length > 0 && (
         <div className="seg">
-          {LEVELS.map((lv) => (
-            <button key={lv} className={level === lv ? 'on' : ''} onClick={() => { setLevel(lv); setLimit(PAGE); }}>
-              {lv}
-            </button>
+          {levels.map((lv) => (
+            <button key={lv} className={level === lv ? 'on' : ''} onClick={() => { setLevel(lv); setLimit(PAGE); }}>{lv}</button>
           ))}
         </div>
       )}
 
+      {kind === 'path' && nextUp && (
+        <button className="card lesson-item next-up" onClick={() => setOpenId(nextUp.id)}>
+          <span className="num"><IconNext size={16} /></span>
+          <div className="grow">
+            <small className="block">{t('lessons.continue')}</small>
+            <b>{nextUp.title}</b>
+            <small className="block">{nextUp.cefr} · {kindLabel(nextUp)}</small>
+          </div>
+        </button>
+      )}
+
+      {kind === 'path' && <p className="hint">{t('lessons.pathIntro', { n: path.length })}</p>}
+
       {loading && !shown.length && <Empty>{t('common.loading')}</Empty>}
-      {!loading && !shown.length && <Empty>{t('lessons.empty')}</Empty>}
+      {!loading && !shown.length && kind !== 'mine' && <Empty>{t('lessons.empty')}</Empty>}
 
       {shown.slice(0, limit).map((l, i) => (
         <button key={l.id} className="card lesson-item" onClick={() => setOpenId(l.id)}>
@@ -73,9 +107,9 @@ export function Lessons({ onSettings }: { onSettings: () => void }) {
           <div className="grow">
             <b>{l.title}</b>
             <small className="block">
-              {l.level}
+              {kind === 'path' ? kindLabel(l) : (l.cefr ?? l.level)}
               {l.words?.length ? ` · ${l.words.length} ${t('sources.words')}` : ''}
-              {!l.words?.length && l.phrases.length ? ` · ${l.phrases.length}` : ''}
+              {!l.words?.length && l.phrases.length ? ` · ${l.phrases.length} ${t('sources.sentences')}` : ''}
               {state.lessonScores[l.id] ? ` · ${state.lessonScores[l.id].ok}/${state.lessonScores[l.id].n}` : ''}
             </small>
           </div>
@@ -89,17 +123,17 @@ export function Lessons({ onSettings }: { onSettings: () => void }) {
         </button>
       )}
 
-      {(kind === 'grammar' || kind === 'lesson') && (
+      {kind === 'mine' && (
         <section className="card">
           <input className="input" placeholder={t('lessons.topicPlaceholder')} value={topic} onChange={(e) => setTopic(e.target.value)} />
           <GenerateBar
-            label={t(kind === 'grammar' ? 'lessons.generateGrammar' : 'lessons.generate')}
+            label={t('lessons.generate')}
             onSettings={onSettings}
             run={async () => ({
               lessons: [await generateLesson({
                 provider: state.provider, apiKey: activeKey(state), model: state.model,
-                lang, level: state.level, pack, uiLang: state.uiLang || 'fr', topic: topic.trim() || undefined,
-              }, kind === 'grammar' ? 'grammar' : undefined)],
+                lang, level: state.level, pack, uiLang: locale, topic: topic.trim() || undefined,
+              })],
             })}
           />
         </section>
@@ -108,7 +142,7 @@ export function Lessons({ onSettings }: { onSettings: () => void }) {
   );
 }
 
-function LessonView({ lesson, onBack }: { lesson: Lesson; onBack: () => void }) {
+function LessonView({ lesson, onBack, onNext, nextTitle }: { lesson: Lesson; onBack: () => void; onNext?: () => void; nextTitle?: string }) {
   const { state, update } = useStore();
   const { t, locale } = useT();
   const done = !!state.lessonsDone[lesson.id];
@@ -122,7 +156,7 @@ function LessonView({ lesson, onBack }: { lesson: Lesson; onBack: () => void }) 
     setBusy(true);
     try {
       const lines = await translatePhrases(
-        { provider: state.provider, apiKey: key, model: state.model, uiLang: state.uiLang || 'fr' },
+        { provider: state.provider, apiKey: key, model: state.model, uiLang: locale },
         lesson.phrases,
       );
       if (lines.length === lesson.phrases.length) {
@@ -166,7 +200,7 @@ function LessonView({ lesson, onBack }: { lesson: Lesson; onBack: () => void }) 
                   <b className="term">{w.term}</b>
                   {w.reading && <small className="block">{w.reading}</small>}
                 </div>
-                <span className="fr">{w.fr}</span>
+                <span className="fr">{w.fr}{w.fallback && <EnTag />}</span>
                 <SpeakBtn text={w.term} />
               </div>
             </div>
@@ -214,6 +248,17 @@ function LessonView({ lesson, onBack }: { lesson: Lesson; onBack: () => void }) 
       >
         {done ? `✓ ${t('lessons.done')}` : t('lessons.markDone')}
       </button>
+      {onNext && (
+        <button
+          className="btn soft full"
+          onClick={() => {
+            if (!done) update((s) => touchStreak({ ...s, lessonsDone: { ...s.lessonsDone, [lesson.id]: true } }));
+            onNext();
+          }}
+        >
+          {t('lessons.next')} : {nextTitle} <IconNext size={16} />
+        </button>
+      )}
     </>
   );
 }

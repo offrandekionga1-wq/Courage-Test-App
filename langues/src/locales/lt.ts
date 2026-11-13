@@ -188,4 +188,9 @@ export const strings: Record<string, string> = {
   'lessons.theme': 'Tema',
   'lessons.rules': 'Taisyklės',
   'content.fallback': 'Šio turinio dar nėra jūsų kalba: rodoma {lang} kalba.',
+  'lessons.path': 'Kelias',
+  'lessons.mine': 'Mano pamokos',
+  'lessons.continue': 'Tęsti',
+  'lessons.next': 'Kita pamoka',
+  'lessons.pathIntro': '{n} pamokų nuo pagrindų iki aukšto lygio: kiekviename lygyje kaitaliojamos gramatikos taisyklės, kasdienės situacijos ir žodynas.',
 };

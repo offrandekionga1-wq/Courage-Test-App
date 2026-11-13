@@ -13,7 +13,7 @@ const initial: AppState = {
   apiKey: '',
   uiLang: '',
   model: defaultModel(DEFAULT_PROVIDER),
-  level: 'Débutant',
+  level: '@beginner',
   voiceRate: 0.9,
   autoUpdate: false,
   learning: ['en', 'ja', 'lt', 'zh', 'tl', 'es', 'de', 'it', 'pt', 'ko'],

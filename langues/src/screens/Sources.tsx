@@ -36,7 +36,7 @@ const SOURCES: { name: string; use: string; useEn: string; licence: string; url:
   },
   {
     name: 'Wiktionnaire et Wiktionary (via kaikki.org)',
-    use: 'Définitions des mots et tables de conjugaison.', useEn: 'Word definitions and conjugation tables.',
+    use: 'Définitions des mots, tables de traduction (définitions dans votre langue) et tables de conjugaison.', useEn: 'Word definitions, translation tables (definitions in your language) and conjugation tables.',
     licence: 'CC BY-SA 4.0 et GFDL', url: 'https://fr.wiktionary.org',
     licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0/deed.fr',
   },

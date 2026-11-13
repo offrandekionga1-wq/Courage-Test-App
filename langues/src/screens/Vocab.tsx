@@ -13,7 +13,7 @@ const nonLatin = (s: string) => /[^\u0000-ɏḀ-ỿ]/.test(s);
 
 export function Vocab({ onSettings }: { onSettings: () => void }) {
   const { state } = useStore();
-  const { t } = useT();
+  const { t, locale } = useT();
   const { lang, pack, words, loading } = useActive();
   const [mode, setMode] = useState<Mode>('list');
   const hasScript = useMemo(() => words.slice(0, 200).some((w) => nonLatin(w.term)), [words]);
@@ -43,7 +43,7 @@ export function Vocab({ onSettings }: { onSettings: () => void }) {
           run={async () => ({
             words: await generateWords({
               provider: state.provider, apiKey: activeKey(state), model: state.model,
-              lang, level: state.level, pack, uiLang: state.uiLang || 'fr',
+              lang, level: state.level, pack, uiLang: locale,
             }),
           })}
         />

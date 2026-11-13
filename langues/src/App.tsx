@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { activeKey, allLanguages, getLanguage, getPack, isDue, isKnown, mergeExtra, useStore } from './store';
 import { generateWords } from './generate';
 import { hasDict, loadDict } from './dict';
@@ -14,6 +14,7 @@ import { Settings } from './screens/Settings';
 import { isNative, openVoiceInstall, useVoiceStatus } from './tts';
 import { TAB_ICONS, IconFlame, IconNext, IconSettings, IconWarn } from './icons';
 import { localName } from './terms';
+import { buildPath, nextInPath, requestOpen } from './path';
 import type { Language } from './types';
 
 export type Tab = 'home' | 'vocab' | 'phrases' | 'conj' | 'lessons' | 'practice' | 'chat' | 'settings';
@@ -46,7 +47,7 @@ export function App() {
     const code = state.active;
     generateWords({
       provider: state.provider, apiKey: key, model: state.model,
-      lang, level: state.level, pack: getPack(state, code), uiLang: state.uiLang || 'fr',
+      lang, level: state.level, pack: getPack(state, code), uiLang: locale,
     }, 10)
       .then((words) => {
         update((s) => mergeExtra(s, code, { words }));
@@ -197,6 +198,7 @@ function Home({ go }: { go: (t: Tab) => void }) {
   const voice = useVoiceStatus([lang.tts])[lang.tts];
   const empty = !loading && !words.length && !verbs.length && !lessons.length;
   const nf = (n: number) => n.toLocaleString();
+  const nextUp = useMemo(() => nextInPath(buildPath(lessons), state.lessonsDone), [lessons, state.lessonsDone]);
 
   const tiles: [Tab, string, string][] = [
     ['vocab', 'nav.vocab', t('home.vocabSub', { n: nf(words.length) })],
@@ -228,8 +230,19 @@ function Home({ go }: { go: (t: Tab) => void }) {
         <div className="row between hint"><span>{t('home.lessonsDone')}</span><b>{done} / {lessons.length}</b></div>
       </section>
 
+      {nextUp && (
+        <button className="card lesson-item next-up" onClick={() => { requestOpen(nextUp.id); go('lessons'); }}>
+          <span className="num"><IconNext size={16} /></span>
+          <div className="grow">
+            <small className="block">{t('lessons.continue')}</small>
+            <b>{nextUp.title}</b>
+            <small className="block">{nextUp.cefr}</small>
+          </div>
+        </button>
+      )}
+
       {words.length > 0 && (
-        <button className="btn full" onClick={() => go('vocab')}>
+        <button className="btn ghost full" onClick={() => go('vocab')}>
           {due ? t('home.reviewDue', { n: nf(Math.min(due, 15)) }) : t('home.allReviewed')}
         </button>
       )}

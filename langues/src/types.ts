@@ -16,6 +16,7 @@ export interface Word {
   exampleFr?: string;
   exampleReading?: string;   // lecture annotée de l'exemple (furigana en japonais)
   exampleEn?: boolean;       // la traduction de l'exemple est anglaise
+  fallback?: boolean;        // la définition n'est pas dans la langue de l'apprenant
 }
 
 export interface VerbForm { label: string; form: string; reading?: string }
@@ -46,6 +47,8 @@ export interface Lesson {
   source?: string;
   /** Langue dans laquelle la leçon est rédigée, quand ce n'est pas celle de l'interface. */
   explain?: string;
+  /** Niveau du cadre européen (A1…C2), pour ranger la leçon dans le parcours. */
+  cefr?: string;
 }
 
 export interface Pack { words: Word[]; verbs: Verb[]; lessons: Lesson[] }

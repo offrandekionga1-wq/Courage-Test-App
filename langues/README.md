@@ -66,13 +66,13 @@ Soit **6915 leçons** au total. Chiffres détaillés et à jour dans `CREDITS.md
 
 ### Limites à connaître
 
-- **Le contenu intégré est en français.** Changer la langue de l'application traduit l'interface, pas les définitions ni les traductions. L'IA peut traduire une leçon à la demande.
-- **Définitions en anglais** là où le Wiktionnaire français n'a pas d'entrée : massif pour le lituanien et le tagalog, et pour une partie du chinois et du japonais. Elles sont marquées « EN » dans l'appli.
-- **Traductions anglaises des phrases** : quand Tatoeba n'a pas de traduction française, l'anglaise est utilisée et signalée. C'est le cas de la plupart des phrases en lituanien et en tagalog, et d'une bonne partie ailleurs. Sans ce repli, le lituanien n'aurait que 171 phrases au lieu de 7 779.
+- **Contenu dans la langue de l'interface.** Définitions, traductions des phrases, cours, grammaire et titres sont fournis dans la langue choisie pour l'application (11 langues). Quand une définition n'existe pas dans cette langue, elle est obtenue par les tables de traduction du Wiktionary anglais (le mot étudié et le mot de votre langue rangés sous le même sens anglais) ; à défaut, l'anglais est affiché et marqué « EN ». Les quiz n'utilisent que les définitions écrites dans votre langue.
+- **Part d'anglais restante** (sur les 2 000 mots les plus fréquents) : quasi nulle pour l'espagnol et le portugais étudiés, 10 à 25 % pour le japonais, le coréen, le chinois et le lituanien, 35 à 50 % pour le tagalog et pour les paires expliquées en lituanien ou en tagalog, langues où les sources libres sont minces.
+- **Traductions de phrases** : quand Tatoeba n'a pas de traduction directe dans votre langue, on passe par une traduction anglaise de la même phrase ; sinon l'anglais est montré et signalé.
 - **Lituanien** : pas de conjugaison, car l'export du Wiktionary marque ses formes personnelles comme non reconnues ; les mettre dans l'appli aurait risqué d'enseigner des formes fausses.
 - **Titres des leçons de vocabulaire** : le thème vient des catégories du Wiktionnaire. Les mots les plus fréquents en ont rarement une, d'où beaucoup de leçons « Noms courants », « Verbes courants ». Les thèmes précis (la cuisine, le corps, la musique…) apparaissent surtout à partir de B1.
 - **Chinois** : pas de conjugaison, la langue n'en a pas ; les constructions correspondantes sont dans les leçons.
-- **Contenu écrit à la main non relu** : les mots de départ, conjugaisons, leçons et points de grammaire livrés avec l'appli ont été rédigés par une IA, **sans relecture par un locuteur natif**. C'est en particulier le cas du lituanien et du tagalog. Même réserve pour les traductions de l'interface dans les langues autres que le français.
+- **Contenu écrit à la main non relu** : les mots de départ, conjugaisons, leçons et points de grammaire livrés avec l'appli ont été rédigés par une IA, **sans relecture par un locuteur natif**. C'est en particulier le cas du lituanien, du tagalog et du coréen. Même réserve pour les traductions de l'interface, des explications de grammaire (rédigées en 11 langues) et des phrases des cours (guide de conversation Wikivoyage traduit par une IA) dans les langues autres que le français et l'anglais.
 - **Qualité des définitions** : elles viennent de contributeurs bénévoles et ne sont pas relues une à une ; certaines sont surprenantes ou trop générales.
 
 ### Généré à la demande

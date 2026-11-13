@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { review, shuffle, touchStreak, useStore } from '../store';
 import { Empty, Sentence, SpeakBtn } from '../ui';
 import { readingWorthShowing } from '../ruby';
@@ -42,7 +42,7 @@ function buildQuestions(opts: {
     // 2. Les phrases de ces leçons : reconnaître la traduction.
     const pool = l.phrases.filter((p) => p.text && p.fr);
     for (const [i, p] of pool.entries()) {
-      const others = uniq(pool.filter((x) => x !== p).map((x) => x.fr)).slice(0, 8);
+      const others = uniq(pool.filter((x) => x !== p && x.fr !== p.fr).map((x) => x.fr)).slice(0, 8);
       if (others.length < 3) break;
       const choices = shuffle([p.fr, ...shuffle(others).slice(0, 3)]);
       out.push({
@@ -53,11 +53,15 @@ function buildQuestions(opts: {
   }
 
   // 3. Les mots déjà rencontrés, à revoir.
-  const seen = words.filter((w) => seenWord(w.id));
-  const source = seen.length >= 8 ? seen : words.slice(0, 200);
+  // Les mots dont la définition n'existe qu'en anglais ne servent pas de question quand la langue
+  // de l'apprenant en a assez d'autres.
+  const native = words.filter((w) => !w.fallback);
+  const pool = native.length >= 50 ? native : words;
+  const seen = pool.filter((w) => seenWord(w.id));
+  const source = seen.length >= 8 ? seen : pool.slice(0, 200);
   const due = shuffle(source).slice(0, 40);
   for (const w of due) {
-    const others = uniq(shuffle(source).filter((x) => x.id !== w.id).map((x) => x.fr)).slice(0, 3);
+    const others = uniq(shuffle(source).filter((x) => x.id !== w.id && x.fr !== w.fr).map((x) => x.fr)).slice(0, 3);
     if (others.length < 3) break;
     const choices = shuffle([w.fr, ...others]);
     out.push({
@@ -94,16 +98,31 @@ export function Practice({ go }: { go: (t: 'lessons') => void }) {
 
   const doneLessons = useMemo(() => lessons.filter((l) => state.lessonsDone[l.id]), [lessons, state.lessonsDone]);
 
-  const questions = useMemo(() => buildQuestions({
-    lessons: lessonId ? lessons.filter((l) => l.id === lessonId) : lessons,
-    words: lessonId ? [] : words,
-    verbs: lessonId ? [] : verbs,
-    doneIds: lessonId ? { [lessonId]: true } : state.lessonsDone,
-    seenWord: (id) => !!state.srs[id],
-    limit: 12,
-  }), [lessons, words, verbs, state.lessonsDone, state.srs, lessonId, run]);
+  // La série est figée au moment où elle commence : répondre met à jour la répétition espacée,
+  // et recalculer les questions à ce moment-là remplaçait la question en cours par une autre,
+  // qui héritait du choix déjà fait.
+  const ready = !loading && (words.length > 0 || lessons.length > 0);
+  const [series, setSeries] = useState<{ key: string; questions: Question[] }>({ key: '', questions: [] });
+  const seriesKey = `${state.active}:${lessonId ?? 'mix'}:${run}:${ready}`;
+  useEffect(() => {
+    if (!ready) return;
+    setSeries({
+      key: seriesKey,
+      questions: buildQuestions({
+        lessons: lessonId ? lessons.filter((l) => l.id === lessonId) : lessons,
+        words: lessonId ? [] : words,
+        verbs: lessonId ? [] : verbs,
+        doneIds: lessonId ? { [lessonId]: true } : state.lessonsDone,
+        seenWord: (id) => !!state.srs[id],
+        limit: 12,
+      }),
+    });
+    // Volontairement limité à la clé de série : voir plus haut.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seriesKey]);
+  const questions = series.key === seriesKey ? series.questions : [];
 
-  if (loading) return <Empty>{t('common.loading')}</Empty>;
+  if (loading || (ready && series.key !== seriesKey)) return <Empty>{t('common.loading')}</Empty>;
 
   if (!doneLessons.length && !Object.keys(state.srs).length) {
     return (

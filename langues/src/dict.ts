@@ -48,12 +48,13 @@ export function loadDict(code: string, locale: string): Promise<Dict | null> {
         if (seen.has(id)) id += `#${i}`;
         seen.add(id);
         // Une définition anglaise est « de repli » sauf si c'est justement la langue demandée.
-        if (r[3] === 'en' && explain !== 'en') enGloss.add(id);
+        const fallback = r[3] === 'en' && explain !== 'en';
+        if (fallback) enGloss.add(id);
         byTerm.set(r[0].toLowerCase(), r[2]);
         const ex = r[4];
         const band = Math.floor(i / 500) * 500;
         return {
-          id, term: r[0], reading: r[1] || undefined, fr: r[2],
+          id, term: r[0], reading: r[1] || undefined, fr: r[2], fallback: fallback || undefined,
           theme: `${band + 1}–${band + 500}`,
           example: ex?.[0], exampleFr: ex?.[1],
           exampleReading: ex?.[2] || undefined, exampleEn: ex?.[3] === 1,

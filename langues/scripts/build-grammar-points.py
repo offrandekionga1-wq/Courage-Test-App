@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'scripts'))
 OUT = ROOT / 'src' / 'dict'
 CJK = {'ja', 'zh', 'ko'}
-EXPLAIN = ['fr', 'en', 'es', 'de', 'it', 'pt', 'ja', 'zh', 'ko']
+EXPLAIN = ['fr', 'en', 'es', 'de', 'it', 'pt', 'ja', 'zh', 'ko', 'lt', 'tl']
 PER_POINT = 10
 
 
@@ -67,14 +67,27 @@ def main():
         if not pts:
             print(f'• {code}: pas de programme', flush=True)
             continue
+        try:
+            tr = importlib.import_module(f'grammar.i18n.{code}').T
+        except ModuleNotFoundError:
+            tr = {}
         text = []
+        missing = 0
         for p in pts:
-            fr_title, fr_body = p['fr']
-            en_title, en_body = p['en']
-            text.append({'k': p['key'], 'l': p['level'], 'fr': [fr_title, fr_body], 'en': [en_title, en_body],
-                         'ex': [list(e) for e in p['ex']], 'cloze': bool(p['find'])})
+            # tx[langue] = [titre, règle] ; ex = [phrase, {langue: traduction}, lecture]
+            tx = {'fr': list(p['fr']), 'en': list(p['en'])}
+            exs = [[e[0], {'fr': e[1], 'en': e[2]}, e[3] if len(e) > 3 else ''] for e in p['ex']]
+            for lang, (title, body, ex_tr) in tr.get(p['key'], {}).items():
+                tx[lang] = [title, body]
+                for e, t in zip(exs, ex_tr):
+                    e[1][lang] = t
+            missing += sum(1 for x in EXPLAIN if x not in tx and x != code)
+            text.append({'k': p['key'], 'l': p['level'], 'tx': tx, 'ex': exs, 'cloze': bool(p['find'])})
+        text.sort(key=lambda r: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].index(r['l']))
+        if missing:
+            print(f'  {code}: {missing} traductions de règles manquantes', flush=True)
         (OUT / f'{code}-grammar-text.json').write_text(
-            json.dumps({'v': 1, 'points': text}, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+            json.dumps({'v': 2, 'points': text}, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
         found_total = 0
         for explain in EXPLAIN:
             if explain == code:

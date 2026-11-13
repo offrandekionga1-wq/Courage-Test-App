@@ -351,3 +351,7 @@ rt { font-size: .52em; color: var(--mute); font-weight: 500; line-height: 1.1; }
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* Prochaine leçon du parcours, mise en avant à l'accueil et en tête de liste. */
+.lesson-item.next-up { border: 1.5px solid var(--brand); background: color-mix(in srgb, var(--brand) 8%, var(--card)); }
+.lesson-item.next-up .num { background: var(--brand); color: var(--card); }

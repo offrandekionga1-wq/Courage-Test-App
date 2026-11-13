@@ -44,6 +44,15 @@ const ROWS: Record<string, string[]> = {
   // Niveaux
   '@beginner': ['Débutant', 'Beginner', 'Principiante', 'Anfänger', 'Principiante', 'Iniciante', '初級', '入门', '초급', 'Pradedantysis', 'Baguhan'],
   '@elementary': ['Élémentaire', 'Elementary', 'Elemental', 'Grundstufe', 'Elementare', 'Elementar', '初級後半', '基础', '초중급', 'Pradinis', 'Elementarya'],
+  '@advanced': ['Avancé', 'Advanced', 'Avanzado', 'Fortgeschritten', 'Avanzato', 'Avançado', '上級', '高级', '고급', 'Pažengęs', 'Bihasa'],
+  '@s_free': ['Conversation libre', 'Free conversation', 'Conversación libre', 'Freies Gespräch', 'Conversazione libera', 'Conversa livre', '自由会話', '自由对话', '자유 대화', 'Laisvas pokalbis', 'Malayang usapan'],
+  '@s_meet': ['Première rencontre', 'Meeting someone', 'Primer encuentro', 'Erstes Kennenlernen', 'Primo incontro', 'Primeiro encontro', '初対面', '初次见面', '첫 만남', 'Pirmoji pažintis', 'Unang pagkikita'],
+  '@s_cafe': ['Au café', 'At the café', 'En la cafetería', 'Im Café', 'Al bar', 'No café', 'カフェで', '在咖啡馆', '카페에서', 'Kavinėje', 'Sa kapihan'],
+  '@s_restaurant': ['Au restaurant', 'At the restaurant', 'En el restaurante', 'Im Restaurant', 'Al ristorante', 'No restaurante', 'レストランで', '在餐厅', '식당에서', 'Restorane', 'Sa restawran'],
+  '@s_directions': ['Demander son chemin', 'Asking for directions', 'Preguntar el camino', 'Nach dem Weg fragen', 'Chiedere la strada', 'Pedir direções', '道を尋ねる', '问路', '길 묻기', 'Klausti kelio', 'Pagtatanong ng direksyon'],
+  '@s_shopping': ['Faire les courses', 'Shopping', 'Hacer la compra', 'Einkaufen', 'Fare la spesa', 'Fazer compras', '買い物', '购物', '장보기', 'Apsipirkimas', 'Pamimili'],
+  '@s_hotel': ["À l'hôtel", 'At the hotel', 'En el hotel', 'Im Hotel', "All'hotel", 'No hotel', 'ホテルで', '在酒店', '호텔에서', 'Viešbutyje', 'Sa hotel'],
+  '@s_interview': ['Entretien d’embauche', 'Job interview', 'Entrevista de trabajo', 'Vorstellungsgespräch', 'Colloquio di lavoro', 'Entrevista de emprego', '面接', '求职面试', '면접', 'Darbo pokalbis', 'Panayam sa trabaho'],
   '@intermediate': ['Intermédiaire', 'Intermediate', 'Intermedio', 'Mittelstufe', 'Intermedio', 'Intermédio', '中級', '中级', '중급', 'Vidutinis', 'Katamtaman'],
   'intro.A1': ['Les tout premiers mots : ceux qu\'on rencontre dès les premières phrases.', 'The very first words: the ones you meet in your first sentences.', 'Las primeras palabras: las de las primeras frases.', 'Die allerersten Wörter, die schon in den ersten Sätzen vorkommen.', 'Le primissime parole: quelle delle prime frasi.', 'As primeiras palavras: as das primeiras frases.', 'まず覚えたい基本の単語です。', '最先遇到的基础词汇。', '가장 먼저 만나는 기본 단어입니다.', 'Pirmieji žodžiai, sutinkami pirmuosiuose sakiniuose.', 'Ang mga unang salita na makikita agad sa mga pangungusap.'],
   'intro.A2': ['Le vocabulaire de la vie courante, pour tenir une conversation simple.', 'Everyday vocabulary for simple conversations.', 'Vocabulario cotidiano para conversaciones sencillas.', 'Alltagswortschatz für einfache Gespräche.', 'Il vocabolario quotidiano per conversazioni semplici.', 'Vocabulário do dia a dia para conversas simples.', '簡単な会話のための日常の単語です。', '用于简单对话的日常词汇。', '간단한 대화를 위한 일상 단어입니다.', 'Kasdienė leksika paprastam pokalbiui.', 'Pang-araw-araw na bokabularyo para sa simpleng usapan.'],
@@ -146,9 +155,17 @@ const ROWS: Record<string, string[]> = {
   'common': ['Vocabulaire courant', 'Common vocabulary', 'Vocabulario común', 'Gängiger Wortschatz', 'Vocabolario comune', 'Vocabulário comum', '基本語彙', '常用词汇', '기본 어휘', 'Dažna leksika', 'Karaniwang bokabularyo'],
 };
 
+/** Anciennes valeurs enregistrées en français → clés. */
+const LEGACY: Record<string, string> = {
+  'Débutant': '@beginner', 'Élémentaire': '@elementary', 'Intermédiaire': '@intermediate', 'Avancé': '@advanced',
+  'Conversation libre': '@s_free', 'Première rencontre': '@s_meet', 'Au café': '@s_cafe', 'Au restaurant': '@s_restaurant',
+  'Demander son chemin': '@s_directions', 'Faire les courses': '@s_shopping', "À l'hôtel": '@s_hotel', 'Entretien d’embauche': '@s_interview',
+};
+export const toKey = (v: string) => LEGACY[v] ?? v;
+
 /** Traduit un terme ; sans traduction, l'anglais puis la clé elle-même. */
 export function term(key: string, locale: string): string {
-  const row = ROWS[key];
+  const row = ROWS[toKey(key)];
   if (!row) return key.startsWith('@') ? key.slice(1) : key;
   const i = COLS.indexOf(locale);
   return (i >= 0 && row[i]) || row[1] || row[0];

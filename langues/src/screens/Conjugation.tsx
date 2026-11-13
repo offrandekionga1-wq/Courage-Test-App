@@ -11,7 +11,7 @@ type Mode = 'table' | 'quiz';
 
 export function Conjugation({ onSettings }: { onSettings: () => void }) {
   const { state } = useStore();
-  const { t } = useT();
+  const { t, locale } = useT();
   const { lang, pack, verbs, loading } = useActive();
   const [mode, setMode] = useState<Mode>('table');
 
@@ -32,7 +32,7 @@ export function Conjugation({ onSettings }: { onSettings: () => void }) {
         run={async () => ({
           verbs: await generateVerbs({
             provider: state.provider, apiKey: activeKey(state), model: state.model,
-            lang, level: state.level, pack, uiLang: state.uiLang || 'fr',
+            lang, level: state.level, pack, uiLang: locale,
           }),
         })}
       />

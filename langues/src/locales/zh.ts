@@ -187,4 +187,9 @@ export const strings: Record<string, string> = {
   'lessons.theme': '主题',
   'lessons.rules': '规则',
   'content.fallback': '此内容暂无你的语言版本，以{lang}显示。',
+  'lessons.path': '学习路线',
+  'lessons.mine': '我的课程',
+  'lessons.continue': '继续',
+  'lessons.next': '下一课',
+  'lessons.pathIntro': '共{n}课，从入门到高级：每个级别交替学习语法规则、日常情景和词汇。',
 };

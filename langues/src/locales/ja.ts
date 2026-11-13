@@ -187,4 +187,9 @@ export const strings: Record<string, string> = {
   'lessons.theme': 'テーマ',
   'lessons.rules': 'ルール',
   'content.fallback': 'このコンテンツはまだあなたの言語にありません。{lang}で表示しています。',
+  'lessons.path': 'コース',
+  'lessons.mine': 'マイレッスン',
+  'lessons.continue': '続ける',
+  'lessons.next': '次のレッスン',
+  'lessons.pathIntro': '基礎から上級まで{n}レッスン。各レベルで文法、日常の場面、語彙を交互に学びます。',
 };

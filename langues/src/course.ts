@@ -34,6 +34,8 @@ function loadRaw(code: string, locale: string) {
   return p;
 }
 
+const CEFR: Record<string, string> = { '@beginner': 'A1', '@elementary': 'A2', '@intermediate': 'B1' };
+
 /** Quiz « Comment dit-on… ? » : la bonne phrase et trois autres de la même leçon. */
 function phraseQuiz(phrases: RawPhrase[], t: T, n = 4): QuizItem[] {
   const pool = phrases.filter((p) => p.t.length > 3 && p.t.length < 40);
@@ -69,6 +71,7 @@ export function useCourse(code: string, locale: string, t: T): Lesson[] | undefi
       kind: l.kind === 'grammar' ? 'grammar' : 'course',
       title: term(l.title, locale),
       level: term(l.level, locale),
+      cefr: CEFR[l.level] ?? 'A2',
       intro: term(l.intro, locale),
       sections: l.sections.map((s) => ({ heading: term(s.heading, locale), body: s.body })),
       phrases: l.phrases.map((ph) => ({ text: ph.t, reading: ph.r || undefined, fr: ph.f, en: !!ph.en })),

@@ -5,10 +5,14 @@ import type { T } from './i18n';
 
 /** Programme de grammaire produit par scripts/build-grammar-points.py. */
 interface RawPoint {
-  k: string; l: string; fr: [string, string]; en: [string, string];
-  ex: [string, string, string, string?][]; cloze: boolean;
+  k: string; l: string;
+  /** Titre et règle, par langue d'explication. */
+  tx: Record<string, [string, string]>;
+  /** Exemples : phrase, traductions par langue, lecture. */
+  ex: [string, Record<string, string>, string][];
+  cloze: boolean;
 }
-interface TextFile { v: 1; points: RawPoint[] }
+interface TextFile { v: 2; points: RawPoint[] }
 interface PointsFile { v: 1; p: Record<string, { o: string[]; s: [string, string, string, string][] }> }
 
 const textFiles = import.meta.glob<TextFile>('./dict/[a-z][a-z]-grammar-text.json', { import: 'default' });
@@ -57,12 +61,13 @@ export function useGrammarPoints(code: string, locale: string, t: T): Lesson[] |
   return useMemo(() => {
     if (state?.key !== key) return undefined;
     if (!state.text) return [];
-    const lang = locale === 'fr' ? 'fr' : 'en';
     return state.text.points.map((p): Lesson => {
-      const [title, body] = p[lang];
+      // Règle dans la langue de l'apprenant ; à défaut, en anglais (puis en français).
+      const lang = p.tx[locale] ? locale : p.tx.en ? 'en' : 'fr';
+      const [title, body] = p.tx[lang];
       const m = state.pts?.p[p.k];
-      const examples: Phrase[] = p.ex.map(([text, fr, en, reading]) => ({
-        text, fr: lang === 'fr' ? fr : en, reading: reading || undefined,
+      const examples: Phrase[] = p.ex.map(([text, tr, reading]) => ({
+        text, fr: tr[locale] ?? tr[lang] ?? tr.en ?? '', reading: reading || undefined, en: !tr[locale] && locale !== 'fr',
       }));
       const matched: Phrase[] = (m?.s ?? []).map(([text, tr, reading]) => ({ text, fr: tr, reading: reading || undefined }));
       const seen = new Set(examples.map((e) => e.text));
@@ -71,6 +76,7 @@ export function useGrammarPoints(code: string, locale: string, t: T): Lesson[] |
         kind: 'grammar',
         title,
         level: p.l,
+        cefr: p.l,
         intro: '',
         sections: body.split('\n').map((para) => ({ heading: '', body: para })),
         phrases: [...examples, ...matched.filter((x) => !seen.has(x.text))],

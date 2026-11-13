@@ -203,6 +203,11 @@ export const fr = {
   'lessons.theme': 'Thème',
   'lessons.rules': 'Règles',
   'content.fallback': 'Ce contenu n’existe pas encore dans votre langue : il est affiché en {lang}.',
+  'lessons.path': 'Parcours',
+  'lessons.mine': 'Mes leçons',
+  'lessons.continue': 'Continuer',
+  'lessons.next': 'Leçon suivante',
+  'lessons.pathIntro': '{n} leçons, des bases au niveau avancé : chaque niveau alterne règles de grammaire, situations de la vie courante et vocabulaire.',
 };
 
 export type Key = keyof typeof fr;

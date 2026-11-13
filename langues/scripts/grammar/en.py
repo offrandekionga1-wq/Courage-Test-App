@@ -134,3 +134,9 @@ pt('C1', 'inversion', ("L'inversion et l'emphase",
  [("Never have I been so happy.", "Jamais je n'ai été aussi heureux.", "Never have I been so happy.")],
  r"^(Never|Rarely|Seldom|Hardly|Not only) (?:have|has|had|did|do|does|was|is)\b", ['Never', 'Rarely', 'Hardly', 'Not only']),
 ]
+
+POINTS.insert(0, pt('A1', 'pronunciation', ("Prononciation et orthographe",
+ "L'orthographe anglaise note mal la prononciation : une même lettre a plusieurs sons (cat, cake, car, call) et un même son plusieurs graphies (see, sea, me, piece). Apprenez chaque mot avec sa prononciation.\nSons propres à l'anglais : « th » (think, sans voix ; this, avec voix), voyelles brèves et longues qui distinguent les mots (ship / sheep, full / fool), « h » toujours aspiré (house), « r » sans roulement.\nLettres muettes : know, write, hour, island.\nLa terminaison -ed se dit /t/ après un son sourd (worked), /d/ après un son sonore (played), /ɪd/ après t ou d (wanted).\nL'anglais accentue les mots importants et réduit les petits mots : « to », « of », « and » deviennent très brefs."),
+ ('Pronunciation and spelling',
+ "English spelling is a poor guide to sound: one letter has several sounds (cat, cake, car, call) and one sound several spellings (see, sea, me, piece). Learn each word with its pronunciation.\nTypical sounds: “th” (think, voiceless; this, voiced), short and long vowels that tell words apart (ship / sheep, full / fool), “h” always breathed (house), an unrolled “r”.\nSilent letters: know, write, hour, island.\nThe -ed ending sounds /t/ after a voiceless sound (worked), /d/ after a voiced sound (played), /ɪd/ after t or d (wanted).\nEnglish stresses the important words and shrinks the small ones: “to”, “of”, “and” become very short."),
+ [("I think this is the third.", "Je pense que c'est le troisième.", "I think this is the third."), ("I know the answer.", "Je connais la réponse.", "I know the answer.")]))

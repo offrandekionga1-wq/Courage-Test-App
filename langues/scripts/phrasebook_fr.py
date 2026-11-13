@@ -278,9 +278,52 @@ _PAIRS: dict[str, str] = {
     'can i just pay a fine now': 'Puis-je payer une amende maintenant ?',
 }
 
+
+_PAIRS.update({
+    '_____ minute(s)': '___ minute(s)', '_____ hour(s)': '___ heure(s)', '_____ day(s)': '___ jour(s)',
+    '_____ week(s)': '___ semaine(s)', '_____ month(s)': '___ mois', '_____ year(s)': '___ an(s)',
+    '_____ night(s)': '___ nuit(s)', 'i will stay for _____ night(s)': 'Je resterai ___ nuit(s).',
+    'red/white wine': 'vin rouge / blanc', 'vodka': 'vodka', 'rum': 'rhum', 'whiskey': 'whisky',
+    'tonic water': 'eau tonique', 'club soda': 'eau gazeuse', 'coke': 'Coca-Cola',
+    'restaurants': 'restaurants', 'bars': 'bars', 'sites to see': 'lieux à visiter', 'hotels': 'hôtels',
+    'exit': 'sortie', 'entrance': 'entrée', 'closed': 'fermé', 'open': 'ouvert', 'push': 'poussez',
+    'pull': 'tirez', 'men': 'hommes', 'women': 'femmes', 'forbidden': 'interdit', 'toilet': 'toilettes',
+    'bus': 'bus', 'train': 'train', 'car': 'voiture', 'van': 'camionnette', 'bicycle': 'vélo',
+    'motorcycle': 'moto', 'boat': 'bateau', 'ship': 'navire', 'ferry': 'ferry', 'helicopter': 'hélicoptère',
+    'pork': 'porc', 'sugar': 'sucre', 'soy sauce': 'sauce soja', 'gold': 'or', 'silver': 'argent (couleur)',
+    'lockers': 'consignes', 'can you wake me at _____': 'Pouvez-vous me réveiller à ___ ?',
+    "one o'clock pm": 'une heure de l’après-midi', "two o'clock pm": 'deux heures de l’après-midi',
+    "one o'clock am": 'une heure du matin', "two o'clock am": 'deux heures du matin',
+    'the day before yesterday': 'avant-hier', 'the day after tomorrow': 'après-demain', 'a pencil': 'un crayon',
+    'to the bus station': 'à la gare routière', 'to the airport': 'à l’aéroport', 'to the train station': 'à la gare',
+    'a table for one person/two people, please': 'Une table pour une personne / deux personnes, s’il vous plaît.',
+    'a beer/two beers, please': 'Une bière / deux bières, s’il vous plaît.',
+    'a glass of red/white wine, please': 'Un verre de vin rouge / blanc, s’il vous plaît.',
+    'where does this train/bus go': 'Où va ce train / ce bus ?',
+    'where is the train/bus to _____': 'Où est le train / le bus pour ___ ?',
+    'does this train/bus stop in _____': 'Ce train / ce bus s’arrête-t-il à ___ ?',
+    'when does the train/bus for _____ leave': 'Quand part le train / le bus pour ___ ?',
+    'when will this train/bus arrive in _____': 'Quand ce train / ce bus arrive-t-il à ___ ?',
+    'is breakfast/supper included': 'Le petit-déjeuner / le dîner est-il compris ?',
+    'what time is breakfast/supper': 'À quelle heure est le petit-déjeuner / le dîner ?',
+    'how much is a room for one person/two people': 'Combien coûte une chambre pour une personne / deux personnes ?',
+    'i am an american/australian/british/canadian citizen': 'Je suis citoyen américain / australien / britannique / canadien.',
+    'do you accept american/australian/canadian dollars': 'Acceptez-vous les dollars américains / australiens / canadiens ?',
+    'do you accept british pounds': 'Acceptez-vous les livres sterling ?', 'do you have any bar snacks': 'Avez-vous de quoi grignoter ?',
+    'do you ship': 'Faites-vous des envois ?',
+    "where can i get a traveler's check changed": 'Où puis-je changer un chèque de voyage ?',
+    "can you change a traveler's check for me": 'Pouvez-vous me changer un chèque de voyage ?',
+    'watch for the _____': 'Repérez ___.', '_____ and _____, please': '___ et ___, s’il vous plaît.',
+    'the american/canadian/australian/british consulate': 'le consulat américain / canadien / australien / britannique',
+    'à la carte': 'à la carte',
+})
+
 TABLE = {norm(k): v for k, v in _PAIRS.items()}
 
 
 def translate(english: str) -> str | None:
     """Rend la phrase française correspondante, ou None si l'amorce n'est pas dans la table."""
-    return TABLE.get(norm(english))
+    key = norm(english)
+    if re.fullmatch(r'[\d\s,.]+', key):
+        return english.strip()
+    return TABLE.get(key) or TABLE.get(re.sub(r'_+', '_____', key).replace('"', ''))

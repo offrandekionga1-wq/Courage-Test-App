@@ -298,6 +298,71 @@ def build(code: str, sources: list[tuple[str, str]], explain: str = 'fr') -> dic
     return {'v': 2, 'lessons': lessons, 'source': 'wikivoyage-' + source_lang}
 
 
+ISO3 = {'fr': 'fra', 'es': 'spa', 'de': 'deu', 'it': 'ita', 'pt': 'por', 'ja': 'jpn', 'zh': 'cmn', 'ko': 'kor'}
+
+
+from phrasebook_multi import translate as pb_translate  # noqa: E402
+
+
+def _norm(t: str) -> str:
+    return re.sub(r"[^\w']+", ' ', t.lower()).strip()
+
+
+_eng: dict[str, str] | None = None
+
+
+def tatoeba_map(explain: str) -> dict[str, str]:
+    """Phrase anglaise (normalisée) → sa traduction Tatoeba dans la langue d'explication."""
+    global _eng
+    tat = CACHE / 'tatoeba'
+    iso = ISO3[explain]
+    links = tat / f'eng-{iso}_links.tsv.bz2'
+    if not links.exists():
+        return {}
+    if _eng is None:
+        _eng = {}
+        with bz2.open(tat / 'eng_sentences_detailed.tsv.bz2', 'rt', encoding='utf-8') as f:
+            for line in f:
+                p = line.rstrip('\n').split('\t')
+                if len(p) >= 4 and p[3] and p[3] != '\\N' and len(p[2]) <= 60:
+                    _eng[p[0]] = p[2]
+    xs: dict[str, str] = {}
+    with bz2.open(tat / f'{iso}_sentences_detailed.tsv.bz2', 'rt', encoding='utf-8') as f:
+        for line in f:
+            p = line.rstrip('\n').split('\t')
+            if len(p) >= 4 and p[3] and p[3] != '\\N':
+                xs[p[0]] = p[2]
+    out: dict[str, str] = {}
+    with bz2.open(links, 'rt', encoding='utf-8') as f:
+        for line in f:
+            p = line.rstrip('\n').split('\t')
+            if len(p) == 2 and p[0] in _eng and p[1] in xs:
+                out.setdefault(_norm(_eng[p[0]]), xs[p[1]])
+    return out
+
+
+def localise(data: dict, explain: str, tmap: dict[str, str]) -> dict:
+    """Version d'un cours anglais pour une autre langue d'apprenant.
+
+    Les amorces anglaises sont remplacées par leur traduction Tatoeba quand la même phrase y
+    existe ; les autres restent en anglais, signalées. La prose anglaise du guide (présentation,
+    prononciation, notes) n'est pas reprise : le module de grammaire la couvre dans la langue de
+    l'apprenant.
+    """
+    lessons = []
+    for l in data['lessons']:
+        if l.get('kind') == 'grammar':
+            continue
+        phrases = []
+        for ph in l['phrases']:
+            tr = (pb_translate(ph['f'], explain) or tmap.get(_norm(ph['f']))
+                  or tmap.get(_norm(re.sub(r'\s*\(.*?\)', '', ph['f']))))
+            phrases.append({**ph, 'f': tr} if tr else {**ph, 'en': 1})
+        phrases.sort(key=lambda p: p.get('en', 0))
+        lessons.append({**l, 'intro': '@c_intro', 'sections': [], 'phrases': phrases})
+    return {**data, 'lessons': lessons}
+
+
 def main() -> None:
     need_fr = {p[0] for p in PAGES.values() if p[0]}
     need_en = {p[1] for p in PAGES.values() if p[1]}
@@ -307,23 +372,72 @@ def main() -> None:
     if need_en:
         pages['en'] = read_pages(fetch_dump('en'), need_en)
     OUT.mkdir(parents=True, exist_ok=True)
+    maps = {x: tatoeba_map(x) for x in ISO3}
+    print('correspondances Tatoeba :', {x: len(m) for x, m in maps.items()}, flush=True)
     stats = {}
     for code, (fr_page, en_page) in PAGES.items():
         fr_src = [(pages['fr'][fr_page], 'fr')] if fr_page and fr_page in pages.get('fr', {}) else []
         en_src = [(pages['en'][en_page], 'en')] if en_page and en_page in pages.get('en', {}) else []
         # Version française : guide français complété par l'anglais traduit. Version anglaise :
-        # guide anglais seul. Les autres langues d'interface reprennent la version anglaise.
-        for explain, srcs in (('fr', fr_src + en_src), ('en', en_src)):
-            if not srcs:
-                continue
-            data = build(code, srcs, explain)
+        # guide anglais seul. Autres langues : version anglaise dont les phrases sont traduites
+        # par Tatoeba.
+        versions = []
+        if fr_src + en_src:
+            fr = build(code, fr_src + en_src, 'fr')
+            # Amorces anglaises restées sans traduction française : Tatoeba en dernier recours.
+            for l in fr['lessons']:
+                for i, ph in enumerate(l['phrases']):
+                    if ph.get('en') and _norm(ph['f']) in maps['fr']:
+                        l['phrases'][i] = {k: v for k, v in ph.items() if k != 'en'} | {'f': maps['fr'][_norm(ph['f'])]}
+            versions.append(('fr', fr))
+        if en_src:
+            en = build(code, en_src, 'en')
+            versions.append(('en', en))
+            for x in list(ISO3) + ['lt', 'tl']:
+                if x not in ('fr', code):
+                    versions.append((x, localise(en, x, maps.get(x, {}))))
+        for explain, data in versions:
+            if explain != 'en':
+                # Une phrase dont l'amorce n'a pas pu être traduite n'aide pas l'apprenant : on la
+                # retire plutôt que de lui montrer de l'anglais. Une leçon trop maigre disparaît.
+                kept = []
+                for l in data['lessons']:
+                    if l.get('kind') == 'grammar':
+                        kept.append(l)
+                        continue
+                    ph = [p for p in l['phrases'] if not p.get('en')]
+                    if len(ph) >= 4:
+                        kept.append({**l, 'phrases': ph})
+                data = {**data, 'lessons': kept}
             nph = sum(len(l['phrases']) for l in data['lessons'])
             nen = sum(1 for l in data['lessons'] for p in l['phrases'] if p.get('en'))
             print(f'• {code} ({explain}): {len(data["lessons"])} leçons, {nph} phrases ({nen} en anglais)', flush=True)
             (OUT / f'{code}-course-{explain}.json').write_text(
                 json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
-            stats.setdefault(code, {})[explain] = {'lessons': len(data['lessons']), 'phrases': nph, 'en': nen,
-                                                   'sources': [x[1] for x in srcs]}
+            stats.setdefault(code, {})[explain] = {'lessons': len(data['lessons']), 'phrases': nph, 'en': nen}
+    # Cours d'anglais pour les interfaces autres que le français : le Wikivoyage anglais n'a pas de
+    # guide d'anglais, mais ses amorces sont justement des phrases anglaises courantes. On reprend
+    # celles du guide d'espagnol, traduites par la table dans la langue de l'apprenant.
+    base = json.loads((OUT / 'es-course-en.json').read_text(encoding='utf-8'))
+    for x in list(ISO3) + ['lt', 'tl']:
+        if x == 'fr':
+            continue
+        lessons = []
+        for l in base['lessons']:
+            if l.get('kind') == 'grammar':
+                continue
+            ph = []
+            for p in l['phrases']:
+                tr = pb_translate(p['f'], x)
+                text = re.sub(r'\s*\([^)]*\)', '', p['f']).strip()
+                if tr and text and not re.fullmatch(r'[\d\s,.]+', text):
+                    ph.append({'t': text, 'f': tr, 'r': ''})
+            if len(ph) >= 4:
+                lessons.append({**l, 'id': l['id'].replace('es:', 'en:'), 'intro': '@c_intro', 'sections': [], 'phrases': ph})
+        data = {'v': 2, 'lessons': lessons, 'source': 'wikivoyage-en'}
+        (OUT / f'en-course-{x}.json').write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+        stats.setdefault('en', {})[x] = {'lessons': len(lessons), 'phrases': sum(len(l['phrases']) for l in lessons), 'en': 0}
+        print(f'• en ({x}): {len(lessons)} leçons', flush=True)
     (OUT / 'courses-meta.json').write_text(json.dumps(stats, ensure_ascii=False, indent=1), encoding='utf-8')
 
 

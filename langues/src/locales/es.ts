@@ -187,4 +187,9 @@ export const strings: Record<string, string> = {
   'lessons.theme': 'Tema',
   'lessons.rules': 'Reglas',
   'content.fallback': 'Este contenido aún no existe en tu idioma: se muestra en {lang}.',
+  'lessons.path': 'Ruta',
+  'lessons.mine': 'Mis lecciones',
+  'lessons.continue': 'Continuar',
+  'lessons.next': 'Siguiente lección',
+  'lessons.pathIntro': '{n} lecciones, de lo básico al nivel avanzado: cada nivel alterna reglas de gramática, situaciones cotidianas y vocabulario.',
 };

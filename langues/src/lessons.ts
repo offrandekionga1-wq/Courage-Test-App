@@ -62,13 +62,18 @@ export function useVocabLessons(code: string, words: Word[], locale: string, t: 
         kind: 'vocab',
         title: l.k ? `${theme} (${l.k})` : theme,
         level: l.level,
+        cefr: l.level,
         intro: `${term(`intro.${l.level}`, locale)} ${t('lessons.theme')} : ${theme.toLowerCase()}.`,
         sections: [],
-        phrases: picked
-          .filter((w) => w.example)
+        // Exemples traduits dans la langue de l'apprenant d'abord ; ceux traduits seulement en anglais
+        // ne complètent la liste que s'il en manque.
+        phrases: [...picked.filter((w) => w.example && !w.exampleEn),
+          ...picked.filter((w) => w.example && w.exampleEn)]
+          .filter((w, i, all) => !w.exampleEn || i < 4 || all.length < 4)
           .slice(0, 12)
           .map((w) => ({ text: w.example!, fr: w.exampleFr ?? '', reading: w.exampleReading, en: w.exampleEn })),
-        quiz: makeQuiz(picked.map((w) => ({ term: w.term, gloss: w.fr })), t),
+        // Le quiz n'utilise que les définitions écrites dans la langue de l'apprenant.
+        quiz: makeQuiz(picked.filter((w) => !w.fallback).map((w) => ({ term: w.term, gloss: w.fr })), t),
         words: picked,
       });
     }
