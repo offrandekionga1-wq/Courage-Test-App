@@ -39,6 +39,7 @@ Alkrasnov
 aln
 alpucca
 Alska
+altebrilas
 althead
 altusi
 alvations
@@ -455,6 +456,7 @@ luna_moonsilver
 lunchmeat317
 Luornu
 maaster
+mackay
 magnificentgoddess
 mailohilohi
 mamat
@@ -472,6 +474,7 @@ Markiplier
 marloncori
 marshmallowcat
 Martha
+martin9
 masoris
 Mateon1
 MatthewChriswood
@@ -672,6 +675,7 @@ sinatra
 Skaty
 Skvodo
 skylight
+slomox
 SMJ789
 Smorrs
 SN_H
@@ -774,6 +778,7 @@ verdulo
 Versuss
 vincelens
 vinhan
+virgil
 VirtuOZ
 vitalux
 Vortarulo

@@ -1,6 +1,6 @@
 {
  "de": {
-  "lessons": 448,
+  "lessons": 425,
   "levels": [
    "A1",
    "A2",
@@ -11,7 +11,7 @@
   ]
  },
  "en": {
-  "lessons": 438,
+  "lessons": 423,
   "levels": [
    "A1",
    "A2",
@@ -22,15 +22,18 @@
   ]
  },
  "es": {
-  "lessons": 106,
+  "lessons": 427,
   "levels": [
    "A1",
    "A2",
-   "B1"
+   "B1",
+   "B2",
+   "C1",
+   "C2"
   ]
  },
  "it": {
-  "lessons": 437,
+  "lessons": 430,
   "levels": [
    "A1",
    "A2",
@@ -41,7 +44,7 @@
   ]
  },
  "pt": {
-  "lessons": 431,
+  "lessons": 417,
   "levels": [
    "A1",
    "A2",
@@ -52,7 +55,7 @@
   ]
  },
  "zh": {
-  "lessons": 424,
+  "lessons": 422,
   "levels": [
    "A1",
    "A2",
@@ -63,16 +66,17 @@
   ]
  },
  "lt": {
-  "lessons": 200,
+  "lessons": 314,
   "levels": [
    "A1",
    "A2",
    "B1",
-   "B2"
+   "B2",
+   "C1"
   ]
  },
  "tl": {
-  "lessons": 204,
+  "lessons": 217,
   "levels": [
    "A1",
    "A2",
@@ -81,7 +85,7 @@
   ]
  },
  "ja": {
-  "lessons": 429,
+  "lessons": 435,
   "levels": [
    "A1",
    "A2",
@@ -92,7 +96,7 @@
   ]
  },
  "ko": {
-  "lessons": 439,
+  "lessons": 434,
   "levels": [
    "A1",
    "A2",

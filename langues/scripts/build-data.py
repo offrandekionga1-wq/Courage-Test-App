@@ -393,7 +393,7 @@ BAD_GLOSS = re.compile(r'(?:name of the (?:Latin|Hangul|Greek|Cyrillic)[^,;]* le
                        r'|^A counter for (?:poems|animals))', re.I)
 BAD_POS = {'syllable', 'character', 'affix', 'prefix', 'suffix', 'symbol', 'name', 'letter', 'romanization'}
 FORM_LINK = re.compile(r'\b(?:allomorph|form|spelling|contraction|clipping|abbreviation) of (\S+?)(?:\s|,|;|$)', re.I)
-FUNCTION_POS = {'pron', 'particle', 'det', 'conj', 'adv', 'postp', 'prep', 'num', 'intj', 'verb'}
+FUNCTION_POS = {'pron', 'particle', 'det', 'conj', 'adv', 'postp', 'prep', 'num', 'intj'}
 
 
 def rank_entries(items: list[tuple[str, str, list[str]]], heads: list[str]) -> list:
@@ -652,25 +652,36 @@ def jmdict_data() -> dict:
     xml_lang = '{http://www.w3.org/XML/1998/namespace}lang'
     rank_of = {'news1': 30, 'ichi1': 30, 'spec1': 30, 'gai1': 40, 'news2': 50, 'ichi2': 60, 'spec2': 60, 'gai2': 70}
     items, reading, fre, eng, ger, spa = [], {}, {}, {}, {}, {}
+    best_of: dict[str, tuple[int, int]] = {}
     with gzip.open(CACHE / 'JMdict.gz') as f:
         for _, el in ET.iterparse(f):
             if el.tag != 'entry':
                 continue
-            best, kanji, reb = 999, None, None
+            kbest, rbest, kanji, reb = 999, 999, None, None
             for k in el.findall('k_ele'):
                 pri = [p.text for p in k.findall('ke_pri')]
                 if kanji is None or pri:
                     kanji = k.findtext('keb') if (pri or kanji is None) else kanji
                 for p in pri:
-                    best = min(best, int(p[2:]) if p.startswith('nf') else rank_of.get(p, 999))
+                    kbest = min(kbest, int(p[2:]) if p.startswith('nf') else rank_of.get(p, 999))
             for r in el.findall('r_ele'):
                 pri = [p.text for p in r.findall('re_pri')]
                 if reb is None or pri:
                     reb = r.findtext('reb')
                 for p in pri:
-                    best = min(best, int(p[2:]) if p.startswith('nf') else rank_of.get(p, 999))
+                    rbest = min(rbest, int(p[2:]) if p.startswith('nf') else rank_of.get(p, 999))
             term = kanji or reb
-            if term and term not in reading:
+            # La priorité d'un mot écrit en kanji est celle de cette graphie : あれ est courant,
+            # mais pas écrit 彼 ; un sens de suffixe (人 = -jin) passe après le mot autonome.
+            best = kbest if kanji else rbest
+            first_pos = ' '.join(x.text or '' for x in el.findall('sense/pos')[:1])
+            if 'suf' in first_pos or 'pref' in first_pos:
+                best += 5
+            # Homographes (彼 = あれ « ça » / かれ « il ») : l'entrée la plus prioritaire l'emporte.
+            if term and (term not in best_of or best < best_of[term][0]):
+                best_of[term] = (best, int(el.findtext('ent_seq')))
+                for d_ in (fre, eng, ger, spa):
+                    d_.pop(term, None)
                 fr, en, de, es = [], [], [], []
                 for sense in el.findall('sense'):
                     for g in sense.findall('gloss'):
@@ -687,10 +698,9 @@ def jmdict_data() -> dict:
                     ger[term] = (term, join_glosses(de))
                 if es:
                     spa[term] = (term, join_glosses(es))
-                # Les mots sans étiquette de priorité viennent après tous les autres.
-                items.append((best, int(el.findtext('ent_seq')), term))
             el.clear()
-    items.sort()
+    # Les mots sans étiquette de priorité viennent après tous les autres.
+    items = sorted((b, q, t) for t, (b, q) in best_of.items())
     # Les étiquettes de priorité de JMdict sont grossières (des milliers de mots ex æquo, rangés
     # alors par numéro d'entrée, c'est-à-dire presque par ordre des kana). On classe donc les mots
     # prioritaires d'après leur fréquence réelle dans les phrases japonaises de Tatoeba.

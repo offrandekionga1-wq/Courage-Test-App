@@ -3,179 +3,520 @@
   "fr": {
    "lessons": 11,
    "phrases": 305,
-   "en": 0,
-   "sources": [
-    "fr"
-   ]
+   "en": 0
+  },
+  "es": {
+   "lessons": 13,
+   "phrases": 288,
+   "en": 0
+  },
+  "de": {
+   "lessons": 13,
+   "phrases": 288,
+   "en": 0
+  },
+  "it": {
+   "lessons": 13,
+   "phrases": 288,
+   "en": 0
+  },
+  "pt": {
+   "lessons": 13,
+   "phrases": 288,
+   "en": 0
+  },
+  "ja": {
+   "lessons": 13,
+   "phrases": 288,
+   "en": 0
+  },
+  "zh": {
+   "lessons": 13,
+   "phrases": 288,
+   "en": 0
+  },
+  "ko": {
+   "lessons": 13,
+   "phrases": 288,
+   "en": 0
+  },
+  "lt": {
+   "lessons": 13,
+   "phrases": 288,
+   "en": 0
+  },
+  "tl": {
+   "lessons": 13,
+   "phrases": 288,
+   "en": 0
   }
  },
  "es": {
   "fr": {
    "lessons": 14,
-   "phrases": 600,
-   "en": 141,
-   "sources": [
-    "fr",
-    "en"
-   ]
+   "phrases": 513,
+   "en": 0
   },
   "en": {
    "lessons": 14,
    "phrases": 447,
-   "en": 0,
-   "sources": [
-    "en"
-   ]
+   "en": 0
+  },
+  "de": {
+   "lessons": 13,
+   "phrases": 353,
+   "en": 0
+  },
+  "it": {
+   "lessons": 13,
+   "phrases": 353,
+   "en": 0
+  },
+  "pt": {
+   "lessons": 13,
+   "phrases": 353,
+   "en": 0
+  },
+  "ja": {
+   "lessons": 13,
+   "phrases": 351,
+   "en": 0
+  },
+  "zh": {
+   "lessons": 13,
+   "phrases": 351,
+   "en": 0
+  },
+  "ko": {
+   "lessons": 13,
+   "phrases": 347,
+   "en": 0
+  },
+  "lt": {
+   "lessons": 13,
+   "phrases": 342,
+   "en": 0
+  },
+  "tl": {
+   "lessons": 13,
+   "phrases": 342,
+   "en": 0
   }
  },
  "de": {
   "fr": {
-   "lessons": 15,
-   "phrases": 611,
-   "en": 182,
-   "sources": [
-    "fr",
-    "en"
-   ]
+   "lessons": 14,
+   "phrases": 474,
+   "en": 0
   },
   "en": {
    "lessons": 14,
    "phrases": 435,
-   "en": 0,
-   "sources": [
-    "en"
-   ]
+   "en": 0
+  },
+  "es": {
+   "lessons": 13,
+   "phrases": 326,
+   "en": 0
+  },
+  "it": {
+   "lessons": 13,
+   "phrases": 325,
+   "en": 0
+  },
+  "pt": {
+   "lessons": 13,
+   "phrases": 326,
+   "en": 0
+  },
+  "ja": {
+   "lessons": 13,
+   "phrases": 325,
+   "en": 0
+  },
+  "zh": {
+   "lessons": 13,
+   "phrases": 322,
+   "en": 0
+  },
+  "ko": {
+   "lessons": 13,
+   "phrases": 319,
+   "en": 0
+  },
+  "lt": {
+   "lessons": 13,
+   "phrases": 315,
+   "en": 0
+  },
+  "tl": {
+   "lessons": 13,
+   "phrases": 315,
+   "en": 0
   }
  },
  "it": {
   "fr": {
    "lessons": 13,
-   "phrases": 485,
-   "en": 143,
-   "sources": [
-    "fr",
-    "en"
-   ]
+   "phrases": 412,
+   "en": 0
   },
   "en": {
    "lessons": 14,
    "phrases": 394,
-   "en": 0,
-   "sources": [
-    "en"
-   ]
+   "en": 0
+  },
+  "es": {
+   "lessons": 13,
+   "phrases": 346,
+   "en": 0
+  },
+  "de": {
+   "lessons": 13,
+   "phrases": 347,
+   "en": 0
+  },
+  "pt": {
+   "lessons": 13,
+   "phrases": 344,
+   "en": 0
+  },
+  "ja": {
+   "lessons": 13,
+   "phrases": 345,
+   "en": 0
+  },
+  "zh": {
+   "lessons": 13,
+   "phrases": 340,
+   "en": 0
+  },
+  "ko": {
+   "lessons": 13,
+   "phrases": 333,
+   "en": 0
+  },
+  "lt": {
+   "lessons": 13,
+   "phrases": 326,
+   "en": 0
+  },
+  "tl": {
+   "lessons": 13,
+   "phrases": 326,
+   "en": 0
   }
  },
  "pt": {
   "fr": {
    "lessons": 14,
-   "phrases": 543,
-   "en": 102,
-   "sources": [
-    "fr",
-    "en"
-   ]
+   "phrases": 472,
+   "en": 0
   },
   "en": {
    "lessons": 14,
    "phrases": 341,
-   "en": 0,
-   "sources": [
-    "en"
-   ]
+   "en": 0
+  },
+  "es": {
+   "lessons": 13,
+   "phrases": 304,
+   "en": 0
+  },
+  "de": {
+   "lessons": 13,
+   "phrases": 304,
+   "en": 0
+  },
+  "it": {
+   "lessons": 13,
+   "phrases": 304,
+   "en": 0
+  },
+  "ja": {
+   "lessons": 13,
+   "phrases": 302,
+   "en": 0
+  },
+  "zh": {
+   "lessons": 13,
+   "phrases": 302,
+   "en": 0
+  },
+  "ko": {
+   "lessons": 13,
+   "phrases": 302,
+   "en": 0
+  },
+  "lt": {
+   "lessons": 13,
+   "phrases": 301,
+   "en": 0
+  },
+  "tl": {
+   "lessons": 13,
+   "phrases": 301,
+   "en": 0
   }
  },
  "ja": {
   "fr": {
-   "lessons": 14,
-   "phrases": 498,
-   "en": 192,
-   "sources": [
-    "fr",
-    "en"
-   ]
+   "lessons": 13,
+   "phrases": 367,
+   "en": 0
   },
   "en": {
    "lessons": 15,
    "phrases": 430,
-   "en": 0,
-   "sources": [
-    "en"
-   ]
+   "en": 0
+  },
+  "es": {
+   "lessons": 13,
+   "phrases": 345,
+   "en": 0
+  },
+  "de": {
+   "lessons": 12,
+   "phrases": 338,
+   "en": 0
+  },
+  "it": {
+   "lessons": 13,
+   "phrases": 343,
+   "en": 0
+  },
+  "pt": {
+   "lessons": 13,
+   "phrases": 340,
+   "en": 0
+  },
+  "zh": {
+   "lessons": 12,
+   "phrases": 338,
+   "en": 0
+  },
+  "ko": {
+   "lessons": 12,
+   "phrases": 330,
+   "en": 0
+  },
+  "lt": {
+   "lessons": 12,
+   "phrases": 320,
+   "en": 0
+  },
+  "tl": {
+   "lessons": 12,
+   "phrases": 320,
+   "en": 0
   }
  },
  "zh": {
   "fr": {
-   "lessons": 13,
-   "phrases": 553,
-   "en": 139,
-   "sources": [
-    "fr",
-    "en"
-   ]
+   "lessons": 12,
+   "phrases": 442,
+   "en": 0
   },
   "en": {
    "lessons": 14,
    "phrases": 377,
-   "en": 0,
-   "sources": [
-    "en"
-   ]
+   "en": 0
+  },
+  "es": {
+   "lessons": 12,
+   "phrases": 276,
+   "en": 0
+  },
+  "de": {
+   "lessons": 12,
+   "phrases": 277,
+   "en": 0
+  },
+  "it": {
+   "lessons": 12,
+   "phrases": 278,
+   "en": 0
+  },
+  "pt": {
+   "lessons": 12,
+   "phrases": 276,
+   "en": 0
+  },
+  "ja": {
+   "lessons": 12,
+   "phrases": 275,
+   "en": 0
+  },
+  "ko": {
+   "lessons": 12,
+   "phrases": 274,
+   "en": 0
+  },
+  "lt": {
+   "lessons": 12,
+   "phrases": 270,
+   "en": 0
+  },
+  "tl": {
+   "lessons": 12,
+   "phrases": 270,
+   "en": 0
   }
  },
  "ko": {
   "fr": {
    "lessons": 13,
-   "phrases": 319,
-   "en": 130,
-   "sources": [
-    "fr",
-    "en"
-   ]
+   "phrases": 239,
+   "en": 0
   },
   "en": {
    "lessons": 13,
    "phrases": 319,
-   "en": 0,
-   "sources": [
-    "en"
-   ]
+   "en": 0
+  },
+  "es": {
+   "lessons": 11,
+   "phrases": 281,
+   "en": 0
+  },
+  "de": {
+   "lessons": 11,
+   "phrases": 282,
+   "en": 0
+  },
+  "it": {
+   "lessons": 11,
+   "phrases": 281,
+   "en": 0
+  },
+  "pt": {
+   "lessons": 11,
+   "phrases": 280,
+   "en": 0
+  },
+  "ja": {
+   "lessons": 11,
+   "phrases": 281,
+   "en": 0
+  },
+  "zh": {
+   "lessons": 11,
+   "phrases": 280,
+   "en": 0
+  },
+  "lt": {
+   "lessons": 11,
+   "phrases": 273,
+   "en": 0
+  },
+  "tl": {
+   "lessons": 11,
+   "phrases": 273,
+   "en": 0
   }
  },
  "lt": {
   "fr": {
-   "lessons": 14,
-   "phrases": 378,
-   "en": 145,
-   "sources": [
-    "en"
-   ]
+   "lessons": 13,
+   "phrases": 292,
+   "en": 0
   },
   "en": {
    "lessons": 14,
    "phrases": 378,
-   "en": 0,
-   "sources": [
-    "en"
-   ]
+   "en": 0
+  },
+  "es": {
+   "lessons": 13,
+   "phrases": 332,
+   "en": 0
+  },
+  "de": {
+   "lessons": 13,
+   "phrases": 331,
+   "en": 0
+  },
+  "it": {
+   "lessons": 13,
+   "phrases": 332,
+   "en": 0
+  },
+  "pt": {
+   "lessons": 13,
+   "phrases": 331,
+   "en": 0
+  },
+  "ja": {
+   "lessons": 13,
+   "phrases": 330,
+   "en": 0
+  },
+  "zh": {
+   "lessons": 13,
+   "phrases": 331,
+   "en": 0
+  },
+  "ko": {
+   "lessons": 13,
+   "phrases": 330,
+   "en": 0
+  },
+  "tl": {
+   "lessons": 13,
+   "phrases": 330,
+   "en": 0
   }
  },
  "tl": {
   "fr": {
-   "lessons": 14,
-   "phrases": 463,
-   "en": 271,
-   "sources": [
-    "en"
-   ]
+   "lessons": 11,
+   "phrases": 276,
+   "en": 0
   },
   "en": {
    "lessons": 14,
    "phrases": 463,
-   "en": 0,
-   "sources": [
-    "en"
-   ]
+   "en": 0
+  },
+  "es": {
+   "lessons": 11,
+   "phrases": 316,
+   "en": 0
+  },
+  "de": {
+   "lessons": 11,
+   "phrases": 321,
+   "en": 0
+  },
+  "it": {
+   "lessons": 11,
+   "phrases": 316,
+   "en": 0
+  },
+  "pt": {
+   "lessons": 11,
+   "phrases": 314,
+   "en": 0
+  },
+  "ja": {
+   "lessons": 11,
+   "phrases": 317,
+   "en": 0
+  },
+  "zh": {
+   "lessons": 11,
+   "phrases": 307,
+   "en": 0
+  },
+  "ko": {
+   "lessons": 11,
+   "phrases": 299,
+   "en": 0
+  },
+  "lt": {
+   "lessons": 11,
+   "phrases": 277,
+   "en": 0
   }
  }
 }

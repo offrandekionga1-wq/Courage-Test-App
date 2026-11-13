@@ -236,8 +236,9 @@ def build(code: str, sources: list[tuple[str, str]], explain: str = 'fr') -> dic
     pron_secs = [(t, b, lang) for t, b, lang in sections if t in PRONUNCIATION]
     # Si le guide français décrit la prononciation, on s'en tient à lui : mélanger deux systèmes
     # de transcription (français et anglais) induirait l'élève en erreur.
-    if any(lang == explain for _, _, lang in pron_secs):
-        pron_secs = [x for x in pron_secs if x[2] == explain]
+    # Les descriptions anglaises (« comme dans father ») n'ont pas de sens pour un autre lecteur :
+    # on ne garde que le guide écrit dans la langue de l'apprenant.
+    pron_secs = [x for x in pron_secs if x[2] == explain]
     pron_defs, pron_paras = [], []
     for t, b, lang in pron_secs:
         pron_defs += defs_in(b)
@@ -258,7 +259,7 @@ def build(code: str, sources: list[tuple[str, str]], explain: str = 'fr') -> dic
     # 2. Leçon de grammaire, si le guide en contient une.
     for t in GRAMMAR_SECTIONS:
         cand = bodies(t)
-        fr_first = [x for x in cand if x[1] == explain] or cand
+        fr_first = [x for x in cand if x[1] == explain]
         paras = paragraphs_in(fr_first[0][0]) if fr_first else []
         if len(paras) >= 1:
             lessons.append({

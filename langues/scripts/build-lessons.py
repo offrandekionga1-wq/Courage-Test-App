@@ -211,10 +211,14 @@ def build(code: str) -> dict | None:
         # Regroupement par thème ; les mots sans thème retombent sur leur nature.
         groups: dict[str, list[tuple[int, str, str]]] = defaultdict(list)
         for item in chunk:
-            key = theme.get(item[1]) or theme.get(item[1].lower())
+            p = pos.get(item[1]) or pos.get(item[1].lower()) or ''
+            # Un thème ne vaut que pour un nom : « if », « and », « not » sont classés en
+            # informatique par le Wiktionnaire, mais ce sont des mots grammaticaux.
+            key = (theme.get(item[1]) or theme.get(item[1].lower())) if p in ('noun', 'nom', '') else None
             if not key:
-                p = pos.get(item[1]) or pos.get(item[1].lower()) or ''
-                key = POS_TITLE.get(p, 'common')
+                # Aux niveaux A1-A2, la nature des mots les plus fréquents est trop souvent mal
+                # devinée (« on », « all » classés adjectifs) : on garde l'ordre de fréquence.
+                key = 'common' if level in ('A1', 'A2') else POS_TITLE.get(p, 'common')
             groups[key].append(item)
         # Les leçons thématiques passent avant celles qui ne sont qu'un repli par nature de mot :
         # « La cuisine » est plus parlant que « Noms courants ».

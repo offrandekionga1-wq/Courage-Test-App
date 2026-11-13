@@ -1,6 +1,7 @@
 Auteurs des phrases Tatoeba utilisées pour cette langue (originales et traductions françaises).
 Chaque phrase est consultable avec son auteur sur https://tatoeba.org/sentences/show/<numéro>.
 
+0ni
 6dDcHYgMAg
 880326119
 _undertoad
@@ -24,11 +25,11 @@ alanood
 Albus
 alec
 alejogt94
-alester237
 Alex93
 alexmarcelo
 aliene
 Alkrasnov
+alvations
 always
 Amastan
 Amghar
@@ -47,7 +48,6 @@ araneo
 Archibald
 argabo
 ari_diary
-ArizonaJim
 arnxy20
 Arraroak
 arseniiv
@@ -63,10 +63,9 @@ Aurix
 AutoBot
 autuno
 avicii
-awael58
 awkwardcultism
-axcutul
 azjani
+baehyunsol
 baisong
 Balamax
 Barbiche0
@@ -114,11 +113,13 @@ CE
 CF
 CH
 cheesr
+cherryband
 Chevere33
+chojus
 Chrikaru
 chtof
 Cindrogriza
-cirosantilli
+ciwlx
 CK
 cl
 Clavain
@@ -140,6 +141,7 @@ CS
 CT
 ctkjg
 cuenta
+cueyayotl
 DanaDescalza
 danepo
 Dany74PL
@@ -176,17 +178,19 @@ enebi
 engberg
 enteka
 Ergulis
-erik21889
 erikspen
 eS
 espamatics
 esperanto
 Espi
 espjulie
+EstasKorea
 etala
 etoile
 EugeneGS
+Eunhee
 everylanguage
+eychang
 fanty
 Farvoyager
 fcbond
@@ -194,6 +198,7 @@ fekundulo
 felix63
 felvideki
 Fenrir
+fercheung
 FeuDRenais
 FeuDRenais2
 firefoxuser
@@ -222,6 +227,7 @@ Gulo_Luscus
 Guroria
 halfb1t
 halokkin
+HappyMidnight
 Haruhi_Gafitas
 haukie
 Hautis
@@ -240,13 +246,16 @@ iainmb93
 Igider
 Ignoto
 ihar
+imjcooper
 Incursio
 ingenius000
+intertime
 j_hpan
 J_S
 jakov
 jameslin011
 jamessilver
+JanAson
 Jane_Austen
 janTuki
 jaydenms
@@ -257,6 +266,7 @@ jerom
 Jesse
 jettie
 jezykiija
+JiMin
 JimiYoru
 JnRouvignac
 jnyca
@@ -268,6 +278,7 @@ JSakuragi
 jshholland
 Juankarlos
 julitaite
+jungmin_kim
 karloelkebekio
 Katheriinne
 Katubeltza
@@ -280,9 +291,11 @@ kerbear407
 khalidahmadzai
 Kiepier
 kilwann
+kimhkng
 Kirito
 Klemensas
 konradutkowski
+KoreanBeaver
 korobo4ka
 kotik
 kotobaboke
@@ -295,6 +308,7 @@ kwes2
 Lameen
 languagelearner
 LdjuherTaqvaylit
+Ldyhippo
 Leedihuzur
 LeeSooHa
 Leono
@@ -305,6 +319,7 @@ LimeGreenTeknii
 lion_boniface
 LittleBoy
 liwan1208
+ljj
 loghaD
 LTcreator
 lucasmg123
@@ -365,6 +380,7 @@ muriloricci
 mutarjim
 Mutusen
 mwgamera
+mysonhs
 nadsat
 Najeebullah_anh
 naktinis
@@ -383,6 +399,7 @@ nimfeo
 ninefi
 Nm
 noani
+noget
 nonong
 notrwanda
 Nuel
@@ -390,8 +407,8 @@ nyfikenienstrut
 Nylez
 Objectivesea
 odiernod
+okja
 olafurw
-oldfashioned
 Olya
 oneconor
 Ooneykcall
@@ -401,6 +418,7 @@ Orava
 orcrist
 oscarguille
 OsoHombre
+Pablohyun
 pandark
 papabear
 parheliu
@@ -428,7 +446,10 @@ Pun_intended
 qana
 qcomplex5
 qdii
+qiwiwi
+qlTmalffk
 qsanta
+Queserasera
 Quonpi
 qwertzu
 rafael8243
@@ -436,6 +457,8 @@ rafaga
 Rafi
 rafmagon
 raggione
+rainbow4us
+raining211
 rajulbat
 Ramses
 ratatat
@@ -488,9 +511,11 @@ shortiiboy
 Sibelius
 sicerabibax
 Sifaks
+Silja
 slomox
 slyfin
 Smoky
+SN_H
 Snark
 soj4l
 solejar
@@ -502,13 +527,16 @@ Spamster
 speedwell
 spockofvulcan
 Sprachprofi
-stb
+ssuss32
+ST_Young
 subbeena
+Sudajaengi
 sugisaki
 suika
 sundown
 swagner
 Swift
+sympahyun
 sysko
 szaby78
 tabidots
@@ -518,9 +546,10 @@ tanay
 Tangobango
 tanzoniteblack
 teapot
-teh
 Thanuir
+thecooltrain
 Theocracy
+thomaspark
 thomsmells
 Thryth
 timur_seber
@@ -532,7 +561,6 @@ tomn
 TomSFox
 TopMan
 ToxicFriu
-Trailsend
 TRANG
 treskro3
 trieuho
@@ -547,13 +575,14 @@ ulyssemc1
 umut243
 urusu_tom
 User22901
+Uwe
 ventana
 ver
 verdulo
+Versuss
 vgigregg
 vicch
 vijaysharma
-vinhan
 viorayli
 vivace160
 Vortarulo
@@ -576,9 +605,11 @@ Wuzzy
 wwkudu
 xtofu80
 YeshuaC
+yesjustryan
 yessoos
 Ylberi
 Ynhockey
+YUJIHEE
 Zaghawa
 zahurdias
 Zhanas
