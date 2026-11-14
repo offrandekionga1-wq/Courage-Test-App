@@ -66,6 +66,7 @@ html.overlay,html.overlay body{background:transparent}
 html.overlay body.nobg #bg{background:none}
 html.overlay .ui{display:none!important}
 html.overlay #cam{width:2px!important;height:2px!important;opacity:0;left:0;top:0;inset:auto}
+html.overlay body.nobg #view{-webkit-mask-image:linear-gradient(to top,transparent 0,#000 12%);mask-image:linear-gradient(to top,transparent 0,#000 12%)}
 html.overlay #toast{font-size:11px;bottom:6px;padding:6px 8px}
 #ver{text-align:center;color:var(--mut);font-size:12px;margin:18px 0 2px}
 .sq input{position:absolute;inset:0;width:100%;height:100%;opacity:0}
@@ -167,7 +168,7 @@ input[type=file].hid{display:none}
         <button class="chip" data-o="portrait">Vertical</button>
         <button class="chip" data-o="landscape">Horizontal</button>
       </div>
-      <p class="hint"><b>Auto</b> : l'avatar reste droit quelle que soit la position du téléphone. <b>Horizontal</b> : toujours tourné pour un téléphone tenu couché, comme dans la plupart des jeux.</p>
+      <p class="hint"><b>Auto</b> (conseillé) : l'avatar reste droit quelle que soit la façon dont tu tiens le téléphone. <b>Horizontal</b> ou <b>Vertical</b> : l'avatar garde ce sens même si tu tiens le téléphone autrement ; le suivi de ton visage continue dans tous les cas.</p>
       <div class="sl"><label>Taille de la fenêtre <output id="o-ovSize"></output></label><input type="range" min="25" max="85" step="5" data-k="ovSize"></div>
       <button class="add" id="ovStart" style="border-style:solid;background:var(--acc);border-color:var(--acc)">Lancer la superposition</button>
       <p class="hint">Dans la fenêtre : glisse pour la déplacer, pince pour la redimensionner, touche deux fois pour afficher les boutons (taille, retour à l'appli, fermer). Revenir dans Avatar Live ferme la fenêtre.</p>

@@ -63,7 +63,27 @@ function resize() {
   renderer.setPixelRatio(pxRatio); renderer.setSize(viewW, viewHpx, false);
   camera.aspect = viewW / viewHpx; camera.updateProjectionMatrix();
 }
-function setRot(r) { r = ((+r || 0) % 360 + 360) % 360; if (r !== rot) { rot = r; resize(); } }
+function setRot(r) { r = ((+r || 0) % 360 + 360) % 360; if (r !== rot) { rot = r; resize(); try { window.OverlayHost?.shown(r); } catch (e) {} } }
+/* camRot : rotation appliquée à l'image de la caméra avant l'analyse. Elle dépend de la position RÉELLE du téléphone,
+   jamais du réglage d'affichage. Si aucun visage droit n'est trouvé, les autres sens sont essayés tout seuls. */
+let camRot = rot;
+const ORI = { hint: rot, good: rot, tried: [], bad: 0, last: 0 };
+function orientTick(now, ok) {
+  if (!OVERLAY) return;
+  const dt = Math.min(200, now - (ORI.last || now)); ORI.last = now;
+  if (ok) { ORI.bad = 0; ORI.tried = []; ORI.good = camRot; return; }
+  ORI.bad += dt;
+  if (ORI.bad < 1300) return;
+  ORI.bad = 0; ORI.tried.push(camRot);
+  const next = [ORI.hint, 0, 270, 90, 180].find(c => !ORI.tried.includes(c));
+  if (next === undefined) { ORI.tried = []; camRot = ORI.hint; ORI.bad = -2500; } else camRot = next;
+  resetFilters();
+}
+function orientSync() {                                            // réglage choisi + capteur du téléphone → rotation de l'avatar
+  const h = window.OverlayHost; let mode = 'auto', manual = 0;
+  if (h) { try { mode = h.mode(); manual = h.manual(); const hint = h.hint(); if (hint !== ORI.hint) { ORI.hint = hint; camRot = hint; ORI.tried = []; ORI.bad = 0; resetFilters(); } } catch (e) {} }
+  setRot(mode === 'auto' ? ORI.good : mode === 'landscape' && ORI.good % 180 !== 0 ? ORI.good : manual);
+}
 addEventListener('resize', resize); resize();
 
 /* ---------- Avatars ----------
@@ -288,13 +308,15 @@ class Euro {
 const mix = (a, b) => THREE.MathUtils.lerp(a, b, S.smooth);
 
 /* ---------- État du tracking ---------- */
-const track = { face: false, faceT: 0, headQ: new THREE.Quaternion(), bs: {}, pose: null, poseT: 0, img: null, cx: 0.5,
+const track = { face: false, faceT: 0, headQ: new THREE.Quaternion(), rawQ: new THREE.Quaternion(), nose: null, bs: {}, pose: null, poseT: 0, img: null, cx: 0.5,
   hands: { left: { p: new Float32Array(63), t: -1e9, f: new Euro(63) }, right: { p: new Float32Array(63), t: -1e9, f: new Euro(63) } } };
 const on = new Uint8Array(33), visBuf = new Float32Array(33);                                   // articulations réellement visibles (avec hystérésis)
 const fPose = new Euro(99), fHead = new Euro(4), fBs = new Euro(ARKIT.length + 1), poseBuf = new Float32Array(99), bsBuf = new Float32Array(ARKIT.length + 1), headBuf = new Float32Array(4);
 const cur = { head: new THREE.Quaternion(), torso: new THREE.Quaternion(), hips: new THREE.Quaternion(), ex: {}, yaw: 0, pitch: 0, dir: {}, hipY: 0, x: 0, legs: 0, mid: 0,
   w: { left: 0, right: 0 }, hw: { left: 0, right: 0 }, nh: { left: 0, right: 0 }, handQ: { left: new THREE.Quaternion(), right: new THREE.Quaternion() }, tw: { left: new THREE.Quaternion(), right: new THREE.Quaternion() } };
-const rng = { lo: 0.1, hi: 0.6, jaw: 0.55 };                     // amplitudes propres à ton visage, apprises en continu
+const rng = { lo: 0.1, hi: 0.6, jaw: 0.55 };
+/* mesures géométriques du visage (points 3D) : elles complètent les scores de MediaPipe, trop timides quand on parle doucement */
+const geo = { open: 0, wide: 0, earL: 0, earR: 0, wide0: 0, earMax: 0, ok: false }, fGeo = new Euro(4), geoBuf = new Float32Array(4);                     // amplitudes propres à ton visage, apprises en continu
 const VIS = ['aa', 'ih', 'ou', 'ee', 'oh'];
 const EX = ['blinkLeft', 'blinkRight', ...VIS, 'happy', 'sad', 'surprised', 'angry'];
 const REST = {};
@@ -311,6 +333,8 @@ resetPose();
 
 /* Reçoit les points du corps (monde 3D + image), décide ce qui est visible, puis filtre. */
 function ingestPose(world, img, now) {
+  /* le corps doit appartenir au visage suivi : sinon c'est une autre personne ou une fausse détection, on l'ignore */
+  if (img && track.face && track.nose && now - track.faceT < 500 && Math.hypot(img[0].x - track.nose.x, img[0].y - track.nose.y) > 0.2) { on.fill(0); return; }
   const inF = i => !img || (img[i].x > -0.04 && img[i].x < 1.04 && img[i].y > -0.04 && img[i].y < 1.04);
   for (let i = 0; i < 33; i++) {
     const v = world[i].visibility ?? 1;
@@ -521,6 +545,9 @@ function applyRig(dt, now) {
     if (S.eyes) {
       const span = Math.max(0.3, rng.hi - rng.lo), nb = v => clamp((v - rng.lo - 0.12 * span) / (0.7 * span));
       let bl = nb(g('eyeBlinkLeft')), br = nb(g('eyeBlinkRight'));
+      if (geo.ok && geo.earMax > 0.05) {                              // paupières mesurées directement : fermeture franche même si le score est faible
+        bl = Math.max(bl, clamp((0.62 - geo.earL / geo.earMax) / 0.36)); br = Math.max(br, clamp((0.62 - geo.earR / geo.earMax) / 0.36));
+      }
       const hy = Math.atan2(2 * (track.headQ.w * track.headQ.y + track.headQ.x * track.headQ.z), 1 - 2 * (track.headQ.y ** 2 + track.headQ.x ** 2));
       if (hy > 0.4) bl = br; else if (hy < -0.4) br = bl;             // tête tournée : l'œil caché copie l'œil visible
       else if (Math.abs(bl - br) < 0.35) bl = br = (bl + br) / 2;     // même ouverture des deux yeux
@@ -530,8 +557,15 @@ function applyRig(dt, now) {
     if (S.expr) {
       /* bouche → visèmes (A, I, U, E, O) à partir de l'ouverture, de l'arrondi et de l'étirement des lèvres */
       let open = clamp((g('jawOpen') - 0.5 * g('mouthClose') - 0.04) / (0.8 * rng.jaw));
-      const round = clamp(Math.max(g('mouthPucker') * 1.15 - 0.25, g('mouthFunnel') * 1.4));
-      const wide = clamp((g('mouthStretchLeft') + g('mouthStretchRight')) * 0.6 + (g('mouthDimpleLeft') + g('mouthDimpleRight')) * 0.25 + (g('mouthLowerDownLeft') + g('mouthLowerDownRight')) * 0.15 - 0.05);
+      let round = clamp(Math.max(g('mouthPucker') * 1.15 - 0.25, g('mouthFunnel') * 1.4));
+      let wide = clamp((g('mouthStretchLeft') + g('mouthStretchRight')) * 0.6 + (g('mouthDimpleLeft') + g('mouthDimpleRight')) * 0.25 + (g('mouthLowerDownLeft') + g('mouthLowerDownRight')) * 0.15 - 0.05);
+      if (geo.ok && geo.wide0) {                                      // ouverture, étirement et arrondi mesurés sur les lèvres
+        const w = geo.wide / geo.wide0;
+        open = Math.max(open, clamp((geo.open - 0.035) / 0.34));
+        wide = Math.max(wide, clamp((w - 1.05) / 0.2)); round = Math.max(round, clamp((0.95 - w) / 0.17));
+      }
+      const smile = clamp(((g('mouthSmileLeft') + g('mouthSmileRight')) / 2 - 0.3) * 1.7);
+      wide *= 1 - 0.8 * smile;                                         // un sourire n'est pas un « i »
       t.aa = open * (1 - round) * (1 - 0.35 * wide); t.oh = open * round; t.ou = round * (1 - open) * 0.9;
       t.ee = wide * (1 - round) * (1 - 0.6 * open) * 0.9; t.ih = open * wide * (1 - round) * 0.5;
       t.happy = clamp(((g('mouthSmileLeft') + g('mouthSmileRight')) / 2 - 0.3) * 1.7);
@@ -548,7 +582,7 @@ function applyRig(dt, now) {
     else if (seen < mic.vol * 0.8) VIS.forEach(n => t[n] *= mic.vol * 0.8 / seen);
   }
   const sum = VIS.reduce((a, n) => a + t[n], 0); if (sum > 1) VIS.forEach(n => t[n] /= sum);   // jamais deux formes de bouche empilées
-  EX.forEach(n => cur.ex[n] += (t[n] - cur.ex[n]) * (n.startsWith('blink') && t[n] > cur.ex[n] ? Math.max(ke, 0.6) : ke));
+  EX.forEach(n => cur.ex[n] += (t[n] - cur.ex[n]) * (t[n] > cur.ex[n] && (n.startsWith('blink') || VIS.includes(n)) ? Math.max(ke, 0.6) : ke));   // fermeture d'œil et ouverture de bouche : immédiates
   let raw = bs;
   if (mir && live) { raw = {}; for (const n in bs) raw[n.endsWith('Left') ? n.slice(0, -4) + 'Right' : n.endsWith('Right') ? n.slice(0, -5) + 'Left' : n] = bs[n]; }
   if (S.mic) raw = { ...raw, jawOpen: Math.max(raw.jawOpen || 0, mic.vol * 0.7) };
@@ -566,7 +600,7 @@ function applyRig(dt, now) {
 }
 
 /* Reçoit le visage : filtre les 52 mesures et apprend l'amplitude des paupières et de la mâchoire. */
-function ingestFace(cats, mat, now) {
+function ingestFace(cats, mat, now, lm, hw = 1) {
   for (let i = 0; i < ARKIT.length; i++) bsBuf[i] = 0;
   const idx = ingestFace.idx ||= Object.fromEntries(ARKIT.map((n, i) => [n, i]));
   for (const c of cats) { const i = idx[c.categoryName]; if (i !== undefined) bsBuf[i] = c.score; }
@@ -576,7 +610,18 @@ function ingestFace(cats, mat, now) {
   rng.lo = b < rng.lo ? b : rng.lo + (Math.min(b, 0.3) - rng.lo) * 0.002;
   rng.hi = B > rng.hi ? B : rng.hi + (0.5 - rng.hi) * 0.0005;
   rng.jaw = j > rng.jaw ? j : rng.jaw + (0.45 - rng.jaw) * 0.0005;
-  _m4.fromArray(mat).decompose(_p, _q1, _s);
+  geo.ok = !!lm;
+  if (lm) {
+    const D = (a, b) => Math.hypot(lm[a].x - lm[b].x, (lm[a].y - lm[b].y) * hw) + 1e-6;
+    const mw = D(61, 291);
+    geoBuf[0] = D(13, 14) / mw; geoBuf[1] = mw / D(33, 263); geoBuf[2] = D(386, 374) / D(362, 263); geoBuf[3] = D(159, 145) / D(33, 133);
+    fGeo.run(geoBuf, now, mix(8, 3), 40);
+    [geo.open, geo.wide, geo.earL, geo.earR] = geoBuf;
+    if (!geo.wide0) geo.wide0 = geo.wide; else if (geo.open < 0.05) geo.wide0 += (geo.wide - geo.wide0) * 0.01;     // largeur de bouche au repos
+    geo.earMax = Math.max(geo.earL, geo.earR, geo.earMax * 0.9997);                                                // yeux grands ouverts
+    track.nose = lm[1];
+  }
+  _m4.fromArray(mat).decompose(_p, _q1, _s); track.rawQ.copy(_q1);
   if (fHead.ok && _q1.x * headBuf[0] + _q1.y * headBuf[1] + _q1.z * headBuf[2] + _q1.w * headBuf[3] < 0) _q1.set(-_q1.x, -_q1.y, -_q1.z, -_q1.w);
   _q1.toArray(headBuf); fHead.run(headBuf, now, mix(5, 1.2), 12);
   track.headQ.fromArray(headBuf).normalize();
@@ -676,15 +721,20 @@ function detect(now) {
   if (!face || (!testSrc && (!camOn || video.readyState < 2 || video.currentTime === lastVT))) return;
   lastVT = video.currentTime; nFrame++;
   try {
-    if (rot) {                                                      // téléphone tourné : l'image de la caméra est redressée avant l'analyse
-      const w = src.videoWidth || src.naturalWidth, h = src.videoHeight || src.naturalHeight, side = rot % 180 !== 0, k = Math.min(1, 960 / Math.max(w, h));
+    if (camRot) {                                                   // téléphone tourné : l'image de la caméra est redressée avant l'analyse
+      const w = src.videoWidth || src.naturalWidth, h = src.videoHeight || src.naturalHeight, side = camRot % 180 !== 0, k = Math.min(1, 960 / Math.max(w, h));
       rotCv.width = Math.round((side ? h : w) * k); rotCv.height = Math.round((side ? w : h) * k);
-      const c = rotCv.getContext('2d'); c.translate(rotCv.width / 2, rotCv.height / 2); c.rotate(rot * Math.PI / 180); c.scale(k, k); c.drawImage(src, -w / 2, -h / 2);
+      const c = rotCv.getContext('2d'); c.translate(rotCv.width / 2, rotCv.height / 2); c.rotate(camRot * Math.PI / 180); c.scale(k, k); c.drawImage(src, -w / 2, -h / 2);
       src = rotCv;
     }
     const r = face.detectForVideo(src, now);
-    if (r.faceBlendshapes?.length && r.facialTransformationMatrixes?.length) ingestFace(r.faceBlendshapes[0].categories, r.facialTransformationMatrixes[0].data, now);
-    else if (now - track.faceT > 400) track.face = false;
+    let upright = false;
+    if (r.faceBlendshapes?.length && r.facialTransformationMatrixes?.length) {
+      const sw = src.videoWidth || src.naturalWidth || src.width, sh = src.videoHeight || src.naturalHeight || src.height;
+      ingestFace(r.faceBlendshapes[0].categories, r.facialTransformationMatrixes[0].data, now, r.faceLandmarks?.[0], sh / sw);
+      upright = Math.abs(_e.setFromQuaternion(track.rawQ, 'YXZ').z) < 0.8;
+    } else if (now - track.faceT > 400) { if (track.face) geo.earMax = geo.wide0 = 0; track.face = false; }   // visage perdu : les repères seront réappris
+    orientTick(now, upright);
     if (S.body) {
       const tight = fps < 26;                                        // téléphone chargé : corps et mains analysés en alternance
       if (!pose || poseKind !== (poseKindWanted())) initPose();
@@ -762,7 +812,7 @@ function loop(now) {
 function status(t, c = '') { $('#stxt').textContent = t; $('#dot').className = c; }
 let toastT; function toast(t) { const e = $('#toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => e.classList.remove('show'), 3800); }
 function busy(t) { $('#load').classList.toggle('show', !!t); if (t) $('#ltxt').textContent = t; }
-function resetFilters() { fPose.ok = fHead.ok = fBs.ok = false; SIDES.forEach(s => track.hands[s].f.ok = false); }
+function resetFilters() { fPose.ok = fHead.ok = fBs.ok = fGeo.ok = false; on.fill(0); SIDES.forEach(s => track.hands[s].f.ok = false); }
 function setDemo(v) { demo = v; $('#demo').checked = v; resetFilters(); if (!v) { track.face = false; track.pose = null; if (!camOn) status('Caméra arrêtée'); } }
 const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -943,6 +993,6 @@ if (S.mic && !OVERLAY) { S.mic = false; syncInputs(); }           // le micro de
 requestAnimationFrame(loop);
 await loadModel(S.model === 'sample' ? 'mascot' : S.model);
 if (Overlay && !OVERLAY) Overlay.setOrientation({ mode: 'auto' }).catch(() => {});
-if (OVERLAY) { if (window.OverlayHost) setInterval(() => setRot(window.OverlayHost.rot()), 400); await startCam(); if (S.mic) setMic(true); }
-window.__app = { setRot, get rot() { return rot; }, VERSION, OVERLAY, S, track, cur, on, visBuf, rng, mic, get slowMs() { return slowMs; },
+if (OVERLAY) { setInterval(orientSync, 300); await startCam(); if (S.mic) setMic(true); }
+window.__app = { setRot, get rot() { return rot; }, get camRot() { return camRot; }, set camRot(v) { camRot = v; ORI.hint = v; }, geo, VERSION, OVERLAY, S, track, cur, on, visBuf, rng, mic, get slowMs() { return slowMs; },
   async feed(url) { const im = new Image(); im.src = url; await im.decode(); await initTracking(); testSrc = im; }, get rig() { return rig; }, get autoFrame() { return autoFrame; }, loadModel, setDemo, initTracking };

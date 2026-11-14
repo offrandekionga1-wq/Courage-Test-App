@@ -65,7 +65,7 @@ public class OverlayService extends Service {
     private float scale = 1f;
     private String mode = "auto";
     private int phys = 0, lastLand = 270;
-    private volatile int rot = 0;
+    private volatile int rot = 0, hint = 0, manual = 0;
     private OrientationEventListener sensor;
     private final Runnable hideBar = () -> { if (bar != null) bar.setVisibility(View.GONE); };
 
@@ -155,21 +155,37 @@ public class OverlayService extends Service {
         if (sensor.canDetectOrientation()) sensor.enable();
     }
 
-    /** rot = rotation du téléphone (sens horaire) que l'écran n'a pas déjà compensée ; la page tourne l'avatar d'autant. */
+    /**
+     * hint   : rotation réelle du téléphone (capteur) que l'écran n'a pas déjà compensée — sert à redresser l'image de la caméra.
+     * manual : rotation à donner à l'avatar quand l'orientation est forcée (Vertical / Horizontal).
+     * La page décide de la rotation finale de l'avatar et la renvoie par shown().
+     */
     private void updateRot() {
         int shown = (360 - wm.getDefaultDisplay().getRotation() * 90) % 360;
-        int wanted = "portrait".equals(mode) ? 0 : "landscape".equals(mode) ? lastLand : phys;
-        int r = ((wanted - shown) % 360 + 360) % 360;
-        if (r != rot) {
-            rot = r;
-            if (root != null) applySize();
-        }
+        hint = ((phys - shown) % 360 + 360) % 360;
+        manual = ((("portrait".equals(mode) ? 0 : lastLand) - shown) % 360 + 360) % 360;
     }
 
     private class Host {
         @JavascriptInterface
-        public int rot() {
-            return rot;
+        public String mode() {
+            return mode;
+        }
+
+        @JavascriptInterface
+        public int hint() {
+            return hint;
+        }
+
+        @JavascriptInterface
+        public int manual() {
+            return manual;
+        }
+
+        @JavascriptInterface
+        public void shown(final int r) {
+            final Root v = root;
+            if (v != null) v.post(() -> { if (root != null && r != rot) { rot = r; applySize(); } });
         }
     }
 
