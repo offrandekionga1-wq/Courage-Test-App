@@ -2,11 +2,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import { Capacitor, registerPlugin } from '@capacitor/core';
-import { FilesetResolver, FaceLandmarker, PoseLandmarker, HandLandmarker } from '@mediapipe/tasks-vision';
+import * as Tracker from './tracker.js';
 
 /* Tout est embarqué dans l'application : moteur de tracking (wasm) et modèles d'IA. */
-const WASM = './wasm';
-const MODEL = { face: './models/face_landmarker.task', lite: './models/pose_landmarker_lite.task', full: './models/pose_landmarker_full.task', hand: './models/hand_landmarker.task' };
 const SAMPLE_VRM = 'https://raw.githubusercontent.com/pixiv/three-vrm/dev/packages/three-vrm/examples/models/VRM1_Constraint_Twist_Sample.vrm';
 
 /* Mode « overlay » : la même appli, chargée dans la fenêtre flottante affichée par-dessus les autres applis. */
@@ -19,11 +17,11 @@ const $ = s => document.querySelector(s);
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 
 /* ---------- Réglages ---------- */
-const DEF = { model: 'mascot', bg: { t: 'grad', v: 0 }, mirror: true, head: true, eyes: true, expr: true, body: true, hands: true, precise: true,
+const DEF = { model: 'mascot', bg: { t: 'grad', v: 0 }, mirror: true, head: true, eyes: true, expr: true, body: true, hands: true, poseQ: 'full',
   mic: false, preview: true, back: false, sens: 1, smooth: 0.35, ovOrient: 'auto', ovShape: 'portrait', ovSize: 45, frame: 'buste', auto: true, zoom: 1, offX: 0, offY: 0, calib: null };
 let S = { ...DEF };
 try { S = { ...DEF, ...JSON.parse(localStorage.getItem('avatarlive') || '{}') }; } catch (e) {}
-if (S.v !== 2) { S.v = 2; S.precise = true; S.hands = true; }      // nouveaux réglages par défaut de cette version
+if (S.v !== 3) { S.v = 3; S.hands = true; if (!['lite', 'full', 'heavy'].includes(S.poseQ)) S.poseQ = 'full'; delete S['precise']; }
 const save = () => { if (OVERLAY) return; try { localStorage.setItem('avatarlive', JSON.stringify(S)); } catch (e) {} };
 
 /* ---------- Fichiers importés (IndexedDB) ---------- */
@@ -313,10 +311,10 @@ const track = { face: false, faceT: 0, headQ: new THREE.Quaternion(), rawQ: new 
 const on = new Uint8Array(33), visBuf = new Float32Array(33);                                   // articulations réellement visibles (avec hystérésis)
 const fPose = new Euro(99), fHead = new Euro(4), fBs = new Euro(ARKIT.length + 1), poseBuf = new Float32Array(99), bsBuf = new Float32Array(ARKIT.length + 1), headBuf = new Float32Array(4);
 const cur = { head: new THREE.Quaternion(), torso: new THREE.Quaternion(), hips: new THREE.Quaternion(), ex: {}, yaw: 0, pitch: 0, dir: {}, hipY: 0, x: 0, legs: 0, mid: 0,
-  w: { left: 0, right: 0 }, hw: { left: 0, right: 0 }, nh: { left: 0, right: 0 }, handQ: { left: new THREE.Quaternion(), right: new THREE.Quaternion() }, tw: { left: new THREE.Quaternion(), right: new THREE.Quaternion() } };
+  w: { left: 0, right: 0 }, hw: { left: 0, right: 0 }, handQ: { left: new THREE.Quaternion(), right: new THREE.Quaternion() }, tw: { left: new THREE.Quaternion(), right: new THREE.Quaternion() } };
 const rng = { lo: 0.1, hi: 0.6, jaw: 0.55 };
 /* mesures géométriques du visage (points 3D) : elles complètent les scores de MediaPipe, trop timides quand on parle doucement */
-const geo = { open: 0, wide: 0, earL: 0, earR: 0, wide0: 0, earMax: 0, ok: false }, fGeo = new Euro(4), geoBuf = new Float32Array(4);                     // amplitudes propres à ton visage, apprises en continu
+const geo = { open: 0, wide: 0, earL: 0, earR: 0, wide0: 0, eL: 0, eR: 0, ok: false }, fGeo = new Euro(4), geoBuf = new Float32Array(4);                     // amplitudes propres à ton visage, apprises en continu
 const VIS = ['aa', 'ih', 'ou', 'ee', 'oh'];
 const EX = ['blinkLeft', 'blinkRight', ...VIS, 'happy', 'sad', 'surprised', 'angry'];
 const REST = {};
@@ -331,46 +329,42 @@ function resetPose() {
 }
 resetPose();
 
-/* Reçoit les points du corps (monde 3D + image), décide ce qui est visible, puis filtre. */
-function ingestPose(world, img, now) {
+/* Reçoit les points du corps (W : monde 3D + visibilité, I : position dans l'image), décide ce qui est visible, puis filtre. */
+function ingestPose(W, I, now) {
   /* le corps doit appartenir au visage suivi : sinon c'est une autre personne ou une fausse détection, on l'ignore */
-  if (img && track.face && track.nose && now - track.faceT < 500 && Math.hypot(img[0].x - track.nose.x, img[0].y - track.nose.y) > 0.2) { on.fill(0); return; }
-  const inF = i => !img || (img[i].x > -0.04 && img[i].x < 1.04 && img[i].y > -0.04 && img[i].y < 1.04);
+  if (I && track.face && track.nose && now - track.faceT < 500 && Math.hypot(I[0] - track.nose.x, I[1] - track.nose.y) > 0.3) { on.fill(0); return; }
+  const inF = i => !I || (I[i * 2] > -0.04 && I[i * 2] < 1.04 && I[i * 2 + 1] > -0.04 && I[i * 2 + 1] < 1.04);
   for (let i = 0; i < 33; i++) {
-    const v = world[i].visibility ?? 1;
+    const v = W[i * 4 + 3], arm = i >= 11 && i <= 22;                 // bras : seuils plus souples, un geste rapide reste suivi
     visBuf[i] = v;
-    on[i] = on[i] ? (v > 0.35 && inF(i)) : (v > 0.62 && inF(i));
-    poseBuf[i * 3] = world[i].x; poseBuf[i * 3 + 1] = world[i].y; poseBuf[i * 3 + 2] = world[i].z;
+    on[i] = on[i] ? (v > (arm ? 0.3 : 0.35) && inF(i)) : (v > (arm ? 0.5 : 0.62) && inF(i));
+    poseBuf[i * 3] = W[i * 4]; poseBuf[i * 3 + 1] = W[i * 4 + 1]; poseBuf[i * 3 + 2] = W[i * 4 + 2];
   }
   /* un coude hors champ reste fiable tant que le poignet, lui, est bien visible (main levée près du visage) */
-  for (const [e, w] of [[13, 15], [14, 16]]) if (!on[e] && on[w] && (world[e].visibility ?? 1) > 0.3) on[e] = 1;
+  for (const [e, w] of [[13, 15], [14, 16]]) if (!on[e] && on[w] && visBuf[e] > 0.25) on[e] = 1;
   fPose.run(poseBuf, now, mix(3, 0.7), mix(14, 5));
-  track.pose = poseBuf; track.poseT = now; track.img = img;
-  if (img) track.cx = (img[11].x + img[12].x) / 2;
+  track.pose = poseBuf; track.poseT = now; track.img = I;
+  if (I) track.cx = (I[22] + I[24]) / 2;
 }
-/* Reçoit les mains détectées et les rattache au bon bras. */
-function ingestHands(res, now) {
-  const n = res.worldLandmarks?.length || 0; if (!n) return;
-  const img = track.img && now - track.poseT < 500 ? track.img : null, pick = [];
-  for (let h = 0; h < n; h++) {
-    const w0 = res.landmarks[h][0]; let side = null, d = 9;
-    if (img) {
-      const dl = on[15] ? Math.hypot(w0.x - img[15].x, w0.y - img[15].y) : 9, dr = on[16] ? Math.hypot(w0.x - img[16].x, w0.y - img[16].y) : 9;
-      if (Math.min(dl, dr) < 0.22) { side = dl < dr ? 'left' : 'right'; d = Math.min(dl, dr); }
-    } else {
-      const lab = (res.handedness || res.handednesses)?.[h]?.[0]?.categoryName;      // l'étiquette désigne la main de la personne filmée
-      if (lab) { side = lab.toLowerCase(); d = 1; }
-    }
+/* Reçoit les mains détectées et les rattache au bon bras. Une main reconnue confirme que le poignet est bien là. */
+function ingestHands(list, now) {
+  if (!list || !list.length) return;
+  const I = track.img && now - track.poseT < 600 ? track.img : null, pick = [];
+  for (const h of list) {
+    let side = null, d = 9;
+    if (I) {
+      const dl = Math.hypot(h.x - I[30], h.y - I[31]), dr = Math.hypot(h.x - I[32], h.y - I[33]);
+      if (Math.min(dl, dr) < 0.25) { side = dl < dr ? 'left' : 'right'; d = Math.min(dl, dr); }
+    } else if (h.label) { side = h.label.toLowerCase(); d = 1; }
     if (side) pick.push({ h, side, d });
   }
-  track.dbg = pick.map(c => c.side + '/' + (res.handedness || res.handednesses)?.[c.h]?.[0]?.categoryName);
   pick.sort((a, b) => a.d - b.d);
   const used = {};
   for (const c of pick) {
     if (used[c.side]) continue; used[c.side] = 1;
-    const H = track.hands[c.side], wl = res.worldLandmarks[c.h];
-    for (let i = 0; i < 21; i++) { H.p[i * 3] = wl[i].x; H.p[i * 3 + 1] = wl[i].y; H.p[i * 3 + 2] = wl[i].z; }
-    H.f.run(H.p, now, mix(3, 1), mix(40, 18)); H.t = now;
+    const H = track.hands[c.side];
+    H.p.set(c.h.P); H.f.run(H.p, now, mix(3, 1), mix(40, 18)); H.t = now;
+    if (I) { const wr = c.side === 'left' ? 15 : 16; on[wr] = 1; if (visBuf[wr - 2] > 0.2) on[wr - 2] = 1; }
   }
 }
 
@@ -441,7 +435,6 @@ function applyRig(dt, now) {
   autoFrame = cur.legs > 0.6 ? 'entier' : cur.mid > 0.6 ? 'mi' : cur.legs < 0.3 && cur.mid < 0.3 ? 'buste' : autoFrame;
 
   let backZ = 0, midX = 0, halfW = 0.2;
-  const closeUp = !!track.img && Math.abs(track.img[11].x - track.img[12].x) > 0.2, handsReady = S.hands && !!hands;
   if (shOK) {
     A(11, _v1); A(12, _v2); backZ = (_v1.z + _v2.z) / 2; midX = (_v1.x + _v2.x) / 2; halfW = Math.abs(_v1.x - _v2.x) / 2;
     A(lm('left', 11), _v1).sub(A(lm('right', 11), _v2));       // ligne des épaules (droite → gauche de l'avatar)
@@ -471,11 +464,9 @@ function applyRig(dt, now) {
       /* bras */
       const sh = lm(s, 11), el = lm(s, 13), wr = lm(s, 15);
       const armOK = shOK && vis(el);
-      /* poignet douteux : caché derrière le torse, ou annoncé « visible » de près alors qu'aucune main n'y est détectée */
-      const uH = track.hands[off(s) ? 'right' : 'left'], seen = now - uH.t < Math.max(700, slowMs * 4);
-      cur.nh[s] = armOK && vis(wr) && closeUp && handsReady && !seen ? cur.nh[s] + dt : 0;
-      let wrOK = armOK && vis(wr) && cur.nh[s] < 0.7;
-      if (wrOK && !seen) { A(wr, _v1); wrOK = !(_v1.z < backZ - 0.1 && Math.abs(_v1.x - midX) < halfW * 1.15); }
+      /* poignet douteux uniquement s'il est annoncé loin derrière le torse et qu'aucune main n'y est reconnue */
+      let wrOK = armOK && vis(wr);
+      if (wrOK && now - track.hands[off(s) ? 'right' : 'left'].t > 500) { A(wr, _v1); wrOK = !(_v1.z < backZ - 0.2 && Math.abs(_v1.x - midX) < halfW); }
       cur.w[s] = clamp(cur.w[s] + (armOK ? dt * 4 : -dt * 4));          // reprise progressive : pas de bras qui « saute »
       const ka = armOK ? kf * cur.w[s] : kr;
       const up = armOK ? A(el, _v1).sub(A(sh, _v2)).normalize() : REST[s + 'UpperArm'];
@@ -544,9 +535,11 @@ function applyRig(dt, now) {
   if (live) {
     if (S.eyes) {
       const span = Math.max(0.3, rng.hi - rng.lo), nb = v => clamp((v - rng.lo - 0.12 * span) / (0.7 * span));
-      let bl = nb(g('eyeBlinkLeft')), br = nb(g('eyeBlinkRight'));
-      if (geo.ok && geo.earMax > 0.05) {                              // paupières mesurées directement : fermeture franche même si le score est faible
-        bl = Math.max(bl, clamp((0.62 - geo.earL / geo.earMax) / 0.36)); br = Math.max(br, clamp((0.62 - geo.earR / geo.earMax) / 0.36));
+      /* regarder vers le bas (l'écran, le jeu) baisse les paupières sans fermer l'œil : on le retire du score */
+      const dn = (g('eyeLookDownLeft') + g('eyeLookDownRight')) / 2;
+      let bl = nb(g('eyeBlinkLeft') - 0.3 * dn), br = nb(g('eyeBlinkRight') - 0.3 * dn);
+      if (geo.ok && geo.eL > 0.02 && geo.eR > 0.02) {                 // l'œil ne se ferme que si la paupière mesurée est vraiment basse
+        bl = Math.min(bl, clamp((0.78 - geo.earL / geo.eL) / 0.4)); br = Math.min(br, clamp((0.78 - geo.earR / geo.eR) / 0.4));
       }
       const hy = Math.atan2(2 * (track.headQ.w * track.headQ.y + track.headQ.x * track.headQ.z), 1 - 2 * (track.headQ.y ** 2 + track.headQ.x ** 2));
       if (hy > 0.4) bl = br; else if (hy < -0.4) br = bl;             // tête tournée : l'œil caché copie l'œil visible
@@ -603,7 +596,7 @@ function applyRig(dt, now) {
 function ingestFace(cats, mat, now, lm, hw = 1) {
   for (let i = 0; i < ARKIT.length; i++) bsBuf[i] = 0;
   const idx = ingestFace.idx ||= Object.fromEntries(ARKIT.map((n, i) => [n, i]));
-  for (const c of cats) { const i = idx[c.categoryName]; if (i !== undefined) bsBuf[i] = c.score; }
+  for (const [n, sc] of cats) { const i = idx[n]; if (i !== undefined) bsBuf[i] = sc; }
   fBs.run(bsBuf, now, mix(7, 2.5), 30);
   for (let i = 0; i < ARKIT.length; i++) track.bs[ARKIT[i]] = bsBuf[i];
   const b = Math.min(track.bs.eyeBlinkLeft, track.bs.eyeBlinkRight), B = Math.max(track.bs.eyeBlinkLeft, track.bs.eyeBlinkRight), j = track.bs.jawOpen;
@@ -618,7 +611,9 @@ function ingestFace(cats, mat, now, lm, hw = 1) {
     fGeo.run(geoBuf, now, mix(8, 3), 40);
     [geo.open, geo.wide, geo.earL, geo.earR] = geoBuf;
     if (!geo.wide0) geo.wide0 = geo.wide; else if (geo.open < 0.05) geo.wide0 += (geo.wide - geo.wide0) * 0.01;     // largeur de bouche au repos
-    geo.earMax = Math.max(geo.earL, geo.earR, geo.earMax * 0.9997);                                                // yeux grands ouverts
+    /* ouverture habituelle de chaque œil, apprise quand les yeux sont ouverts */
+    if (!geo.eL) { geo.eL = geo.earL; geo.eR = geo.earR; }
+    else if (track.bs.eyeBlinkLeft < rng.lo + 0.15 && track.bs.eyeBlinkRight < rng.lo + 0.15) { geo.eL += (geo.earL - geo.eL) * 0.03; geo.eR += (geo.earR - geo.eR) * 0.03; }
     track.nose = lm[1];
   }
   _m4.fromArray(mat).decompose(_p, _q1, _s); track.rawQ.copy(_q1);
@@ -635,7 +630,7 @@ function runDemo(now) {
   const b = { eyeBlinkLeft: Math.max(blink, wink), eyeBlinkRight: blink, jawOpen: talk, mouthPucker: 0.5 * Math.max(0, Math.sin(t * 2.2)), mouthSmileLeft: sm, mouthSmileRight: sm,
     eyeLookOutLeft: Math.max(0, Math.sin(t)), eyeLookInRight: Math.max(0, Math.sin(t)), eyeLookInLeft: Math.max(0, -Math.sin(t)), eyeLookOutRight: Math.max(0, -Math.sin(t)) };
   _q2.setFromEuler(_e.set(Math.sin(t * 1.1) * 0.12, Math.sin(t * 0.7) * 0.3, Math.sin(t * 1.3) * 0.1));
-  ingestFace(Object.entries(b).map(([categoryName, score]) => ({ categoryName, score })), _m4.makeRotationFromQuaternion(_q2).toArray(), now);
+  ingestFace(Object.entries(b), _m4.makeRotationFromQuaternion(_q2).toArray(), now);
   const p = Array.from({ length: 33 }, () => ({ x: 0, y: 0, z: 0, visibility: 0 }));
   const set = (i, x, y, z) => p[i] = { x, y, z, visibility: 1 };
   const tilt = Math.sin(t * 0.6) * 0.04, w = Math.sin(t * 2.5) * 0.1, sq = full ? Math.max(0, Math.sin(t * 1.5)) * 0.18 : 0;
@@ -648,7 +643,8 @@ function runDemo(now) {
     set(25, 0.13, 0.42 - sq, -0.25 * sq / 0.18 * 0.6); set(27, 0.13, 0.84 - 2 * sq, 0); set(31, 0.14, 0.9 - 2 * sq, -0.15);
     set(26, -0.13 - lift * 0.6, 0.42 - sq - lift * 0.3, -0.25 * sq / 0.18 * 0.6); set(28, -0.13 - lift, 0.84 - 2 * sq - lift * 0.5, 0); set(32, -0.14 - lift, 0.9 - 2 * sq - lift * 0.5, -0.15);
   }
-  ingestPose(p, null, now); track.cx = 0.5 + (full ? Math.sin(t * 0.8) * 0.12 : 0);
+  const W = new Float32Array(132); p.forEach((q, i) => { W[i * 4] = q.x; W[i * 4 + 1] = q.y; W[i * 4 + 2] = q.z; W[i * 4 + 3] = q.visibility; });
+  ingestPose(W, null, now); track.cx = 0.5 + (full ? Math.sin(t * 0.8) * 0.12 : 0);
   /* main gauche levée, paume vers la caméra, qui s'ouvre et se ferme et pivote */
   const H = track.hands.left, curl = 0.75 + 0.75 * Math.sin(t * 3), turn = Math.sin(t * 0.9) * 0.9;
   const sx = -Math.cos(turn), sz = Math.sin(turn), put = (i, x, y, z) => { H.p[i * 3] = x; H.p[i * 3 + 1] = y; H.p[i * 3 + 2] = z; };
@@ -661,42 +657,72 @@ function runDemo(now) {
   H.t = now;
 }
 
-/* ---------- Caméra + MediaPipe ---------- */
+/* ---------- Caméra + tracking ----------
+   Le visage et le corps sont analysés dans deux fils d'exécution séparés : l'affichage reste fluide, le visage (et le lip-sync)
+   reste rapide même quand le modèle de corps le plus précis travaille, et le téléphone peut utiliser plusieurs cœurs. */
 const video = $('#cam');
-let stream = null, camOn = false, fileset = null, face = null, pose = null, poseKind = '', poseLoading = false, hands = null, handsLoading = false, lastVT = -1, nFrame = 0, fps = 60, testSrc = null;
-const _m4 = new THREE.Matrix4(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), rotCv = document.createElement('canvas');
-async function mk(Cls, opts) {
-  for (const delegate of location.search.includes('cpu') ? ['CPU'] : ['GPU', 'CPU']) {
-    try { return await Cls.createFromOptions(fileset, { ...opts, baseOptions: { ...opts.baseOptions, delegate } }); }
-    catch (e) { if (delegate === 'CPU') throw e; }
+let stream = null, camOn = false, fps = 60, testSrc = null;
+const _m4 = new THREE.Matrix4(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
+const BASE = new URL('.', location.href).href, CPU = location.search.includes('cpu');
+const TR = { mode: '', starting: null, w: {}, busy: { face: 0, body: 0 }, ok: { face: 0, body: 0 }, errs: 0, n: { face: 0, body: 0 }, hz: { face: 0, body: 0 }, vt: { face: -1, body: -1 }, warned: {} };
+function initTracking() {
+  return TR.starting ||= (async () => {
+    status('Démarrage du tracking…', 'warn');
+    if (typeof Worker !== 'undefined' && typeof createImageBitmap === 'function' && typeof OffscreenCanvas !== 'undefined' && !location.search.includes('noworker')) {
+      try {
+        for (const n of ['face', 'body']) {
+          const w = new Worker('./worker.js');
+          w.onmessage = e => onWorker(n, e.data); w.onerror = () => useLocal();
+          w.postMessage({ type: 'init', base: BASE, cpu: CPU }); TR.w[n] = w;
+        }
+        TR.mode = 'worker'; return;
+      } catch (e) { console.warn(e); }
+    }
+    await useLocal();
+  })();
+}
+/* secours : tracking sur le fil principal */
+async function useLocal() {
+  if (TR.mode === 'local' || TR.mode === 'switching') return;
+  TR.mode = 'switching'; Object.values(TR.w).forEach(w => w.terminate()); TR.w = {}; TR.busy.face = TR.busy.body = 0;
+  try { await Tracker.init({ base: BASE, cpu: CPU }); TR.mode = 'local'; }
+  catch (e) { console.error(e); TR.mode = ''; status('Tracking indisponible', 'warn'); toast("Le moteur de tracking n'a pas pu démarrer sur cet appareil."); }
+}
+function onWorker(n, m) {
+  if (m.type === 'ready') return;
+  TR.busy[n] = 0;
+  if (m.type === 'error') { console.warn(n, m.msg); if (!TR.ok[n] && ++TR.errs >= 3) useLocal(); return; }
+  TR.ok[n]++; onResult(n, m);
+}
+function onResult(n, m) {
+  const now = performance.now(); TR.n[n]++;
+  if (n === 'face') {
+    let upright = false;
+    if (m.cats) { ingestFace(m.cats, m.mat, now, m.lm, m.hw); upright = Math.abs(_e.setFromQuaternion(track.rawQ, 'YXZ').z) < 0.8; }
+    else if (now - track.faceT > 400) { if (track.face) geo.eL = geo.eR = geo.wide0 = 0; track.face = false; }   // visage perdu : les repères seront réappris
+    if (m.rot === camRot) orientTick(now, upright);
+    return;
   }
+  if (m.poseError && !TR.warned.pose) { TR.warned.pose = 1; toast("Ce niveau de qualité du corps n'a pas pu démarrer sur cet appareil : essaie « Précis » ou « Rapide »."); }
+  if (m.handsError && !TR.warned.hands) { TR.warned.hands = 1; toast('Le suivi des doigts est indisponible sur cet appareil.'); }
+  if (m.rot !== camRot || !S.body) return;
+  if (m.pose) ingestPose(m.pose.W, m.pose.I, now);
+  if (m.hands && S.hands) ingestHands(m.hands, now);
 }
-async function initTracking() {
-  if (face) return;
-  status('Démarrage du tracking…', 'warn');
-  fileset ||= await FilesetResolver.forVisionTasks(WASM);
-  face = await mk(FaceLandmarker, { baseOptions: { modelAssetPath: MODEL.face }, runningMode: 'VIDEO', numFaces: 1,
-    outputFaceBlendshapes: true, outputFacialTransformationMatrixes: true });
-}
-const poseKindWanted = () => S.precise && !OVERLAY ? 'full' : 'lite';      // par-dessus un jeu : modèle rapide, pour laisser de la puissance au jeu
-async function initPose() {
-  const kind = poseKindWanted();
-  if (poseLoading || !fileset || (pose && poseKind === kind)) return;
-  poseLoading = true;
-  try {
-    const next = await mk(PoseLandmarker, { baseOptions: { modelAssetPath: MODEL[kind] }, runningMode: 'VIDEO', numPoses: 1,
-      minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
-    pose?.close(); pose = next; poseKind = kind;
-  } catch (e) { console.error(e); toast('Le suivi du corps est indisponible sur cet appareil.'); S.body = false; syncInputs(); save(); }
-  poseLoading = false;
-}
-async function initHands() {
-  if (hands || handsLoading || !fileset) return; handsLoading = true;
-  try {
-    hands = await mk(HandLandmarker, { baseOptions: { modelAssetPath: MODEL.hand }, runningMode: 'VIDEO', numHands: 2,
-      minHandDetectionConfidence: 0.5, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
-  } catch (e) { console.error(e); toast('Le suivi des doigts est indisponible sur cet appareil.'); S.hands = false; syncInputs(); save(); }
-  handsLoading = false;
+function send(n, src) {
+  TR.busy[n] = performance.now();
+  const msg = { type: n, t: TR.busy[n], rot: camRot, kind: S.poseQ, hands: S.hands };
+  if (TR.mode === 'worker') {
+    const w = src.videoWidth || src.naturalWidth || src.width, h = src.videoHeight || src.naturalHeight || src.height;
+    const opt = n === 'face' && w > 640 ? { resizeWidth: 640, resizeHeight: Math.round(640 * h / w), resizeQuality: 'low' } : undefined;   // le visage n'a pas besoin de la pleine résolution
+    (opt ? createImageBitmap(src, opt) : createImageBitmap(src)).then(bmp => {
+      if (TR.mode !== 'worker' || !TR.w[n]) { bmp.close(); TR.busy[n] = 0; return; }
+      TR.w[n].postMessage({ ...msg, bmp }, [bmp]);
+    }).catch(() => { TR.busy[n] = 0; });
+  } else {
+    (n === 'face' ? Tracker.runFace(src, msg.t, msg.rot) : Tracker.runBody(src, msg.t, msg.rot, msg))
+      .then(r => { TR.busy[n] = 0; onResult(n, { ...r, rot: msg.rot }); }).catch(e => { TR.busy[n] = 0; console.warn(e); });
+  }
 }
 async function startCam() {
   if (!navigator.mediaDevices?.getUserMedia) { toast("Caméra inaccessible ici. Essaie le mode démo."); return; }
@@ -717,37 +743,13 @@ function camUI() {
   video.classList.toggle('mir', S.mirror && !S.back);
 }
 function detect(now) {
-  let src = testSrc || video;
-  if (!face || (!testSrc && (!camOn || video.readyState < 2 || video.currentTime === lastVT))) return;
-  lastVT = video.currentTime; nFrame++;
-  try {
-    if (camRot) {                                                   // téléphone tourné : l'image de la caméra est redressée avant l'analyse
-      const w = src.videoWidth || src.naturalWidth, h = src.videoHeight || src.naturalHeight, side = camRot % 180 !== 0, k = Math.min(1, 960 / Math.max(w, h));
-      rotCv.width = Math.round((side ? h : w) * k); rotCv.height = Math.round((side ? w : h) * k);
-      const c = rotCv.getContext('2d'); c.translate(rotCv.width / 2, rotCv.height / 2); c.rotate(camRot * Math.PI / 180); c.scale(k, k); c.drawImage(src, -w / 2, -h / 2);
-      src = rotCv;
-    }
-    const r = face.detectForVideo(src, now);
-    let upright = false;
-    if (r.faceBlendshapes?.length && r.facialTransformationMatrixes?.length) {
-      const sw = src.videoWidth || src.naturalWidth || src.width, sh = src.videoHeight || src.naturalHeight || src.height;
-      ingestFace(r.faceBlendshapes[0].categories, r.facialTransformationMatrixes[0].data, now, r.faceLandmarks?.[0], sh / sw);
-      upright = Math.abs(_e.setFromQuaternion(track.rawQ, 'YXZ').z) < 0.8;
-    } else if (now - track.faceT > 400) { if (track.face) geo.earMax = geo.wide0 = 0; track.face = false; }   // visage perdu : les repères seront réappris
-    orientTick(now, upright);
-    if (S.body) {
-      const tight = fps < 26;                                        // téléphone chargé : corps et mains analysés en alternance
-      if (!pose || poseKind !== (poseKindWanted())) initPose();
-      if (pose && (!tight || nFrame % 2 === 0)) {
-        const pr = pose.detectForVideo(src, now);
-        if (pr.worldLandmarks?.length) ingestPose(pr.worldLandmarks[0], pr.landmarks[0], now);
-      }
-      if (S.hands) {
-        if (!hands) initHands();
-        else if (!tight || nFrame % 2 === 1) ingestHands(hands.detectForVideo(src, now), now);
-      }
-    }
-  } catch (e) { console.warn(e); }
+  if (TR.mode !== 'worker' && TR.mode !== 'local') return;
+  if (!testSrc && (!camOn || video.readyState < 2)) return;
+  const src = testSrc || video, vt = testSrc ? now : video.currentTime;
+  for (const n of S.body ? ['face', 'body'] : ['face']) {
+    if (TR.busy[n]) { if (TR.mode === 'worker' && now - TR.busy[n] > 30000) useLocal(); continue; }   // worker bloqué : secours
+    if (vt !== TR.vt[n]) { TR.vt[n] = vt; send(n, src); }                                              // chaque fil prend l'image la plus récente dès qu'il est libre
+  }
 }
 
 /* ---------- Micro : volume + reconnaissance approximative de la voyelle (formants) ---------- */
@@ -781,7 +783,7 @@ function readMic() {
 }
 
 /* ---------- Boucle ---------- */
-let last = performance.now(), fAcc = 0, fN = 0, slow = 0, lag = 0;
+let last = performance.now(), fAcc = 0, fN = 0, slow = 0;
 function loop(now) {
   requestAnimationFrame(loop);
   if (OVERLAY && now - last < 30) return;                      // 30 images/s suffisent par-dessus un jeu
@@ -791,19 +793,17 @@ function loop(now) {
   readMic(); applyRig(dt, now); placeCamera(dt); renderer.render(scene, camera);
   fAcc += dt; fN++;
   if (fAcc > 0.6) {
-    fps = Math.round(fN / fAcc); fAcc = fN = 0;
+    const lastWin = fAcc; fps = Math.round(fN / fAcc); fAcc = fN = 0;
     /* résolution adaptative : baisse la finesse du rendu si le téléphone peine, la remonte s'il a de la marge */
     slow = fps < 24 ? slow + 1 : fps > 45 ? slow - 1 : 0;
     const max = Math.min(devicePixelRatio || 1, 2);
     if (slow >= 3 && pxRatio > 0.75) { pxRatio = Math.max(0.75, pxRatio - 0.25); slow = 0; resize(); }
     else if (slow <= -8 && pxRatio < max) { pxRatio = Math.min(max, pxRatio + 0.25); slow = 0; resize(); }
-    /* si la haute précision fait ramer le téléphone, repasse tout seul en mode rapide */
-    lag = camOn && !OVERLAY && S.body && S.precise && fps < 14 ? lag + 1 : 0;
-    if (lag >= 8) { lag = 0; S.precise = false; save(); syncInputs(); toast('Téléphone trop sollicité : suivi du corps passé en mode rapide.'); }
+    for (const n of ['face', 'body']) { TR.hz[n] = Math.round(TR.n[n] / lastWin); TR.n[n] = 0; }
     if (demo) status(`Mode démo · ${fps} i/s`, 'ok');
-    else if (camOn && face) {
+    else if (camOn && TR.mode) {
       const what = !track.face ? null : autoFrame === 'entier' && S.body ? 'Corps entier suivi' : cur.mid > 0.6 && S.body ? 'Haut du corps suivi' : 'Visage suivi';
-      status(what ? `${what} · ${fps} i/s` : 'Visage non détecté — place-toi face à la caméra', what ? 'ok' : 'warn');
+      status(what ? `${what} · visage ${TR.hz.face}/s${S.body ? ' · corps ' + TR.hz.body + '/s' : ''}` : 'Visage non détecté — place-toi face à la caméra', what ? 'ok' : 'warn');
     }
   }
 }
@@ -901,6 +901,7 @@ function syncInputs() {
   document.querySelectorAll('#frames .chip').forEach(c => c.classList.toggle('on', c.dataset.f === (S.auto ? 'auto' : S.frame)));
   document.querySelectorAll('#ovOrient .chip').forEach(c => c.classList.toggle('on', c.dataset.o === S.ovOrient));
   document.querySelectorAll('#ovShape .chip').forEach(c => c.classList.toggle('on', c.dataset.s === S.ovShape));
+  document.querySelectorAll('#poseQ .chip').forEach(c => c.classList.toggle('on', c.dataset.q === S.poseQ));
   $('#calib').textContent = S.calib ? 'Recalibrer la position neutre' : 'Calibrer la position neutre';
 }
 document.querySelectorAll('[data-k]').forEach(i => i.addEventListener('input', () => {
@@ -911,6 +912,7 @@ document.querySelectorAll('[data-k]').forEach(i => i.addEventListener('input', (
   if (k === 'smooth') resetFilters();
   if (k === 'back' && camOn) { stopCam(); startCam(); }
 }));
+$('#poseQ').addEventListener('click', e => { const q = e.target.dataset.q; if (!q) return; S.poseQ = q; TR.warned.pose = 0; save(); syncInputs(); });
 $('#demo').addEventListener('change', e => setDemo(e.target.checked));
 $('#calib').onclick = () => {
   if (!track.face) { toast("Allume la caméra et regarde l'écran bien en face, puis réessaie."); return; }
@@ -994,5 +996,5 @@ requestAnimationFrame(loop);
 await loadModel(S.model === 'sample' ? 'mascot' : S.model);
 if (Overlay && !OVERLAY) Overlay.setOrientation({ mode: 'auto' }).catch(() => {});
 if (OVERLAY) { setInterval(orientSync, 300); await startCam(); if (S.mic) setMic(true); }
-window.__app = { setRot, get rot() { return rot; }, get camRot() { return camRot; }, set camRot(v) { camRot = v; ORI.hint = v; }, geo, VERSION, OVERLAY, S, track, cur, on, visBuf, rng, mic, get slowMs() { return slowMs; },
+window.__app = { TR, setRot, get rot() { return rot; }, get camRot() { return camRot; }, set camRot(v) { camRot = v; ORI.hint = v; }, geo, VERSION, OVERLAY, S, track, cur, on, visBuf, rng, mic, get slowMs() { return slowMs; },
   async feed(url) { const im = new Image(); im.src = url; await im.decode(); await initTracking(); testSrc = im; }, get rig() { return rig; }, get autoFrame() { return autoFrame; }, loadModel, setDemo, initTracking };

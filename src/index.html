@@ -131,7 +131,13 @@ input[type=file].hid{display:none}
       <label class="row"><span>Expressions<small>Bouche, sourire, sourcils</small></span><input type="checkbox" class="sw" data-k="expr"></label>
       <label class="row"><span>Corps<small>Épaules, torse, bras, et jambes dès qu'elles sont visibles</small></span><input type="checkbox" class="sw" data-k="body"></label>
       <label class="row"><span>Mains et doigts<small>Orientation de la paume et chaque doigt</small></span><input type="checkbox" class="sw" data-k="hands"></label>
-      <label class="row"><span>Corps haute précision<small>Plus fidèle, mais plus lourd pour le téléphone</small></span><input type="checkbox" class="sw" data-k="precise"></label>
+      <h3>Qualité du suivi du corps</h3>
+      <div class="chips" id="poseQ">
+        <button class="chip" data-q="lite">Rapide</button>
+        <button class="chip" data-q="full">Précis</button>
+        <button class="chip" data-q="heavy">Maximum</button>
+      </div>
+      <p class="hint">Ton choix n'est plus jamais changé automatiquement. La ligne d'état en haut indique combien de fois par seconde le visage et le corps sont analysés : en dessous de 8/s pour le corps, descends d'un niveau.</p>
       <label class="row"><span>Lip-sync au micro<small>La voix renforce le mouvement des lèvres et choisit la voyelle</small></span><input type="checkbox" class="sw" data-k="mic"></label>
       <h3>Réglages</h3>
       <button class="add" id="calib" style="margin:0 0 6px">Calibrer la position neutre</button>

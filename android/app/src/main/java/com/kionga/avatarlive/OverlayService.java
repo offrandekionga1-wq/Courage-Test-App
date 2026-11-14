@@ -212,6 +212,8 @@ public class OverlayService extends Service {
         ws.setDomStorageEnabled(true);
         ws.setDatabaseEnabled(true);
         ws.setMediaPlaybackRequiresUserGesture(false);
+        // L'appli est en arrière-plan pendant la superposition : sans cela, Android peut ralentir ou couper le moteur de la page.
+        if (Build.VERSION.SDK_INT >= 26) web.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false);
         web.addJavascriptInterface(new Host(), "OverlayHost");
         web.setWebChromeClient(new WebChromeClient() {
             @Override

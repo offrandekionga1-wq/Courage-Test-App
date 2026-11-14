@@ -34,7 +34,8 @@ npm run build        # construit www/ (télécharge une fois les modèles MediaP
 npm run android      # build + synchronisation + APK debug (Android SDK et Java 21 requis)
 ```
 
-- `src/app.js` — tracking (MediaPipe Face + Pose + Hand), animation des avatars, interface
+- `src/app.js` — animation des avatars, interface, interprétation des mesures
+- `src/tracker.js`, `src/worker.js` — tracking MediaPipe (Face + Pose + Hand) dans des workers
 - `src/index.html` — page et styles
 - `scripts/build.mjs` — bundle (esbuild) et copie des ressources embarquées
 - `android/` — projet Capacitor ; `OverlayService` et `OverlayPlugin` gèrent la fenêtre flottante

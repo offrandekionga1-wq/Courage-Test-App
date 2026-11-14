@@ -2,6 +2,15 @@
 
 Le numéro de version est affiché en bas de l'onglet « Écran » des réglages, et dans le nom du fichier APK.
 
+## v1.4.0
+
+- Tracking déplacé dans deux fils d'exécution séparés (visage / corps et mains) : l'affichage reste fluide, le visage et le lip-sync restent rapides même avec le modèle de corps le plus précis.
+- Qualité du corps au choix : Rapide, Précis ou Maximum. Elle n'est plus jamais modifiée automatiquement, y compris en superposition.
+- Bras et mains levés : retrait de la règle qui lâchait le bras quand la main n'était pas reconnue ; seuils assouplis pour les gestes rapides ; une main reconnue confirme le poignet.
+- Yeux : regarder vers le bas ne ferme plus l'œil ; l'œil ne se ferme que si la paupière mesurée est vraiment basse.
+- La ligne d'état affiche la cadence d'analyse du visage et du corps.
+- Superposition : priorité élevée pour le moteur de la page, afin qu'Android ne le ralentisse pas en arrière-plan.
+
 ## v1.3.0
 
 - Corrigé : en superposition, forcer l'orientation de l'avatar faisait aussi tourner l'image de la caméra. Le visage n'était plus reconnu : bouche figée, tête immobile, corps incohérent. L'image suit maintenant uniquement la position réelle du téléphone.
