@@ -6,11 +6,11 @@ Application VTuber pour Android : la caméra du téléphone suit ton visage et t
 
 ## Installer l'application
 
-1. Ouvre la page **Releases** du dépôt et télécharge `AvatarLive.apk` (version « Avatar Live (dernière version) »).
+1. Ouvre la page **Releases** du dépôt et télécharge le fichier `AvatarLive-vX.Y.Z.apk` de la version la plus récente.
 2. Ouvre le fichier sur ton téléphone et autorise l'installation depuis cette source.
 3. Au premier lancement, autorise la caméra.
 
-L'APK est recompilé automatiquement à chaque modification de cette branche (onglet **Actions**).
+Chaque version a son numéro (visible en bas de l'onglet « Écran » des réglages) et sa publication. La liste des changements est dans [CHANGELOG.md](CHANGELOG.md). Pour publier une nouvelle version : changer `version` dans `package.json`, ajouter sa section dans `CHANGELOG.md`, pousser sur cette branche.
 
 ## Ce que fait l'application
 
@@ -22,6 +22,7 @@ L'APK est recompilé automatiquement à chaque modification de cette branche (on
 - **Cadrage automatique** : buste de près, corps entier quand tu recules.
 - **Avatars** : import de `.vrm` et de `.glb` avec squelette humanoïde (Mixamo, Ready Player Me…). Les modèles « perfect sync » (52 formes ARKit) sont pilotés directement.
 - **Fonds** : couleur unie (dont vert d'incrustation), dégradés, photos, vidéos en boucle, ou caméra réelle.
+- **Fond « Aucun »** et **superposition** : l'avatar seul, dans une fenêtre flottante par-dessus les autres applis et les jeux.
 - **Mode live** : interface masquée, écran maintenu allumé.
 - Calibration de la position neutre, effet miroir, caméra arrière.
 
@@ -36,6 +37,6 @@ npm run android      # build + synchronisation + APK debug (Android SDK et Java 
 - `src/app.js` — tracking (MediaPipe Face + Pose + Hand), animation des avatars, interface
 - `src/index.html` — page et styles
 - `scripts/build.mjs` — bundle (esbuild) et copie des ressources embarquées
-- `android/` — projet Capacitor
+- `android/` — projet Capacitor ; `OverlayService` et `OverlayPlugin` gèrent la fenêtre flottante
 
 Technologies : MediaPipe Tasks Vision, three.js, @pixiv/three-vrm, Capacitor.

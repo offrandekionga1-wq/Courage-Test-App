@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { FilesetResolver, FaceLandmarker, PoseLandmarker, HandLandmarker } from '@mediapipe/tasks-vision';
 
 /* Tout est embarqué dans l'application : moteur de tracking (wasm) et modèles d'IA. */
@@ -8,16 +9,22 @@ const WASM = './wasm';
 const MODEL = { face: './models/face_landmarker.task', lite: './models/pose_landmarker_lite.task', full: './models/pose_landmarker_full.task', hand: './models/hand_landmarker.task' };
 const SAMPLE_VRM = 'https://raw.githubusercontent.com/pixiv/three-vrm/dev/packages/three-vrm/examples/models/VRM1_Constraint_Twist_Sample.vrm';
 
+/* Mode « overlay » : la même appli, chargée dans la fenêtre flottante affichée par-dessus les autres applis. */
+const OVERLAY = new URLSearchParams(location.search).has('overlay');
+if (OVERLAY) document.documentElement.classList.add('overlay');
+const Overlay = Capacitor.isNativePlatform() ? registerPlugin('Overlay') : null;
+const VERSION = typeof __VERSION__ === 'string' ? __VERSION__ : 'dev';
+
 const $ = s => document.querySelector(s);
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 
 /* ---------- Réglages ---------- */
 const DEF = { model: 'mascot', bg: { t: 'grad', v: 0 }, mirror: true, head: true, eyes: true, expr: true, body: true, hands: true, precise: true,
-  mic: false, preview: true, back: false, sens: 1, smooth: 0.35, frame: 'buste', auto: true, zoom: 1, offX: 0, offY: 0, calib: null };
+  mic: false, preview: true, back: false, sens: 1, smooth: 0.35, orient: 'auto', ovShape: 'portrait', ovSize: 45, frame: 'buste', auto: true, zoom: 1, offX: 0, offY: 0, calib: null };
 let S = { ...DEF };
 try { S = { ...DEF, ...JSON.parse(localStorage.getItem('avatarlive') || '{}') }; } catch (e) {}
 if (S.v !== 2) { S.v = 2; S.precise = true; S.hands = true; }      // nouveaux réglages par défaut de cette version
-const save = () => { try { localStorage.setItem('avatarlive', JSON.stringify(S)); } catch (e) {} };
+const save = () => { if (OVERLAY) return; try { localStorage.setItem('avatarlive', JSON.stringify(S)); } catch (e) {} };
 
 /* ---------- Fichiers importés (IndexedDB) ---------- */
 let dbp = null; const mem = { models: new Map(), bgs: new Map() };
@@ -45,7 +52,7 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(28, 1, 0.05, 80);
 scene.add(new THREE.HemisphereLight(0xffffff, 0x666680, 1.5));
 const sun = new THREE.DirectionalLight(0xffffff, 1.8); sun.position.set(0.6, 1.4, 2); scene.add(sun);
-let pxRatio = Math.min(devicePixelRatio || 1, 1.5);
+let pxRatio = Math.min(devicePixelRatio || 1, OVERLAY ? 1 : 1.5);
 function resize() {
   renderer.setPixelRatio(pxRatio); renderer.setSize(innerWidth, innerHeight, false);
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
@@ -274,10 +281,10 @@ const mix = (a, b) => THREE.MathUtils.lerp(a, b, S.smooth);
 /* ---------- État du tracking ---------- */
 const track = { face: false, faceT: 0, headQ: new THREE.Quaternion(), bs: {}, pose: null, poseT: 0, img: null, cx: 0.5,
   hands: { left: { p: new Float32Array(63), t: -1e9, f: new Euro(63) }, right: { p: new Float32Array(63), t: -1e9, f: new Euro(63) } } };
-const on = new Uint8Array(33);                                   // articulations réellement visibles (avec hystérésis)
+const on = new Uint8Array(33), visBuf = new Float32Array(33);                                   // articulations réellement visibles (avec hystérésis)
 const fPose = new Euro(99), fHead = new Euro(4), fBs = new Euro(ARKIT.length + 1), poseBuf = new Float32Array(99), bsBuf = new Float32Array(ARKIT.length + 1), headBuf = new Float32Array(4);
 const cur = { head: new THREE.Quaternion(), torso: new THREE.Quaternion(), hips: new THREE.Quaternion(), ex: {}, yaw: 0, pitch: 0, dir: {}, hipY: 0, x: 0, legs: 0, mid: 0,
-  w: { left: 0, right: 0 }, hw: { left: 0, right: 0 }, handQ: { left: new THREE.Quaternion(), right: new THREE.Quaternion() }, tw: { left: new THREE.Quaternion(), right: new THREE.Quaternion() } };
+  w: { left: 0, right: 0 }, hw: { left: 0, right: 0 }, nh: { left: 0, right: 0 }, handQ: { left: new THREE.Quaternion(), right: new THREE.Quaternion() }, tw: { left: new THREE.Quaternion(), right: new THREE.Quaternion() } };
 const rng = { lo: 0.1, hi: 0.6, jaw: 0.55 };                     // amplitudes propres à ton visage, apprises en continu
 const VIS = ['aa', 'ih', 'ou', 'ee', 'oh'];
 const EX = ['blinkLeft', 'blinkRight', ...VIS, 'happy', 'sad', 'surprised', 'angry'];
@@ -298,6 +305,7 @@ function ingestPose(world, img, now) {
   const inF = i => !img || (img[i].x > -0.04 && img[i].x < 1.04 && img[i].y > -0.04 && img[i].y < 1.04);
   for (let i = 0; i < 33; i++) {
     const v = world[i].visibility ?? 1;
+    visBuf[i] = v;
     on[i] = on[i] ? (v > 0.35 && inF(i)) : (v > 0.62 && inF(i));
     poseBuf[i * 3] = world[i].x; poseBuf[i * 3 + 1] = world[i].y; poseBuf[i * 3 + 2] = world[i].z;
   }
@@ -399,7 +407,10 @@ function applyRig(dt, now) {
   cur.legs = clamp(cur.legs + (legOK ? dt : -dt) * 2.5); cur.mid = clamp(cur.mid + (hipOK ? dt : -dt) * 2.5);
   autoFrame = cur.legs > 0.6 ? 'entier' : cur.mid > 0.6 ? 'mi' : cur.legs < 0.3 && cur.mid < 0.3 ? 'buste' : autoFrame;
 
+  let backZ = 0, midX = 0, halfW = 0.2;
+  const closeUp = !!track.img && Math.abs(track.img[11].x - track.img[12].x) > 0.2, handsReady = S.hands && !!hands;
   if (shOK) {
+    A(11, _v1); A(12, _v2); backZ = (_v1.z + _v2.z) / 2; midX = (_v1.x + _v2.x) / 2; halfW = Math.abs(_v1.x - _v2.x) / 2;
     A(lm('left', 11), _v1).sub(A(lm('right', 11), _v2));       // ligne des épaules (droite → gauche de l'avatar)
     if (hipOK) {
       A(11, _v2).add(A(12, _v3)).sub(A(23, _v3)).sub(A(24, _v3)).normalize();      // colonne : milieu des hanches → milieu des épaules
@@ -427,15 +438,20 @@ function applyRig(dt, now) {
       /* bras */
       const sh = lm(s, 11), el = lm(s, 13), wr = lm(s, 15);
       const armOK = shOK && vis(el);
+      /* poignet douteux : caché derrière le torse, ou annoncé « visible » de près alors qu'aucune main n'y est détectée */
+      const uH = track.hands[off(s) ? 'right' : 'left'], seen = now - uH.t < Math.max(700, slowMs * 4);
+      cur.nh[s] = armOK && vis(wr) && closeUp && handsReady && !seen ? cur.nh[s] + dt : 0;
+      let wrOK = armOK && vis(wr) && cur.nh[s] < 0.7;
+      if (wrOK && !seen) { A(wr, _v1); wrOK = !(_v1.z < backZ - 0.1 && Math.abs(_v1.x - midX) < halfW * 1.15); }
       cur.w[s] = clamp(cur.w[s] + (armOK ? dt * 4 : -dt * 4));          // reprise progressive : pas de bras qui « saute »
       const ka = armOK ? kf * cur.w[s] : kr;
       const up = armOK ? A(el, _v1).sub(A(sh, _v2)).normalize() : REST[s + 'UpperArm'];
       aim(s + 'UpperArm', up, ka);
-      aim(s + 'LowerArm', armOK && vis(wr) ? A(wr, _v2).sub(A(el, _v3)).normalize() : armOK ? up : REST[s + 'LowerArm'], ka);
+      aim(s + 'LowerArm', wrOK ? A(wr, _v2).sub(A(el, _v3)).normalize() : armOK ? _v2.copy(up).multiplyScalar(0.5).add(_v3.set(0, -0.8, 0.15)).normalize() : REST[s + 'LowerArm'], ka);
 
       /* main et doigts : orientation complète de la paume (avant + côté), donc plus de main vrillée */
       const H = track.hands[off(s) ? 'right' : 'left'], hr = r.rest[s + 'Hand'];
-      const handOK = S.hands && armOK && vis(wr) && now - H.t < Math.max(350, slowMs * 4) && hr;
+      const handOK = S.hands && wrOK && now - H.t < Math.max(350, slowMs * 4) && hr;
       cur.hw[s] = clamp(cur.hw[s] + (handOK ? dt * 5 : -dt * 5));
       const kh = handOK ? kf * cur.hw[s] : kr;
       const HP = (i, out) => out.set(mx * H.p[i * 3], -H.p[i * 3 + 1], -H.p[i * 3 + 2]);
@@ -608,8 +624,9 @@ async function initTracking() {
   face = await mk(FaceLandmarker, { baseOptions: { modelAssetPath: MODEL.face }, runningMode: 'VIDEO', numFaces: 1,
     outputFaceBlendshapes: true, outputFacialTransformationMatrixes: true });
 }
+const poseKindWanted = () => S.precise && !OVERLAY ? 'full' : 'lite';      // par-dessus un jeu : modèle rapide, pour laisser de la puissance au jeu
 async function initPose() {
-  const kind = S.precise ? 'full' : 'lite';
+  const kind = poseKindWanted();
   if (poseLoading || !fileset || (pose && poseKind === kind)) return;
   poseLoading = true;
   try {
@@ -655,7 +672,7 @@ function detect(now) {
     else if (now - track.faceT > 400) track.face = false;
     if (S.body) {
       const tight = fps < 26;                                        // téléphone chargé : corps et mains analysés en alternance
-      if (!pose || poseKind !== (S.precise ? 'full' : 'lite')) initPose();
+      if (!pose || poseKind !== (poseKindWanted())) initPose();
       if (pose && (!tight || nFrame % 2 === 0)) {
         const pr = pose.detectForVideo(src, now);
         if (pr.worldLandmarks?.length) ingestPose(pr.worldLandmarks[0], pr.landmarks[0], now);
@@ -702,6 +719,7 @@ function readMic() {
 let last = performance.now(), fAcc = 0, fN = 0, slow = 0, lag = 0;
 function loop(now) {
   requestAnimationFrame(loop);
+  if (OVERLAY && now - last < 30) return;                      // 30 images/s suffisent par-dessus un jeu
   slowMs += ((now - last) - slowMs) * 0.2;
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   if (demo) runDemo(now); else detect(now);
@@ -741,12 +759,13 @@ const bgURL = new Map(), bgv = $('#bgv');
 function mediaURL(id) { if (!bgURL.has(id) && mem.bgs.has(id)) bgURL.set(id, URL.createObjectURL(mem.bgs.get(id).blob)); return bgURL.get(id); }
 function applyBg() {
   const s = $('#bg').style; s.background = ''; s.backgroundImage = '';
+  document.body.classList.toggle('nobg', S.bg.t === 'none');
   if (S.bg.t === 'media' && !mem.bgs.has(S.bg.v)) S.bg = { ...DEF.bg };
   const m = S.bg.t === 'media' ? mem.bgs.get(S.bg.v) : null;
   if (S.bg.t === 'color') s.background = S.bg.v;
   else if (S.bg.t === 'grad') s.background = GRADS[S.bg.v] || GRADS[0];
   else if (m && m.kind === 'img') { s.backgroundImage = `url(${mediaURL(m.id)})`; s.backgroundSize = 'cover'; s.backgroundPosition = 'center'; }
-  else s.background = '#000';
+  else if (S.bg.t !== 'none') s.background = '#000';
   if (m && m.kind === 'vid') {
     if (bgv.dataset.id !== m.id) { bgv.src = mediaURL(m.id); bgv.dataset.id = m.id; }
     bgv.hidden = false; bgv.play().catch(() => {});
@@ -756,7 +775,7 @@ function applyBg() {
 function drawBg() {
   const is = (t, v) => S.bg.t === t && S.bg.v === v;
   const custom = S.bg.t === 'color' && !COLORS.includes(S.bg.v);
-  $('#colors').innerHTML = COLORS.map(c => `<button class="sq ${is('color', c) ? 'on' : ''}" data-c="${c}" style="background:${c}" aria-label="Couleur ${c}"></button>`).join('') +
+  $('#colors').innerHTML = `<button class="sq none ${S.bg.t === 'none' ? 'on' : ''}" data-none="1">Aucun</button>` + COLORS.map(c => `<button class="sq ${is('color', c) ? 'on' : ''}" data-c="${c}" style="background:${c}" aria-label="Couleur ${c}"></button>`).join('') +
     `<label class="sq ${custom ? 'on' : ''}" style="background:${custom ? S.bg.v : 'conic-gradient(red,yellow,lime,cyan,blue,magenta,red)'};display:grid;place-items:center;color:#fff;text-shadow:0 1px 3px #000">Autre<input type="color" id="pick" value="${custom ? S.bg.v : '#7c6cff'}"></label>`;
   $('#grads').innerHTML = GRADS.map((g, i) => `<button class="sq ${is('grad', i) ? 'on' : ''}" data-g="${i}" style="background:${g}" aria-label="Dégradé ${i + 1}"></button>`).join('');
   $('#medias').innerHTML = [...mem.bgs.values()].map(x => x.kind === 'vid'
@@ -768,6 +787,7 @@ function drawBg() {
 $('#p-fond').addEventListener('click', async e => {
   const t = e.target, x = t.closest('[data-x]'), i = t.closest('[data-i]');
   if (x) { const id = x.dataset.x; await stDel('bgs', id); if (bgURL.has(id)) { URL.revokeObjectURL(bgURL.get(id)); bgURL.delete(id); } applyBg(); }
+  else if (t.dataset.none) { S.bg = { t: 'none', v: 0 }; applyBg(); }
   else if (t.dataset.c) { S.bg = { t: 'color', v: t.dataset.c }; applyBg(); }
   else if (t.dataset.g) { S.bg = { t: 'grad', v: +t.dataset.g }; applyBg(); }
   else if (i) { S.bg = { t: 'media', v: i.dataset.i }; applyBg(); }
@@ -812,8 +832,10 @@ $('#fModel').addEventListener('change', async e => {
 });
 
 function syncInputs() {
-  document.querySelectorAll('[data-k]').forEach(i => { const k = i.dataset.k; if (i.type === 'checkbox') i.checked = !!S[k]; else { i.value = S[k]; const o = $('#o-' + k); if (o) o.textContent = k === 'smooth' ? Math.round(S[k] * 100) + ' %' : '×' + (+S[k]).toFixed(2); } });
+  document.querySelectorAll('[data-k]').forEach(i => { const k = i.dataset.k; if (i.type === 'checkbox') i.checked = !!S[k]; else { i.value = S[k]; const o = $('#o-' + k); if (o) o.textContent = k === 'smooth' ? Math.round(S[k] * 100) + ' %' : k === 'ovSize' ? S[k] + ' %' : '×' + (+S[k]).toFixed(2); } });
   document.querySelectorAll('#frames .chip').forEach(c => c.classList.toggle('on', c.dataset.f === (S.auto ? 'auto' : S.frame)));
+  document.querySelectorAll('#orient .chip').forEach(c => c.classList.toggle('on', c.dataset.o === S.orient));
+  document.querySelectorAll('#ovShape .chip').forEach(c => c.classList.toggle('on', c.dataset.s === S.ovShape));
   $('#calib').textContent = S.calib ? 'Recalibrer la position neutre' : 'Calibrer la position neutre';
 }
 document.querySelectorAll('[data-k]').forEach(i => i.addEventListener('input', () => {
@@ -830,6 +852,22 @@ $('#calib').onclick = () => {
   S.calib = track.headQ.clone().invert().toArray(); save(); syncInputs(); toast('Position neutre enregistrée.');
 };
 $('#frames').addEventListener('click', e => { const f = e.target.dataset.f; if (!f) return; S.auto = f === 'auto'; if (!S.auto) S.frame = f; S.zoom = 1; S.offX = S.offY = 0; save(); syncInputs(); });
+/* orientation de l'écran et superposition aux autres applis (application Android uniquement) */
+const applyOrient = () => { if (Overlay && !OVERLAY) Overlay.setOrientation({ mode: S.orient }).catch(() => {}); };
+$('#orient').addEventListener('click', e => { const o = e.target.dataset.o; if (!o) return; S.orient = o; save(); syncInputs(); applyOrient(); if (!Overlay) toast("Le verrouillage de l'orientation fonctionne dans l'application Android installée."); });
+$('#ovShape').addEventListener('click', e => { const v = e.target.dataset.s; if (!v) return; S.ovShape = v; save(); syncInputs(); });
+$('#ovStart').onclick = async () => {
+  if (!Overlay) { toast("La superposition n'existe que dans l'application Android installée."); return; }
+  save(); if (camOn) stopCam(); setDemo(false); sheet.classList.remove('open');
+  try { await Overlay.start({ shape: S.ovShape, size: S.ovSize }); }
+  catch (e) {
+    const m = String(e?.message || e);
+    toast(m.includes('overlay_permission') ? "Autorise « Superposition aux autres applis » pour Avatar Live, reviens ici, puis relance."
+      : m.includes('camera_permission') ? "La superposition a besoin de l'accès à la caméra." : "La superposition n'a pas pu démarrer sur cet appareil.");
+  }
+};
+Overlay?.addListener?.('stopped', () => { if (!camOn) startCam(); });
+$('#ver').textContent = 'Avatar Live v' + VERSION;
 $('#recenter').onclick = () => { S.zoom = 1; S.offX = S.offY = 0; save(); syncInputs(); };
 
 $('#tabs').addEventListener('click', e => {
@@ -887,8 +925,10 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && !b
 syncInputs();
 await Promise.all([stAll('models'), stAll('bgs')]);
 applyBg(); drawModels();
-if (S.mic) { S.mic = false; syncInputs(); }           // le micro demande un geste de l'utilisateur
+if (S.mic && !OVERLAY) { S.mic = false; syncInputs(); }           // le micro demande un geste de l'utilisateur
 requestAnimationFrame(loop);
 await loadModel(S.model === 'sample' ? 'mascot' : S.model);
-window.__app = { S, track, cur, on, rng, mic, get slowMs() { return slowMs; },
+applyOrient();
+if (OVERLAY) { await startCam(); if (S.mic) setMic(true); }
+window.__app = { VERSION, OVERLAY, S, track, cur, on, visBuf, rng, mic, get slowMs() { return slowMs; },
   async feed(url) { const im = new Image(); im.src = url; await im.decode(); await initTracking(); testSrc = im; }, get rig() { return rig; }, get autoFrame() { return autoFrame; }, loadModel, setDemo, initTracking };

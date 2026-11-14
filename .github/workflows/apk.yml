@@ -11,6 +11,8 @@ permissions:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,6 +23,12 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+      - name: Numéro de version (package.json) et notes (CHANGELOG.md)
+        run: |
+          VERSION=$(jq -r .version package.json)
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          awk -v v="## v$VERSION" '$0==v{f=1;next} /^## /{f=0} f' CHANGELOG.md > notes.md
+          echo "Version $VERSION"; cat notes.md
       - name: Dépendances
         run: npm ci
       - name: Application web (bibliothèques, moteur de tracking et modèles d'IA embarqués)
@@ -29,27 +37,40 @@ jobs:
         run: npx cap sync android
       - name: Compilation de l'APK
         working-directory: android
-        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
-      - run: cp android/app/build/outputs/apk/debug/app-debug.apk AvatarLive.apk
+        run: |
+          set -o pipefail
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon 2>&1 | tee ../build-log.txt
+      - run: cp android/app/build/outputs/apk/debug/app-debug.apk "AvatarLive-v$VERSION.apk"
       - uses: actions/upload-artifact@v4
         with:
-          name: AvatarLive-apk
-          path: AvatarLive.apk
-      - name: Publication (page Releases)
+          name: AvatarLive-v${{ env.VERSION }}
+          path: AvatarLive-v${{ env.VERSION }}.apk
+      - name: Publication de la version (page Releases)
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: avatar-live-latest
-          name: Avatar Live (dernière version)
-          body: "APK Android d'Avatar Live, compilé automatiquement depuis la branche claude/avatar-live. Télécharge AvatarLive.apk sur ton téléphone et installe-le."
-          files: AvatarLive.apk
+          tag_name: avatar-live-v${{ env.VERSION }}
+          name: Avatar Live v${{ env.VERSION }}
+          body_path: notes.md
+          files: AvatarLive-v${{ env.VERSION }}.apk
           target_commitish: ${{ github.sha }}
-          make_latest: false
+          make_latest: true
+      - name: Retire l'ancienne publication sans numéro
+        run: gh release delete avatar-live-latest --cleanup-tag --yes || true
       - name: Modèles de tracking (copie pour les tests de développement)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: avatar-live-models
           name: Avatar Live — modèles de tracking (développement)
-          body: "Copie des modèles MediaPipe embarqués dans l'application. Rien à installer ici : l'APK est dans « Avatar Live (dernière version) »."
+          body: "Copie des modèles MediaPipe embarqués dans l'application. Rien à installer ici : les APK sont dans les publications « Avatar Live vX.Y.Z »."
           prerelease: true
           make_latest: false
           files: models/*.task
+      - name: Journal de compilation (en cas d'échec)
+        if: failure()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: avatar-live-models
+          prerelease: true
+          make_latest: false
+          files: build-log.txt

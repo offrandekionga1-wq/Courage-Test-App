@@ -1,6 +1,7 @@
 // Construit l'application web dans www/ avec toutes les dépendances embarquées (aucun CDN à l'exécution).
 import { build } from 'esbuild';
-import { cp, mkdir, rm, access, writeFile } from 'node:fs/promises';
+import { cp, mkdir, rm, access, writeFile, readFile } from 'node:fs/promises';
+const { version } = JSON.parse(await readFile('package.json', 'utf8'));
 
 const MODELS = {
   'face_landmarker.task': 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
@@ -12,7 +13,8 @@ const skipModels = process.argv.includes('--skip-models');
 
 await rm('www', { recursive: true, force: true });
 await mkdir('www/models', { recursive: true });
-await build({ entryPoints: ['src/app.js'], bundle: true, format: 'esm', target: 'es2022', minify: true, outfile: 'www/app.js', legalComments: 'none' });
+await build({ entryPoints: ['src/app.js'], bundle: true, format: 'esm', target: 'es2022', minify: true, outfile: 'www/app.js', legalComments: 'none',
+  define: { __VERSION__: JSON.stringify(version) } });
 await cp('src/index.html', 'www/index.html');
 await cp('node_modules/@mediapipe/tasks-vision/wasm', 'www/wasm', { recursive: true });
 
@@ -32,4 +34,4 @@ for (const [name, url] of Object.entries(MODELS)) {
   }
   await cp(local, `www/models/${name}`);
 }
-console.log('www/ prêt.');
+console.log(`www/ prêt (v${version}).`);

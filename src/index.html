@@ -59,6 +59,15 @@ input[type=range]{width:100%;accent-color:var(--acc);height:28px}
 .sq.on{border-color:#fff;box-shadow:0 0 0 2px var(--acc)}
 .sq .x{position:absolute;right:2px;top:2px;width:20px;height:20px;border-radius:50%;background:#000a;color:#fff;font-size:12px;line-height:20px;text-align:center}
 .sq.vid{background:#11131c;color:#fff}.sq .play{position:absolute;inset:0;display:grid;place-items:center;font-size:20px}.sq .nm{position:absolute;left:3px;right:3px;bottom:3px;font-size:9px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.8}
+.sq.none,body.nobg #bg{background:repeating-conic-gradient(#2a2d3a 0 25%,#1b1d27 0 50%) 0 0/24px 24px}
+.sq.none{color:#fff;background-size:16px 16px}
+body.live.nobg #bg{background:#000}
+html.overlay,html.overlay body{background:transparent}
+html.overlay body.nobg #bg{background:none}
+html.overlay .ui{display:none!important}
+html.overlay #cam{width:2px!important;height:2px!important;opacity:0;left:0;top:0;inset:auto}
+html.overlay #toast{font-size:11px;bottom:6px;padding:6px 8px}
+#ver{text-align:center;color:var(--mut);font-size:12px;margin:18px 0 2px}
 .sq input{position:absolute;inset:0;width:100%;height:100%;opacity:0}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 .chip{background:#ffffff10;border:1px solid var(--line);border-radius:99px;padding:9px 15px;font-weight:600;font-size:13.5px}
@@ -88,7 +97,7 @@ input[type=file].hid{display:none}
       <button data-t="avatar" class="on">Avatar</button>
       <button data-t="fond">Fond</button>
       <button data-t="track">Tracking</button>
-      <button data-t="cadre">Cadrage</button>
+      <button data-t="cadre">Écran</button>
       <button id="close" aria-label="Fermer">✕</button>
     </div>
 
@@ -111,7 +120,7 @@ input[type=file].hid{display:none}
       <p class="hint">Les vidéos tournent en boucle, sans le son.</p>
       <h3>Autre</h3>
       <div class="chips"><button class="chip" id="bgCam">Caméra réelle derrière l'avatar</button></div>
-      <p class="hint">Le vert, le bleu et le magenta servent d'incrustation (chroma key) dans OBS ou un logiciel de montage.</p>
+      <p class="hint">« Aucun » retire tout fond : transparent dans la fenêtre flottante, noir en mode live. Le vert, le bleu et le magenta servent d'incrustation (chroma key) dans OBS ou un logiciel de montage.</p>
     </div>
 
     <div class="pane" id="p-track">
@@ -144,7 +153,24 @@ input[type=file].hid{display:none}
       <div class="sl"><label>Zoom <output id="o-zoom"></output></label><input type="range" min="0.5" max="3" step="0.05" data-k="zoom"></div>
       <button class="add" id="recenter">Recentrer l'avatar</button>
       <p class="hint"><b>Auto</b> : le plan s'élargit tout seul quand tu recules — buste de près, corps entier dès que tes jambes sont dans l'image.</p>
+      <h3>Orientation de l'écran</h3>
+      <div class="chips" id="orient">
+        <button class="chip" data-o="auto">Auto</button>
+        <button class="chip" data-o="portrait">Vertical</button>
+        <button class="chip" data-o="landscape">Horizontal</button>
+      </div>
+      <h3>Par-dessus les autres applis</h3>
+      <p class="hint">L'avatar reste affiché dans une fenêtre flottante pendant que tu utilises une autre appli ou un jeu. Avec le fond « Aucun », seul l'avatar apparaît.</p>
+      <div class="chips" id="ovShape">
+        <button class="chip" data-s="portrait">Vertical</button>
+        <button class="chip" data-s="landscape">Horizontal</button>
+        <button class="chip" data-s="square">Carré</button>
+      </div>
+      <div class="sl"><label>Taille de la fenêtre <output id="o-ovSize"></output></label><input type="range" min="25" max="85" step="5" data-k="ovSize"></div>
+      <button class="add" id="ovStart" style="border-style:solid;background:var(--acc);border-color:var(--acc)">Lancer la superposition</button>
+      <p class="hint">Dans la fenêtre : glisse pour la déplacer, pince pour la redimensionner, touche deux fois pour afficher les boutons (taille, retour à l'appli, fermer). Revenir dans Avatar Live ferme la fenêtre.</p>
       <p class="hint">Sur l'écran : glisse un doigt pour déplacer l'avatar, pince pour zoomer. En mode live, touche deux fois l'écran pour faire revenir l'interface.</p>
+      <p id="ver"></p>
     </div>
   </div>
 

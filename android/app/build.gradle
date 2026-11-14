@@ -64,3 +64,13 @@ android {
         }
     }
 }
+
+// Numéro de version : une seule source, package.json (ex. 1.2.0 → versionCode 10200).
+def pkg = new groovy.json.JsonSlurper().parseText(file('../../package.json').text)
+def ver = pkg.version.tokenize('.').collect { it as int }
+android {
+    defaultConfig {
+        versionCode ver[0] * 10000 + ver[1] * 100 + ver[2]
+        versionName pkg.version
+    }
+}
