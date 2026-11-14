@@ -14,15 +14,16 @@ L'APK est recompilé automatiquement à chaque modification de cette branche (on
 
 ## Ce que fait l'application
 
-- **Visage** : rotation de la tête, regard, clignement de chaque œil séparément, bouche, sourire, sourcils.
-- **Corps** : épaules, torse, bras et mains ; jambes, pieds et accroupissement dès que le corps entier est dans l'image.
+- **Visage** : rotation de la tête, regard, clignement de chaque œil (amplitude apprise sur ton visage), sourire, sourcils.
+- **Lip-sync** : formes de bouche A / I / U / E / O calculées depuis les lèvres ; le micro, en option, renforce l'ouverture et reconnaît la voyelle.
+- **Corps** : épaules, torse, bras ; jambes, pieds et accroupissement dès que le corps entier est dans l'image.
+- **Mains et doigts** : orientation complète de la paume et chaque doigt, pour les deux mains.
+- **Stabilité** : filtre « One Euro » sur toutes les mesures, et un membre hors champ ou mal vu revient au repos au lieu de trembler.
 - **Cadrage automatique** : buste de près, corps entier quand tu recules.
 - **Avatars** : import de `.vrm` et de `.glb` avec squelette humanoïde (Mixamo, Ready Player Me…). Les modèles « perfect sync » (52 formes ARKit) sont pilotés directement.
 - **Fonds** : couleur unie (dont vert d'incrustation), dégradés, photos, vidéos en boucle, ou caméra réelle.
 - **Mode live** : interface masquée, écran maintenu allumé.
-- Lip-sync au micro, calibration de la position neutre, effet miroir, caméra arrière.
-
-Non suivi pour l'instant : les doigts.
+- Calibration de la position neutre, effet miroir, caméra arrière.
 
 ## Développer
 
@@ -32,7 +33,7 @@ npm run build        # construit www/ (télécharge une fois les modèles MediaP
 npm run android      # build + synchronisation + APK debug (Android SDK et Java 21 requis)
 ```
 
-- `src/app.js` — tracking (MediaPipe Face + Pose), animation des avatars, interface
+- `src/app.js` — tracking (MediaPipe Face + Pose + Hand), animation des avatars, interface
 - `src/index.html` — page et styles
 - `scripts/build.mjs` — bundle (esbuild) et copie des ressources embarquées
 - `android/` — projet Capacitor
