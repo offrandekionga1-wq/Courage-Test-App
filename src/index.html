@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0e0f14">
+<title>Avatar Live — VTuber mobile</title>
+<style>
+:root{--bg:#0e0f14;--panel:#171922ee;--line:#2a2e3d;--txt:#eef0f6;--mut:#9aa1b5;--acc:#7c6cff;--acc2:#31d0aa;--r:14px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none}
+#stage{position:fixed;inset:0;overflow:hidden}
+#bg{position:absolute;inset:0;background-size:cover;background-position:center;z-index:0}
+#bgv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#bgv[hidden]{display:none}
+#cam{position:absolute;object-fit:cover;z-index:1;background:#000}
+#cam.off{width:2px;height:2px;opacity:0;left:0;top:0;pointer-events:none}
+#cam.full{inset:0;width:100%;height:100%}
+#cam.thumb{z-index:3;right:12px;top:calc(64px + env(safe-area-inset-top));width:92px;height:122px;border-radius:12px;border:1px solid #ffffff40;box-shadow:0 6px 20px #0008}
+#cam.mir{transform:scaleX(-1)}
+#view{position:absolute;inset:0;width:100%;height:100%;z-index:2;touch-action:none;display:block}
+.ui{position:absolute;z-index:5;transition:opacity .2s}
+body.live .ui,body.live #cam.thumb{opacity:0;pointer-events:none}
+#top{left:0;right:0;top:0;display:flex;gap:8px;align-items:center;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;background:linear-gradient(#000a,#0000)}
+#status{flex:1;min-width:0;font-size:12.5px;color:#fff;display:flex;align-items:center;gap:7px;line-height:1.2;text-shadow:0 1px 3px #000}
+#dot{width:9px;height:9px;border-radius:50%;background:#777;flex:none}
+#dot.ok{background:var(--acc2);box-shadow:0 0 8px var(--acc2)}#dot.warn{background:#ffb020}
+button{font:inherit;color:inherit;border:0;cursor:pointer}
+.btn{background:#1d2030d9;border:1px solid #ffffff22;border-radius:999px;padding:9px 13px;flex:none;font-weight:600;font-size:13.5px;backdrop-filter:blur(8px)}
+.btn.on{background:var(--acc);border-color:var(--acc)}
+.btn:active{transform:scale(.96)}
+#sheet{left:0;right:0;bottom:0;background:var(--panel);backdrop-filter:blur(14px);border-top:1px solid var(--line);border-radius:20px 20px 0 0;max-height:64vh;display:flex;flex-direction:column;transform:translateY(105%);transition:transform .25s ease,opacity .2s;padding-bottom:env(safe-area-inset-bottom)}
+#sheet.open{transform:none}
+#tabs{display:flex;gap:4px;padding:10px 10px 0}
+#tabs button{flex:1;background:none;padding:10px 4px;border-radius:10px;color:var(--mut);font-weight:600;font-size:13.5px}
+#tabs button.on{background:#ffffff14;color:var(--txt)}
+#close{flex:none!important;width:40px}
+.pane{display:none;overflow-y:auto;padding:12px 14px 18px;-webkit-overflow-scrolling:touch}
+.pane.on{display:block}
+h3{margin:14px 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);font-weight:700}
+h3:first-child{margin-top:2px}
+.hint{color:var(--mut);font-size:12.5px;margin:8px 2px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 2px;border-bottom:1px solid #ffffff0d}
+.row small{display:block;color:var(--mut);font-size:12px}
+.sw{appearance:none;width:46px;height:28px;border-radius:99px;background:#3a3f52;position:relative;flex:none;transition:.15s;margin:0}
+.sw:after{content:"";position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.15s}
+.sw:checked{background:var(--acc)}.sw:checked:after{left:21px}
+input[type=range]{width:100%;accent-color:var(--acc);height:28px}
+.sl{padding:8px 2px}.sl label{display:flex;justify-content:space-between;font-size:13.5px}.sl output{color:var(--mut)}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;align-items:center;gap:10px;background:#ffffff0a;border:1px solid var(--line);border-radius:var(--r);padding:11px 12px}
+.item.on{border-color:var(--acc);background:#7c6cff22}
+.item b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.item small{color:var(--mut)}
+.item .del{background:#ff5a6a22;color:#ff8a96;border-radius:9px;padding:6px 10px;font-size:12.5px}
+.add{width:100%;margin-top:10px;background:#ffffff10;border:1px dashed #ffffff40;border-radius:var(--r);padding:13px;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:9px}
+.sq{aspect-ratio:1;border-radius:12px;border:2px solid #ffffff22;background-size:cover;background-position:center;position:relative;padding:0;overflow:hidden;font-size:11px;font-weight:700}
+.sq.on{border-color:#fff;box-shadow:0 0 0 2px var(--acc)}
+.sq .x{position:absolute;right:2px;top:2px;width:20px;height:20px;border-radius:50%;background:#000a;color:#fff;font-size:12px;line-height:20px;text-align:center}
+.sq.vid{background:#11131c;color:#fff}.sq .play{position:absolute;inset:0;display:grid;place-items:center;font-size:20px}.sq .nm{position:absolute;left:3px;right:3px;bottom:3px;font-size:9px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.8}
+.sq input{position:absolute;inset:0;width:100%;height:100%;opacity:0}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{background:#ffffff10;border:1px solid var(--line);border-radius:99px;padding:9px 15px;font-weight:600;font-size:13.5px}
+.chip.on{background:var(--acc);border-color:var(--acc)}
+#toast{left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#000d;border:1px solid #ffffff22;padding:10px 16px;border-radius:12px;font-size:13.5px;max-width:88vw;text-align:center;opacity:0;pointer-events:none;z-index:9;position:absolute;transition:opacity .2s}
+#toast.show{opacity:1}
+#load{inset:0;display:none;place-items:center;background:#0008;z-index:8;position:absolute;font-weight:600}
+#load.show{display:grid}
+input[type=file].hid{display:none}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg"><video id="bgv" loop muted playsinline hidden></video></div>
+  <video id="cam" class="off" playsinline muted></video>
+  <canvas id="view"></canvas>
+
+  <div id="top" class="ui">
+    <div id="status"><span id="dot"></span><span id="stxt">Caméra arrêtée</span></div>
+    <button class="btn" id="bCam">Caméra</button>
+    <button class="btn" id="bLive">Live</button>
+    <button class="btn" id="bSet">Réglages</button>
+  </div>
+
+  <div id="sheet" class="ui">
+    <div id="tabs">
+      <button data-t="avatar" class="on">Avatar</button>
+      <button data-t="fond">Fond</button>
+      <button data-t="track">Tracking</button>
+      <button data-t="cadre">Cadrage</button>
+      <button id="close" aria-label="Fermer">✕</button>
+    </div>
+
+    <div class="pane on" id="p-avatar">
+      <h3>Modèles 3D</h3>
+      <div class="list" id="models"></div>
+      <button class="add" id="addModel">＋ Importer un modèle (.vrm ou .glb)</button>
+      <input type="file" class="hid" id="fModel" multiple>
+      <p class="hint">Les <b>.vrm</b> et les <b>.glb</b> avec squelette humanoïde (Mixamo, Ready Player Me…) sont animés en entier : tête, visage, bras, torse et jambes. Un .glb sans squelette suit seulement la tête. Les modèles importés restent enregistrés dans l'appli.</p>
+    </div>
+
+    <div class="pane" id="p-fond">
+      <h3>Couleur unie</h3>
+      <div class="grid" id="colors"></div>
+      <h3>Dégradés</h3>
+      <div class="grid" id="grads"></div>
+      <h3>Photos et vidéos</h3>
+      <div class="grid" id="medias"></div>
+      <input type="file" class="hid" id="fMedia" accept="image/*,video/*" multiple>
+      <p class="hint">Les vidéos tournent en boucle, sans le son.</p>
+      <h3>Autre</h3>
+      <div class="chips"><button class="chip" id="bgCam">Caméra réelle derrière l'avatar</button></div>
+      <p class="hint">Le vert, le bleu et le magenta servent d'incrustation (chroma key) dans OBS ou un logiciel de montage.</p>
+    </div>
+
+    <div class="pane" id="p-track">
+      <h3>Ce qui est suivi</h3>
+      <label class="row"><span>Tête<small>Rotation et inclinaison</small></span><input type="checkbox" class="sw" data-k="head"></label>
+      <label class="row"><span>Yeux<small>Regard et clignements</small></span><input type="checkbox" class="sw" data-k="eyes"></label>
+      <label class="row"><span>Expressions<small>Bouche, sourire, sourcils</small></span><input type="checkbox" class="sw" data-k="expr"></label>
+      <label class="row"><span>Corps<small>Épaules, torse, bras, et jambes dès qu'elles sont visibles</small></span><input type="checkbox" class="sw" data-k="body"></label>
+      <label class="row"><span>Corps haute précision<small>Plus fidèle, mais plus lourd pour le téléphone</small></span><input type="checkbox" class="sw" data-k="precise"></label>
+      <label class="row"><span>Lip-sync au micro<small>La bouche suit aussi ta voix</small></span><input type="checkbox" class="sw" data-k="mic"></label>
+      <h3>Réglages</h3>
+      <button class="add" id="calib" style="margin:0 0 6px">Calibrer la position neutre</button>
+      <label class="row"><span>Effet miroir</span><input type="checkbox" class="sw" data-k="mirror"></label>
+      <label class="row"><span>Caméra arrière<small>Si quelqu'un d'autre te filme</small></span><input type="checkbox" class="sw" data-k="back"></label>
+      <label class="row"><span>Aperçu caméra<small>Vignette en haut à droite</small></span><input type="checkbox" class="sw" data-k="preview"></label>
+      <div class="sl"><label>Sensibilité <output id="o-sens"></output></label><input type="range" min="0.5" max="2" step="0.05" data-k="sens"></div>
+      <div class="sl"><label>Lissage <output id="o-smooth"></output></label><input type="range" min="0" max="1" step="0.05" data-k="smooth"></div>
+      <label class="row"><span>Mode démo<small>Mouvements simulés, sans caméra</small></span><input type="checkbox" class="sw" id="demo"></label>
+    </div>
+
+    <div class="pane" id="p-cadre">
+      <h3>Plan</h3>
+      <div class="chips" id="frames">
+        <button class="chip" data-f="auto">Auto</button>
+        <button class="chip" data-f="buste">Buste</button>
+        <button class="chip" data-f="mi">Mi-corps</button>
+        <button class="chip" data-f="entier">Corps entier</button>
+      </div>
+      <div class="sl"><label>Zoom <output id="o-zoom"></output></label><input type="range" min="0.5" max="3" step="0.05" data-k="zoom"></div>
+      <button class="add" id="recenter">Recentrer l'avatar</button>
+      <p class="hint"><b>Auto</b> : le plan s'élargit tout seul quand tu recules — buste de près, corps entier dès que tes jambes sont dans l'image.</p>
+      <p class="hint">Sur l'écran : glisse un doigt pour déplacer l'avatar, pince pour zoomer. En mode live, touche deux fois l'écran pour faire revenir l'interface.</p>
+    </div>
+  </div>
+
+  <div id="load" class="ui"><span id="ltxt">Chargement…</span></div>
+  <div id="toast"></div>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

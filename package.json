@@ -1,0 +1,22 @@
+{
+  "name": "avatar-live",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VTuber mobile : tracking visage + corps entier (MediaPipe) sur avatar 3D (VRM / GLB), 100 % hors ligne",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "android": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
+    "@mediapipe/tasks-vision": "^1.2.3",
+    "@pixiv/three-vrm": "^3.5.5",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.2",
+    "esbuild": "^0.28.2"
+  }
+}

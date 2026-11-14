@@ -1,0 +1,6 @@
+{
+  "appId": "com.kionga.avatarlive",
+  "appName": "Avatar Live",
+  "webDir": "www",
+  "android": { "backgroundColor": "#0e0f14" }
+}
