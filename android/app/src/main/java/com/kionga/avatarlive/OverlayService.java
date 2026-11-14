@@ -22,10 +22,12 @@ import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.MotionEvent;
+import android.view.OrientationEventListener;
 import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -61,6 +63,10 @@ public class OverlayService extends Service {
     private SharedPreferences prefs;
     private int baseW, baseH;
     private float scale = 1f;
+    private String mode = "auto";
+    private int phys = 0, lastLand = 270;
+    private volatile int rot = 0;
+    private OrientationEventListener sensor;
     private final Runnable hideBar = () -> { if (bar != null) bar.setVisibility(View.GONE); };
 
     @Override
@@ -76,13 +82,16 @@ public class OverlayService extends Service {
         }
         String shape = intent != null && intent.getStringExtra("shape") != null ? intent.getStringExtra("shape") : "portrait";
         int size = intent != null ? intent.getIntExtra("size", 45) : 45;
+        mode = intent != null && intent.getStringExtra("orient") != null ? intent.getStringExtra("orient") : "auto";
         try {
             goForeground();
             prefs = getSharedPreferences("overlay", MODE_PRIVATE);
             wm = (WindowManager) getSystemService(WINDOW_SERVICE);
             computeBase(shape, size);
             if (root == null) createWindow();
-            else applySize();
+            watchOrientation();
+            updateRot();
+            applySize();
             running = true;
         } catch (Exception e) {
             stopSelf();
@@ -126,6 +135,44 @@ public class OverlayService extends Service {
         scale = 1f;
     }
 
+    /** Suit la position réelle du téléphone (capteur), même quand l'écran ne tourne pas. */
+    private void watchOrientation() {
+        if (sensor != null) return;
+        sensor = new OrientationEventListener(this) {
+            @Override
+            public void onOrientationChanged(int deg) {
+                if (deg == ORIENTATION_UNKNOWN) return;
+                int near = ((deg + 45) / 90 * 90) % 360;
+                int diff = Math.abs(deg - near);
+                if (diff > 180) diff = 360 - diff;
+                if (diff < 30 && near != phys) {
+                    phys = near;
+                    if (near == 90 || near == 270) lastLand = near;
+                    updateRot();
+                }
+            }
+        };
+        if (sensor.canDetectOrientation()) sensor.enable();
+    }
+
+    /** rot = rotation du téléphone (sens horaire) que l'écran n'a pas déjà compensée ; la page tourne l'avatar d'autant. */
+    private void updateRot() {
+        int shown = (360 - wm.getDefaultDisplay().getRotation() * 90) % 360;
+        int wanted = "portrait".equals(mode) ? 0 : "landscape".equals(mode) ? lastLand : phys;
+        int r = ((wanted - shown) % 360 + 360) % 360;
+        if (r != rot) {
+            rot = r;
+            if (root != null) applySize();
+        }
+    }
+
+    private class Host {
+        @JavascriptInterface
+        public int rot() {
+            return rot;
+        }
+    }
+
     private int dp(float v) {
         return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, getResources().getDisplayMetrics());
     }
@@ -149,6 +196,7 @@ public class OverlayService extends Service {
         ws.setDomStorageEnabled(true);
         ws.setDatabaseEnabled(true);
         ws.setMediaPlaybackRequiresUserGesture(false);
+        web.addJavascriptInterface(new Host(), "OverlayHost");
         web.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onPermissionRequest(final PermissionRequest request) {
@@ -229,8 +277,9 @@ public class OverlayService extends Service {
     }
 
     private void applySize() {
-        lp.width = (int) (baseW * scale);
-        lp.height = (int) (baseH * scale);
+        boolean side = rot % 180 != 0;                 // avatar tourné : la fenêtre garde le format choisi, vu par l'utilisateur
+        lp.width = (int) ((side ? baseH : baseW) * scale);
+        lp.height = (int) ((side ? baseW : baseH) * scale);
         clamp();
         wm.updateViewLayout(root, lp);
     }
@@ -249,12 +298,13 @@ public class OverlayService extends Service {
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        if (root != null) { clamp(); wm.updateViewLayout(root, lp); }
+        if (root != null) { updateRot(); applySize(); }
     }
 
     @Override
     public void onDestroy() {
         running = false;
+        if (sensor != null) { sensor.disable(); sensor = null; }
         if (root != null) {
             try { wm.removeView(root); } catch (Exception ignored) {}
             root = null;

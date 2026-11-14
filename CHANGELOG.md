@@ -2,6 +2,12 @@
 
 Le numéro de version est affiché en bas de l'onglet « Écran » des réglages, et dans le nom du fichier APK.
 
+## v1.2.1
+
+- Fenêtre flottante : l'avatar n'est plus coupé. Elle cadre toujours l'avatar au centre, et un modèle sans squelette (buste, tête) est montré en entier, dans l'appli aussi.
+- Orientation de l'avatar (Auto / Vertical / Horizontal) : c'est l'avatar qui se tourne, pas l'application. En Auto, il reste droit quelle que soit la position du téléphone, et la caméra continue de te suivre téléphone couché.
+- Le réglage « Orientation de l'écran » de l'application est retiré.
+
 ## v1.2.0
 
 - Fond « Aucun » : plus rien derrière l'avatar.

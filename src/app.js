@@ -20,7 +20,7 @@ const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 
 /* ---------- Réglages ---------- */
 const DEF = { model: 'mascot', bg: { t: 'grad', v: 0 }, mirror: true, head: true, eyes: true, expr: true, body: true, hands: true, precise: true,
-  mic: false, preview: true, back: false, sens: 1, smooth: 0.35, orient: 'auto', ovShape: 'portrait', ovSize: 45, frame: 'buste', auto: true, zoom: 1, offX: 0, offY: 0, calib: null };
+  mic: false, preview: true, back: false, sens: 1, smooth: 0.35, ovOrient: 'auto', ovShape: 'portrait', ovSize: 45, frame: 'buste', auto: true, zoom: 1, offX: 0, offY: 0, calib: null };
 let S = { ...DEF };
 try { S = { ...DEF, ...JSON.parse(localStorage.getItem('avatarlive') || '{}') }; } catch (e) {}
 if (S.v !== 2) { S.v = 2; S.precise = true; S.hands = true; }      // nouveaux réglages par défaut de cette version
@@ -53,10 +53,17 @@ const camera = new THREE.PerspectiveCamera(28, 1, 0.05, 80);
 scene.add(new THREE.HemisphereLight(0xffffff, 0x666680, 1.5));
 const sun = new THREE.DirectionalLight(0xffffff, 1.8); sun.position.set(0.6, 1.4, 2); scene.add(sun);
 let pxRatio = Math.min(devicePixelRatio || 1, OVERLAY ? 1 : 1.5);
+/* rot : rotation (degrés, sens horaire) du téléphone par rapport à l'écran — l'avatar est tourné pour rester droit */
+let rot = OVERLAY ? (+new URLSearchParams(location.search).get('rot') || 0) : 0, viewW = innerWidth, viewHpx = innerHeight;
 function resize() {
-  renderer.setPixelRatio(pxRatio); renderer.setSize(innerWidth, innerHeight, false);
-  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  const side = rot % 180 !== 0, st = $('#stage').style;
+  viewW = side ? innerHeight : innerWidth; viewHpx = side ? innerWidth : innerHeight;
+  if (rot) Object.assign(st, { inset: 'auto', left: '50%', top: '50%', width: viewW + 'px', height: viewHpx + 'px', transform: `translate(-50%,-50%) rotate(${-rot}deg)` });
+  else Object.assign(st, { inset: '', left: '', top: '', width: '', height: '', transform: '' });
+  renderer.setPixelRatio(pxRatio); renderer.setSize(viewW, viewHpx, false);
+  camera.aspect = viewW / viewHpx; camera.updateProjectionMatrix();
 }
+function setRot(r) { r = ((+r || 0) % 360 + 360) % 360; if (r !== rot) { rot = r; resize(); } }
 addEventListener('resize', resize); resize();
 
 /* ---------- Avatars ----------
@@ -217,7 +224,7 @@ function captureRest(r) {
   const fy = SIDES.map(s => r.bone(s + 'Foot')).filter(Boolean).map(f => f.getWorldPosition(new THREE.Vector3()).y);
   r.footY = fy.length ? Math.min(...fy) : null;
   const box = new THREE.Box3().setFromObject(r.root);
-  r.floor = box.min.y; r.H = Math.max(0.2, box.max.y - box.min.y);
+  r.floor = box.min.y; r.H = Math.max(0.2, box.max.y - box.min.y); r.W = Math.max(0.1, box.max.x - box.min.x);
 }
 
 async function loadModel(id) {
@@ -250,13 +257,15 @@ let viewH = 1, camH = 0, camC = 0, autoFrame = 'buste';
 function placeCamera(dt) {
   const r = rig; if (!r) return;
   const p = FR[S.auto ? autoFrame : S.frame] || FR.buste;
-  const h0 = Math.max(p.h, p.w / camera.aspect) * r.H;          // garde l'avatar entier en largeur sur un écran vertical
-  const c0 = p.top ? r.floor + 1.05 * r.H - h0 / 2 : r.floor + 0.5 * r.H;
+  let h0 = Math.max(p.h, p.w / camera.aspect) * r.H;            // garde l'avatar entier en largeur sur un écran vertical
+  let c0 = p.top ? r.floor + 1.05 * r.H - h0 / 2 : r.floor + 0.5 * r.H;
+  if (r.glb) { h0 = Math.max(1.12 * r.H, 1.15 * r.W / camera.aspect); c0 = r.floor + 0.5 * r.H; }   // modèle sans squelette (buste, tête…) : toujours montré en entier
+  const zoom = OVERLAY ? 1 : S.zoom, offX = OVERLAY ? 0 : S.offX, offY = OVERLAY ? 0 : S.offY;       // la fenêtre flottante cadre toujours l'avatar au centre
   const k = camH ? 1 - Math.exp(-dt * 5) : 1;
   camH += (h0 - camH) * k; camC += (c0 - camC) * k;
-  viewH = camH / S.zoom;
+  viewH = camH / zoom;
   const d = viewH / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
-  const x = -S.offX * r.H, y = camC + S.offY * r.H;
+  const x = -offX * r.H, y = camC + offY * r.H;
   camera.position.set(x, y, d); camera.lookAt(x, y, 0);
 }
 
@@ -610,7 +619,7 @@ function runDemo(now) {
 /* ---------- Caméra + MediaPipe ---------- */
 const video = $('#cam');
 let stream = null, camOn = false, fileset = null, face = null, pose = null, poseKind = '', poseLoading = false, hands = null, handsLoading = false, lastVT = -1, nFrame = 0, fps = 60, testSrc = null;
-const _m4 = new THREE.Matrix4(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
+const _m4 = new THREE.Matrix4(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), rotCv = document.createElement('canvas');
 async function mk(Cls, opts) {
   for (const delegate of location.search.includes('cpu') ? ['CPU'] : ['GPU', 'CPU']) {
     try { return await Cls.createFromOptions(fileset, { ...opts, baseOptions: { ...opts.baseOptions, delegate } }); }
@@ -663,10 +672,16 @@ function camUI() {
   video.classList.toggle('mir', S.mirror && !S.back);
 }
 function detect(now) {
-  const src = testSrc || video;
+  let src = testSrc || video;
   if (!face || (!testSrc && (!camOn || video.readyState < 2 || video.currentTime === lastVT))) return;
   lastVT = video.currentTime; nFrame++;
   try {
+    if (rot) {                                                      // téléphone tourné : l'image de la caméra est redressée avant l'analyse
+      const w = src.videoWidth || src.naturalWidth, h = src.videoHeight || src.naturalHeight, side = rot % 180 !== 0, k = Math.min(1, 960 / Math.max(w, h));
+      rotCv.width = Math.round((side ? h : w) * k); rotCv.height = Math.round((side ? w : h) * k);
+      const c = rotCv.getContext('2d'); c.translate(rotCv.width / 2, rotCv.height / 2); c.rotate(rot * Math.PI / 180); c.scale(k, k); c.drawImage(src, -w / 2, -h / 2);
+      src = rotCv;
+    }
     const r = face.detectForVideo(src, now);
     if (r.faceBlendshapes?.length && r.facialTransformationMatrixes?.length) ingestFace(r.faceBlendshapes[0].categories, r.facialTransformationMatrixes[0].data, now);
     else if (now - track.faceT > 400) track.face = false;
@@ -733,7 +748,7 @@ function loop(now) {
     if (slow >= 3 && pxRatio > 0.75) { pxRatio = Math.max(0.75, pxRatio - 0.25); slow = 0; resize(); }
     else if (slow <= -8 && pxRatio < max) { pxRatio = Math.min(max, pxRatio + 0.25); slow = 0; resize(); }
     /* si la haute précision fait ramer le téléphone, repasse tout seul en mode rapide */
-    lag = camOn && S.body && S.precise && fps < 14 ? lag + 1 : 0;
+    lag = camOn && !OVERLAY && S.body && S.precise && fps < 14 ? lag + 1 : 0;
     if (lag >= 8) { lag = 0; S.precise = false; save(); syncInputs(); toast('Téléphone trop sollicité : suivi du corps passé en mode rapide.'); }
     if (demo) status(`Mode démo · ${fps} i/s`, 'ok');
     else if (camOn && face) {
@@ -834,7 +849,7 @@ $('#fModel').addEventListener('change', async e => {
 function syncInputs() {
   document.querySelectorAll('[data-k]').forEach(i => { const k = i.dataset.k; if (i.type === 'checkbox') i.checked = !!S[k]; else { i.value = S[k]; const o = $('#o-' + k); if (o) o.textContent = k === 'smooth' ? Math.round(S[k] * 100) + ' %' : k === 'ovSize' ? S[k] + ' %' : '×' + (+S[k]).toFixed(2); } });
   document.querySelectorAll('#frames .chip').forEach(c => c.classList.toggle('on', c.dataset.f === (S.auto ? 'auto' : S.frame)));
-  document.querySelectorAll('#orient .chip').forEach(c => c.classList.toggle('on', c.dataset.o === S.orient));
+  document.querySelectorAll('#ovOrient .chip').forEach(c => c.classList.toggle('on', c.dataset.o === S.ovOrient));
   document.querySelectorAll('#ovShape .chip').forEach(c => c.classList.toggle('on', c.dataset.s === S.ovShape));
   $('#calib').textContent = S.calib ? 'Recalibrer la position neutre' : 'Calibrer la position neutre';
 }
@@ -852,14 +867,13 @@ $('#calib').onclick = () => {
   S.calib = track.headQ.clone().invert().toArray(); save(); syncInputs(); toast('Position neutre enregistrée.');
 };
 $('#frames').addEventListener('click', e => { const f = e.target.dataset.f; if (!f) return; S.auto = f === 'auto'; if (!S.auto) S.frame = f; S.zoom = 1; S.offX = S.offY = 0; save(); syncInputs(); });
-/* orientation de l'écran et superposition aux autres applis (application Android uniquement) */
-const applyOrient = () => { if (Overlay && !OVERLAY) Overlay.setOrientation({ mode: S.orient }).catch(() => {}); };
-$('#orient').addEventListener('click', e => { const o = e.target.dataset.o; if (!o) return; S.orient = o; save(); syncInputs(); applyOrient(); if (!Overlay) toast("Le verrouillage de l'orientation fonctionne dans l'application Android installée."); });
+/* superposition aux autres applis (application Android uniquement) */
+$('#ovOrient').addEventListener('click', e => { const o = e.target.dataset.o; if (!o) return; S.ovOrient = o; save(); syncInputs(); });
 $('#ovShape').addEventListener('click', e => { const v = e.target.dataset.s; if (!v) return; S.ovShape = v; save(); syncInputs(); });
 $('#ovStart').onclick = async () => {
   if (!Overlay) { toast("La superposition n'existe que dans l'application Android installée."); return; }
   save(); if (camOn) stopCam(); setDemo(false); sheet.classList.remove('open');
-  try { await Overlay.start({ shape: S.ovShape, size: S.ovSize }); }
+  try { await Overlay.start({ shape: S.ovShape, size: S.ovSize, orient: S.ovOrient }); }
   catch (e) {
     const m = String(e?.message || e);
     toast(m.includes('overlay_permission') ? "Autorise « Superposition aux autres applis » pour Avatar Live, reviens ici, puis relance."
@@ -906,7 +920,7 @@ canvas.addEventListener('pointermove', e => {
   const p = pts.get(e.pointerId); if (!p || !rig) return;
   const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
   if (Math.abs(dx) + Math.abs(dy) > 1) moved = true;
-  if (pts.size === 1) { const u = viewH / innerHeight / rig.H; S.offX += dx * u; S.offY += dy * u; }
+  if (pts.size === 1) { const u = viewH / viewHpx / rig.H; S.offX += dx * u; S.offY += dy * u; }
   else if (pts.size === 2 && pinch0 > 0) { S.zoom = clamp(zoom0 * pdist() / pinch0, 0.5, 3); syncInputs(); }
 });
 const up = e => {
@@ -928,7 +942,7 @@ applyBg(); drawModels();
 if (S.mic && !OVERLAY) { S.mic = false; syncInputs(); }           // le micro demande un geste de l'utilisateur
 requestAnimationFrame(loop);
 await loadModel(S.model === 'sample' ? 'mascot' : S.model);
-applyOrient();
-if (OVERLAY) { await startCam(); if (S.mic) setMic(true); }
-window.__app = { VERSION, OVERLAY, S, track, cur, on, visBuf, rng, mic, get slowMs() { return slowMs; },
+if (Overlay && !OVERLAY) Overlay.setOrientation({ mode: 'auto' }).catch(() => {});
+if (OVERLAY) { if (window.OverlayHost) setInterval(() => setRot(window.OverlayHost.rot()), 400); await startCam(); if (S.mic) setMic(true); }
+window.__app = { setRot, get rot() { return rot; }, VERSION, OVERLAY, S, track, cur, on, visBuf, rng, mic, get slowMs() { return slowMs; },
   async feed(url) { const im = new Image(); im.src = url; await im.decode(); await initTracking(); testSrc = im; }, get rig() { return rig; }, get autoFrame() { return autoFrame; }, loadModel, setDemo, initTracking };

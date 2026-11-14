@@ -53,6 +53,7 @@ public class OverlayPlugin extends Plugin {
         Intent i = new Intent(getContext(), OverlayService.class);
         i.putExtra("shape", call.getString("shape", "portrait"));
         i.putExtra("size", call.getInt("size", 45));
+        i.putExtra("orient", call.getString("orient", "auto"));
         try {
             ContextCompat.startForegroundService(getContext(), i);
         } catch (Exception e) {
