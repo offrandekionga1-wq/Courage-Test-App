@@ -5,6 +5,7 @@ import './styles.css';
 import { VW, VH, Loop, Sfx, newPad, clearEdges, Pad, clamp } from './core';
 import { FightScene } from './fight';
 import { CharId, ROSTER_IDS } from './roster';
+import { loadSprites } from './sprites';
 import {
   Hud, Mode, buildControls, TouchCtl, titleScreen, selectScreen, vsScreen,
   pauseScreen, resultScreen, helpScreen, clearScreens, load, save,
@@ -112,7 +113,10 @@ function goSelect(): void {
 
 function goVs(): void {
   app = 'vs';
-  vsScreen(picks[0], picks[1], startFight);
+  // l'écran VS dure le temps de charger les planches de sprites
+  const ready = loadSprites([picks[0], picks[1]]).catch(() => []);
+  let shown = false;
+  vsScreen(picks[0], picks[1], () => { shown = true; void ready.then(() => shown && startFight()); });
 }
 
 function startFight(): void {
@@ -209,5 +213,6 @@ loop.start();
 
 // amorçage
 goTitle();
+void loadSprites(ROSTER_IDS).catch(() => []);
 save(settings);
 if (!ROSTER_IDS.includes(picks[0])) picks = ['mika', 'ray'];

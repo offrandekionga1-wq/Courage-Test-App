@@ -31,3 +31,7 @@ dist
 # Projet jeu (combat/) : les sources natives Android sont versionnées
 combat/node_modules
 combat/dist
+
+# Python
+__pycache__/
+*.pyc

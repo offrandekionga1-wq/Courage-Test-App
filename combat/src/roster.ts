@@ -2,7 +2,7 @@
 // Neon Clash — données des 4 combattants : stats, coups normaux, 4 spéciaux et
 // un super chacun. Les noms des techniques viennent des fiches de référence.
 // ---------------------------------------------------------------------------
-import { Pose, POSE, CharId } from './art';
+import { CharId } from './art';
 import { Fx, SlashArc, RuneCircle, Bolt, Shock, Pillar, Dome, FoxSigil, VoidRift } from './vfx';
 import { rr, Sfx } from './core';
 
@@ -40,7 +40,7 @@ export interface Move {
   key: string;
   name: string;
   startup: number; active: number; recovery: number;
-  poses: [Pose, Pose, Pose];
+  fr: [string, string, string];   // images : préparation · frappe · récupération
   damage: number; hitstun: number;
   kbx: number; kby: number;
   box: { x: number; y: number; w: number; h: number }; // x devant, y depuis le sol (négatif = haut)
@@ -61,7 +61,9 @@ export interface Move {
 }
 
 export interface CharStats {
-  hp: number; walk: number; back: number; jump: number; weight: number; scale: number;
+  hp: number; walk: number; back: number; jump: number; weight: number;
+  /** hauteur du combattant à l'écran, en unités logiques */
+  height: number;
 }
 
 export interface Character {
@@ -79,31 +81,31 @@ const F = (f: FighterRef) => ({ x: f.cx, y: f.cy });
 // Petites fabriques pour éviter la répétition -------------------------------
 const light = (over: Partial<Move>): Move => ({
   key: 'light', name: 'Jab', startup: 0.07, active: 0.06, recovery: 0.12,
-  poses: [POSE.jabWind, POSE.jab, POSE.jab],
+  fr: ['atk0', 'atk1', 'atk1'],
   damage: 32, hitstun: 0.22, kbx: 120, kby: -30,
   box: { x: 34, y: -118, w: 54, h: 34 }, gain: 7, sfx: 'whoosh', ...over,
 });
 const medium = (over: Partial<Move>): Move => ({
   key: 'medium', name: 'Cross', startup: 0.09, active: 0.07, recovery: 0.16,
-  poses: [POSE.crossWind, POSE.cross, POSE.cross],
+  fr: ['atk1', 'atk2', 'atk2'],
   damage: 44, hitstun: 0.26, kbx: 170, kby: -40,
   box: { x: 38, y: -120, w: 62, h: 36 }, gain: 8, sfx: 'whoosh', ...over,
 });
 const heavy = (over: Partial<Move>): Move => ({
   key: 'heavy', name: 'Roundhouse', startup: 0.13, active: 0.09, recovery: 0.26,
-  poses: [POSE.kickWind, POSE.spinKick, POSE.kick],
+  fr: ['atk2', 'atk5', 'atk3'],
   damage: 70, hitstun: 0.36, kbx: 330, kby: -150,
   box: { x: 34, y: -124, w: 78, h: 54 }, gain: 11, sfx: 'whoosh', ...over,
 });
 const launcher = (over: Partial<Move>): Move => ({
   key: 'launcher', name: 'Uppercut', startup: 0.11, active: 0.1, recovery: 0.3,
-  poses: [POSE.crouch, POSE.upper, POSE.upper],
+  fr: ['fall2', 'atk4', 'atk4'],
   damage: 58, hitstun: 0.5, kbx: 110, kby: -420, launcher: true,
   box: { x: 26, y: -168, w: 56, h: 96 }, gain: 12, sfx: 'whoosh', ...over,
 });
 const air = (over: Partial<Move>): Move => ({
   key: 'air', name: 'Air Strike', startup: 0.07, active: 0.14, recovery: 0.14,
-  poses: [POSE.jump, POSE.airAtk, POSE.airAtk],
+  fr: ['jump2', 'jump3', 'jump3'],
   damage: 46, hitstun: 0.3, kbx: 180, kby: 80,
   box: { x: 26, y: -96, w: 66, h: 60 }, gain: 9, sfx: 'whoosh', ...over,
 });
@@ -120,7 +122,7 @@ const mika: Character = {
   role: 'Soutien', style: 'Contrôle / Défense', spec: 'Arts magiques',
   quote: '« Le destin est entre mes mains… »',
   color: '#ffc820', color2: '#ffe987',
-  stats: { hp: 1000, walk: 170, back: 140, jump: 630, weight: 1, scale: 1.42 },
+  stats: { hp: 1000, walk: 170, back: 140, jump: 630, weight: 1, height: 212 },
   normals: {
     light: light({ onStrike: slashFx('#ffc820', 54, 16) }),
     medium: medium({ onStrike: slashFx('#ffc820', 62, 20) }),
@@ -131,7 +133,7 @@ const mika: Character = {
   specials: {
     neutral: {
       key: 'sp_n', name: 'Spirit Seal', startup: 0.17, active: 0.08, recovery: 0.3,
-      poses: [POSE.castWind, POSE.cast, POSE.cast],
+      fr: ['atk0', 'atk2', 'atk2'],
       damage: 0, hitstun: 0, kbx: 0, kby: 0, box: { x: 0, y: 0, w: 0, h: 0 },
       noHitbox: true, cost: 0, gain: 0, sfx: 'none',
       onStart: (f, g) => {
@@ -151,7 +153,7 @@ const mika: Character = {
     },
     forward: {
       key: 'sp_f', name: 'Wind Blade', startup: 0.13, active: 0.16, recovery: 0.26,
-      poses: [POSE.castWind, POSE.dash, POSE.cross],
+      fr: ['atk0', 'move3', 'atk2'],
       damage: 72, hitstun: 0.38, kbx: 300, kby: -170, dashX: 430,
       box: { x: 18, y: -140, w: 88, h: 76 }, cost: 0, gain: 14, sfx: 'whoosh',
       onStart: (f, g) => { g.afterimage(f, 0.3); },
@@ -164,7 +166,7 @@ const mika: Character = {
     },
     up: {
       key: 'sp_u', name: 'Divine Judgment', startup: 0.22, active: 0.2, recovery: 0.36,
-      poses: [POSE.superCharge, POSE.cast, POSE.cast],
+      fr: ['atk0', 'atk2', 'atk2'],
       damage: 86, hitstun: 0.5, kbx: 120, kby: -430, launcher: true,
       box: { x: 46, y: -220, w: 86, h: 220 }, cost: 25, gain: 10, sfx: 'boom',
       onStart: (f, g) => {
@@ -178,7 +180,7 @@ const mika: Character = {
     },
     back: {
       key: 'sp_b', name: 'Barrier of Fate', startup: 0.12, active: 0.05, recovery: 0.22,
-      poses: [POSE.guard, POSE.burst, POSE.guard],
+      fr: ['fall1', 'atk4', 'fall1'],
       damage: 0, hitstun: 0, kbx: 0, kby: 0, box: { x: 0, y: 0, w: 0, h: 0 },
       noHitbox: true, guardTime: 2.2, cost: 20, sfx: 'none',
       onStart: (f, g) => {
@@ -190,7 +192,7 @@ const mika: Character = {
   },
   ult: {
     key: 'ult', name: 'Eternal Fate', startup: 0.5, active: 0.7, recovery: 0.6,
-    poses: [POSE.superCharge, POSE.superBlast, POSE.win],
+    fr: ['atk0', 'atk6', 'idle0'],
     damage: 300, hitstun: 0.9, kbx: 420, kby: -300, hits: 6, cost: 100,
     box: { x: -40, y: -240, w: 320, h: 250 }, superMove: true, sfx: 'boom',
     onStart: (f, g) => {
@@ -225,7 +227,7 @@ const ray: Character = {
   role: 'Rôdeur', style: 'Vitesse / Énergie', spec: 'Arts de la foudre',
   quote: '« La foudre ne rate jamais… »',
   color: '#3ba7ff', color2: '#9ddcff',
-  stats: { hp: 950, walk: 205, back: 175, jump: 680, weight: 0.92, scale: 1.4 },
+  stats: { hp: 950, walk: 205, back: 175, jump: 680, weight: 0.92, height: 204 },
   normals: {
     light: light({ startup: 0.06, damage: 30, onStrike: slashFx('#3ba7ff', 52, 15) }),
     medium: medium({ damage: 42, onStrike: slashFx('#3ba7ff', 60, 19) }),
@@ -239,7 +241,7 @@ const ray: Character = {
   specials: {
     neutral: {
       key: 'sp_n', name: 'Electric Ball', startup: 0.16, active: 0.07, recovery: 0.3,
-      poses: [POSE.castWind, POSE.cast, POSE.cast],
+      fr: ['atk0', 'atk2', 'atk2'],
       damage: 0, hitstun: 0, kbx: 0, kby: 0, box: { x: 0, y: 0, w: 0, h: 0 },
       noHitbox: true, sfx: 'none',
       onStart: (f, g) => { g.fx.giz(new Shock(f.cx + f.face * 34, f.cy - 6, '#3ba7ff', 0.3, 36)); Sfx.tone(300, 0.2, 'sawtooth', 0.14, 820); },
@@ -251,7 +253,7 @@ const ray: Character = {
     },
     forward: {
       key: 'sp_f', name: 'Thunder Dash', startup: 0.1, active: 0.2, recovery: 0.24,
-      poses: [POSE.backA, POSE.dash, POSE.cross],
+      fr: ['move0', 'move3', 'atk2'],
       damage: 64, hitstun: 0.34, kbx: 260, kby: -120, dashX: 540, invul: true,
       box: { x: 10, y: -136, w: 92, h: 76 }, gain: 13, sfx: 'zap',
       onStart: (f, g) => { g.afterimage(f, 0.34); Sfx.zap(); },
@@ -267,7 +269,7 @@ const ray: Character = {
     },
     up: {
       key: 'sp_u', name: 'Lightning Slash', startup: 0.1, active: 0.18, recovery: 0.34,
-      poses: [POSE.crouch, POSE.upper, POSE.fall],
+      fr: ['fall2', 'atk4', 'fall0'],
       damage: 78, hitstun: 0.5, kbx: 140, kby: -480, launcher: true, dashY: -420, dashX: 90,
       box: { x: 20, y: -200, w: 70, h: 150 }, cost: 25, gain: 10, sfx: 'zap',
       onStart: (f, g) => { Sfx.zap(); g.fx.giz(new Shock(f.cx, f.y, '#3ba7ff', 0.3, 60, 0.4)); },
@@ -279,7 +281,7 @@ const ray: Character = {
     },
     back: {
       key: 'sp_b', name: 'Storm Guard', startup: 0.1, active: 0.05, recovery: 0.2,
-      poses: [POSE.guard, POSE.burst, POSE.guard],
+      fr: ['fall1', 'atk4', 'fall1'],
       damage: 0, hitstun: 0, kbx: 0, kby: 0, box: { x: 0, y: 0, w: 0, h: 0 },
       noHitbox: true, guardTime: 2, cost: 20, sfx: 'none',
       onStart: (f, g) => {
@@ -294,7 +296,7 @@ const ray: Character = {
   },
   ult: {
     key: 'ult', name: 'RaiStorm Inferno', startup: 0.5, active: 0.75, recovery: 0.55,
-    poses: [POSE.superCharge, POSE.superBlast, POSE.win],
+    fr: ['atk0', 'atk6', 'idle0'],
     damage: 300, hitstun: 0.9, kbx: 380, kby: -340, hits: 7, cost: 100,
     box: { x: -60, y: -260, w: 360, h: 270 }, superMove: true, sfx: 'boom',
     onStart: (f, g) => {
@@ -323,7 +325,7 @@ const zen: Character = {
   role: 'Combattant', style: 'Vitesse / Équilibré', spec: 'Arts de l’énergie',
   quote: '« Je vais te montrer ma vraie puissance… »',
   color: '#a35cff', color2: '#d7b2ff',
-  stats: { hp: 1020, walk: 190, back: 160, jump: 650, weight: 1.02, scale: 1.42 },
+  stats: { hp: 1020, walk: 190, back: 160, jump: 650, weight: 1.02, height: 208 },
   normals: {
     light: light({ damage: 34, onStrike: slashFx('#a35cff', 54, 16) }),
     medium: medium({ damage: 46, onStrike: slashFx('#a35cff', 62, 20) }),
@@ -337,7 +339,7 @@ const zen: Character = {
   specials: {
     neutral: {
       key: 'sp_n', name: 'Energy Burst', startup: 0.18, active: 0.07, recovery: 0.3,
-      poses: [POSE.castWind, POSE.cast, POSE.cast],
+      fr: ['atk0', 'atk2', 'atk2'],
       damage: 0, hitstun: 0, kbx: 0, kby: 0, box: { x: 0, y: 0, w: 0, h: 0 },
       noHitbox: true, sfx: 'none',
       onStart: (f, g) => { g.fx.giz(new RuneCircle(f.cx + f.face * 34, f.cy, 34, '#a35cff', 0.45, 4, 1)); },
@@ -349,7 +351,7 @@ const zen: Character = {
     },
     forward: {
       key: 'sp_f', name: 'Shadow Dash', startup: 0.09, active: 0.18, recovery: 0.22,
-      poses: [POSE.backA, POSE.dash, POSE.cross],
+      fr: ['move0', 'move3', 'atk2'],
       damage: 62, hitstun: 0.32, kbx: 250, kby: -110, dashX: 500, invul: true,
       box: { x: 10, y: -136, w: 88, h: 74 }, gain: 13, sfx: 'whoosh',
       onStart: (f, g) => { g.afterimage(f, 0.3); Sfx.whoosh(0.25); },
@@ -358,7 +360,7 @@ const zen: Character = {
     },
     up: {
       key: 'sp_u', name: 'Dark Slash', startup: 0.12, active: 0.16, recovery: 0.32,
-      poses: [POSE.crouch, POSE.upper, POSE.fall],
+      fr: ['fall2', 'atk4', 'fall0'],
       damage: 80, hitstun: 0.48, kbx: 150, kby: -450, launcher: true, dashY: -380, dashX: 80,
       box: { x: 20, y: -196, w: 76, h: 146 }, cost: 25, gain: 10, sfx: 'whoosh',
       onStrike: (f, g) => {
@@ -369,7 +371,7 @@ const zen: Character = {
     },
     back: {
       key: 'sp_b', name: 'Shadow Clone', startup: 0.14, active: 0.26, recovery: 0.3,
-      poses: [POSE.castWind, POSE.cast, POSE.idle],
+      fr: ['atk0', 'atk2', 'idle0'],
       damage: 54, hitstun: 0.34, kbx: 200, kby: -150, hits: 2,
       box: { x: -110, y: -140, w: 110, h: 90 }, cost: 30, gain: 8, sfx: 'whoosh',
       onStart: (f, g) => {
@@ -385,7 +387,7 @@ const zen: Character = {
   },
   ult: {
     key: 'ult', name: 'Void Dimension', startup: 0.5, active: 0.8, recovery: 0.6,
-    poses: [POSE.superCharge, POSE.superBlast, POSE.win],
+    fr: ['atk0', 'atk6', 'idle0'],
     damage: 310, hitstun: 0.95, kbx: 360, kby: -300, hits: 8, cost: 100,
     box: { x: -80, y: -260, w: 380, h: 270 }, superMove: true, sfx: 'boom',
     onStart: (f, g) => {
@@ -414,7 +416,7 @@ const kira: Character = {
   role: 'Assassin', style: 'Agilité / Furtivité', spec: 'Dégâts critiques',
   quote: '« Tu ne peux pas m’échapper… »',
   color: '#ff3450', color2: '#ff8f9e',
-  stats: { hp: 900, walk: 215, back: 185, jump: 700, weight: 0.88, scale: 1.4 },
+  stats: { hp: 900, walk: 215, back: 185, jump: 700, weight: 0.88, height: 206 },
   normals: {
     light: light({ startup: 0.06, damage: 30, box: { x: 36, y: -120, w: 66, h: 34 }, onStrike: slashFx('#ff3450', 62, 14) }),
     medium: medium({ damage: 44, box: { x: 38, y: -122, w: 74, h: 36 }, onStrike: slashFx('#ff3450', 72, 18) }),
@@ -425,7 +427,7 @@ const kira: Character = {
   specials: {
     neutral: {
       key: 'sp_n', name: 'Fox Fireball', startup: 0.17, active: 0.07, recovery: 0.3,
-      poses: [POSE.castWind, POSE.cast, POSE.cast],
+      fr: ['atk0', 'atk2', 'atk2'],
       damage: 0, hitstun: 0, kbx: 0, kby: 0, box: { x: 0, y: 0, w: 0, h: 0 },
       noHitbox: true, sfx: 'none',
       onStart: (f, g) => { g.fx.giz(new FoxSigil(f.cx + f.face * 40, f.cy - 10, 26, '#ff3450', 0.4, f.face)); },
@@ -437,7 +439,7 @@ const kira: Character = {
     },
     forward: {
       key: 'sp_f', name: 'Kitsune Dash', startup: 0.08, active: 0.2, recovery: 0.22,
-      poses: [POSE.backA, POSE.dash, POSE.cross],
+      fr: ['move0', 'move3', 'atk2'],
       damage: 68, hitstun: 0.34, kbx: 230, kby: -120, dashX: 560, invul: true,
       box: { x: 0, y: -136, w: 96, h: 76 }, gain: 14, sfx: 'whoosh',
       onStart: (f, g) => { g.afterimage(f, 0.32); Sfx.whoosh(0.28); },
@@ -454,7 +456,7 @@ const kira: Character = {
     },
     up: {
       key: 'sp_u', name: 'Crimson Slash', startup: 0.11, active: 0.17, recovery: 0.32,
-      poses: [POSE.crouch, POSE.upper, POSE.fall],
+      fr: ['fall2', 'atk4', 'fall0'],
       damage: 84, hitstun: 0.5, kbx: 140, kby: -470, launcher: true, dashY: -400, dashX: 90,
       box: { x: 18, y: -204, w: 80, h: 154 }, cost: 25, gain: 10, sfx: 'whoosh',
       onStrike: (f, g) => {
@@ -465,7 +467,7 @@ const kira: Character = {
     },
     back: {
       key: 'sp_b', name: 'Barrier of the Kitsune', startup: 0.12, active: 0.05, recovery: 0.22,
-      poses: [POSE.guard, POSE.burst, POSE.guard],
+      fr: ['fall1', 'atk4', 'fall1'],
       damage: 0, hitstun: 0, kbx: 0, kby: 0, box: { x: 0, y: 0, w: 0, h: 0 },
       noHitbox: true, guardTime: 2, cost: 20, sfx: 'none',
       onStart: (f, g) => {
@@ -477,7 +479,7 @@ const kira: Character = {
   },
   ult: {
     key: 'ult', name: 'Nine-Tailed Fury', startup: 0.5, active: 0.8, recovery: 0.6,
-    poses: [POSE.superCharge, POSE.superBlast, POSE.win],
+    fr: ['atk0', 'atk6', 'idle0'],
     damage: 320, hitstun: 0.95, kbx: 400, kby: -320, hits: 9, cost: 100,
     box: { x: -40, y: -250, w: 340, h: 260 }, superMove: true, sfx: 'boom',
     onStart: (f, g) => {

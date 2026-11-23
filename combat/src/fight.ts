@@ -2,24 +2,20 @@
 // Neon Clash — scène de combat : physique, touches, IA, caméra, décor, HUD data
 // ---------------------------------------------------------------------------
 import {
-  VW, VH, GROUND_Y, clamp, lerp, rr, ease, Pad, Sfx, buzz, aabb, approach,
+  VW, VH, GROUND_Y, clamp, lerp, rr, Pad, Sfx, buzz, aabb, approach,
 } from './core';
-import {
-  CharId, Pose, POSE, blend, solve, drawFighter, drawShadow, Strand, PALETTES, Joints,
-} from './art';
+import { CharId, drawShadow, PALETTES } from './art';
+import { CharSprites, Frame, cycle, frameOf, frameScale, spritesOf } from './sprites';
 import { Fx, FloatText, Shock, glowSprite } from './vfx';
 import { ROSTER, Character, Move, ProjSpec, GameApi, FighterRef } from './roster';
 
-const HURT_W = 52;
-const STAND_H = 150;
-const CROUCH_H = 98;
 const GRAVITY = 1800;
 const STAGE_MIN = 60;
 const STAGE_MAX = VW - 60;
 
 export type Phase = 'intro' | 'fight' | 'ko' | 'over';
 
-interface Ghost { pose: Pose; x: number; y: number; face: number; t: number; life: number; scale: number }
+interface Ghost { frame: Frame; x: number; y: number; face: number; t: number; life: number }
 
 interface Proj {
   x: number; y: number; vx: number; vy: number; spec: ProjSpec;
@@ -28,6 +24,7 @@ interface Proj {
 
 export class Fighter implements FighterRef {
   cfg: Character;
+  sp: CharSprites | undefined;
   x = 0; y = GROUND_Y;
   vx = 0; vy = 0;
   face: 1 | -1 = 1;
@@ -35,13 +32,9 @@ export class Fighter implements FighterRef {
   meter = 0;
   state: 'idle' | 'walk' | 'back' | 'crouch' | 'jump' | 'block' | 'hurt' | 'ko' | 'attack' | 'win' = 'idle';
   stateT = 0;
-  pose: Pose = POSE.idle;
-  hair: Strand[] = [];
-  coat: Strand[] = [];
   move: Move | null = null;
   moveT = 0;
   movePhase: 'startup' | 'active' | 'recovery' = 'startup';
-  prevPose: Pose = POSE.idle;
   hitFlags = new Set<string>();
   hitsDone = 0;
   hitstop = 0;
@@ -56,49 +49,48 @@ export class Fighter implements FighterRef {
   jumpsLeft = 1;
   ghosts: Ghost[] = [];
   ghostTimer = 0;
-  ghostLife = 0;
   wonRounds = 0;
   anim = 0;
+  tilt = 0;          // inclinaison (dégâts, K.O.)
   superLock = 0;
-  idleBreath = 0;
 
   constructor(public id: CharId, public idx: 0 | 1) {
     this.cfg = ROSTER[id];
+    this.sp = spritesOf(id);
     this.maxHp = this.cfg.stats.hp;
     this.hp = this.maxHp;
-    this.hair = [new Strand(6, 7, 260), new Strand(5, 6, 240)];
-    this.coat = [new Strand(6, 9, 300), new Strand(5, 8, 280)];
   }
 
-  get scale(): number { return this.cfg.stats.scale; }
+  /** Échelle : ramène la pose debout de la fiche à la taille voulue à l'écran. */
+  get scale(): number {
+    return this.sp ? this.cfg.stats.height / this.sp.ref : 1;
+  }
   get cx(): number { return this.x; }
-  get cy(): number { return this.y - 76 * this.scale; }
-  get height(): number { return (this.state === 'crouch' ? CROUCH_H : STAND_H) * this.scale; }
+  get cy(): number { return this.y - this.cfg.stats.height * 0.5; }
+  get height(): number {
+    return (this.state === 'crouch' ? 0.66 : 1) * this.cfg.stats.height;
+  }
   get busy(): boolean { return this.state === 'attack' || this.state === 'hurt' || this.state === 'ko'; }
 
   resetRound(x: number, face: 1 | -1): void {
     this.x = x; this.y = GROUND_Y; this.vx = 0; this.vy = 0;
     this.face = face;
     this.hp = this.maxHp;
-    this.state = 'idle'; this.stateT = 0;
+    this.state = 'idle'; this.stateT = 0; this.anim = 0; this.tilt = 0;
     this.move = null; this.hitstun = 0; this.blockstun = 0; this.hitstop = 0;
     this.airborne = false; this.combo = 0; this.guard = 0; this.invul = 0;
     this.flash = 0; this.ghosts.length = 0; this.jumpsLeft = 1; this.superLock = 0;
-    this.pose = POSE.idle;
-    const j = solve(this.pose);
-    for (const s of this.hair) s.reset(this.x, this.y + j.head.y * this.scale);
-    for (const s of this.coat) s.reset(this.x, this.y - 60 * this.scale);
   }
 
   hurtbox(): { x: number; y: number; w: number; h: number } {
-    const w = HURT_W * this.scale;
+    const w = this.cfg.stats.height * 0.34;
     const h = this.height;
     return { x: this.x - w / 2, y: this.y - h, w, h };
   }
 
   hitbox(): { x: number; y: number; w: number; h: number } | null {
     if (!this.move || this.movePhase !== 'active' || this.move.noHitbox) return null;
-    const b = this.move.box, s = this.scale;
+    const b = this.move.box, s = this.cfg.stats.height / 150;
     const w = b.w * s, h = b.h * s;
     const x = this.face > 0 ? this.x + b.x * s : this.x - b.x * s - w;
     return { x, y: this.y + b.y * s, w, h };
@@ -110,7 +102,6 @@ export class Fighter implements FighterRef {
     this.move = m; this.moveT = 0; this.movePhase = 'startup';
     this.state = 'attack'; this.stateT = 0;
     this.hitFlags.clear(); this.hitsDone = 0;
-    this.prevPose = this.pose;
     if (m.invul) this.invul = m.startup + m.active;
     if (m.guardTime) this.guard = m.guardTime;
     if (m.superMove) this.superLock = m.startup;
@@ -118,79 +109,33 @@ export class Fighter implements FighterRef {
     if (m.sfx === 'whoosh') Sfx.whoosh();
   }
 
-  /** Pose courante selon l'état. */
-  computePose(dt: number): void {
-    this.anim += dt;
-    let target: Pose;
+  /** Image à afficher pour l'état courant. */
+  frame(): Frame | null {
+    const sp = this.sp;
+    if (!sp) return null;
     if (this.state === 'attack' && this.move) {
       const m = this.move;
-      const t = this.moveT;
-      if (t < m.startup) {
-        const k = t / m.startup;
-        const wind = blend(this.prevPose, m.poses[0], Math.min(1, k * 3));
-        target = blend(wind, m.poses[1], ease.in(k));
-      } else if (t < m.startup + m.active) {
-        target = m.poses[1];
-      } else {
-        const k = (t - m.startup - m.active) / Math.max(0.001, m.recovery);
-        target = blend(m.poses[1], m.poses[2], ease.out(clamp(k, 0, 1)));
-      }
-      this.pose = target;
-      return;
+      const key = this.moveT < m.startup ? m.fr[0]
+        : this.moveT < m.startup + m.active ? m.fr[1] : m.fr[2];
+      return frameOf(sp, key);
     }
     switch (this.state) {
-      case 'walk': {
-        const k = (Math.sin(this.anim * 9) + 1) / 2;
-        target = blend(POSE.walkA, POSE.walkB, k);
-        break;
-      }
-      case 'back': {
-        const k = (Math.sin(this.anim * 8) + 1) / 2;
-        target = blend(POSE.backA, POSE.backB, k);
-        break;
-      }
-      case 'crouch': target = POSE.crouch; break;
-      case 'block': target = POSE.block; break;
-      case 'jump': target = this.vy < -60 ? POSE.jump : POSE.fall; break;
-      case 'hurt': {
-        const k = clamp(this.hitstun / 0.3, 0, 1);
-        target = blend(this.airborne ? POSE.fall : POSE.idle, POSE.hurt, k);
-        break;
-      }
-      case 'ko': target = POSE.ko; break;
-      case 'win': {
-        const k = (Math.sin(this.anim * 3) + 1) / 2;
-        target = blend(POSE.win, POSE.idle2, k * 0.5);
-        break;
-      }
-      default: {
-        this.idleBreath += dt;
-        const k = (Math.sin(this.idleBreath * 2.6) + 1) / 2;
-        target = blend(POSE.idle, POSE.idle2, k);
-      }
+      case 'walk': return cycle(sp, 'move', this.anim, 9);
+      case 'back': return cycle(sp, 'move', -this.anim, 8);
+      case 'crouch': return frameOf(sp, 'fall2');
+      case 'block': return frameOf(sp, 'fall1');
+      case 'jump': return frameOf(sp, this.vy < -150 ? 'jump1' : this.vy < 80 ? 'jump2' : 'jump3');
+      case 'hurt': return frameOf(sp, 'fall0');
+      case 'ko': return frameOf(sp, 'fall0');
+      case 'win': return cycle(sp, 'idle', this.anim, 4, true);
+      default: return cycle(sp, 'idle', this.anim, 5, true);
     }
-    const rate = 1 - Math.pow(0.00008, dt);
-    this.pose = blend(this.pose, target, rate);
-  }
-
-  joints(): Joints { return solve(this.pose); }
-
-  updateStrands(dt: number): void {
-    const j = this.joints();
-    const s = this.scale;
-    const hx = this.x + this.face * j.head.x * s;
-    const hy = this.y + j.head.y * s;
-    const wind = -this.face * (this.vx * 0.5 + 20);
-    this.hair[0].update(dt, hx - this.face * 9 * s, hy - 6 * s, wind);
-    this.hair[1].update(dt, hx - this.face * 12 * s, hy + 2 * s, wind * 0.8);
-    const bx = this.x + this.face * j.chest.x * s;
-    const by = this.y + (j.chest.y + 10) * s;
-    this.coat[0].update(dt, bx - this.face * 11 * s, by, wind * 1.15);
-    this.coat[1].update(dt, bx - this.face * 5 * s, by + 6 * s, wind * 0.95);
   }
 
   pushGhost(life: number): void {
-    this.ghosts.push({ pose: this.pose, x: this.x, y: this.y, face: this.face, t: 0, life, scale: this.scale });
+    const fr = this.frame();
+    if (!fr) return;
+    this.ghosts.push({ frame: fr, x: this.x, y: this.y, face: this.face, t: 0, life });
     if (this.ghosts.length > 10) this.ghosts.shift();
   }
 }
@@ -263,12 +208,12 @@ export class FightScene implements GameApi {
   }
   afterimage(owner: FighterRef, life = 0.3): void {
     const f = owner === this.f0 ? this.f0 : this.f1;
-    f.ghostTimer = life; f.ghostLife = life;
+    f.ghostTimer = life;
   }
   spawnProj(owner: FighterRef, spec: ProjSpec, dy = 0): void {
     const f = owner === this.f0 ? this.f0 : this.f1;
     this.projs.push({
-      x: f.x + f.face * 42, y: f.y + (spec.dy + dy) * f.scale,
+      x: f.x + f.face * 46, y: f.y + (spec.dy + dy) * (f.cfg.stats.height / 150),
       vx: f.face * spec.speed, vy: 0, spec, owner: f, t: 0, rot: 0, dead: false,
     });
   }
@@ -344,7 +289,7 @@ export class FightScene implements GameApi {
     // orientation
     if (!f.busy && f.state !== 'jump') f.face = o.x > f.x ? 1 : -1;
 
-    if (f.hitstop > 0) { f.hitstop -= dt; f.computePose(0); f.updateStrands(dt); return; }
+    if (f.hitstop > 0) { f.hitstop -= dt; f.anim += dt * 0.35; return; }
     f.stateT += dt;
     f.flash = Math.max(0, f.flash - dt * 4);
     f.guard = Math.max(0, f.guard - dt);
@@ -355,7 +300,7 @@ export class FightScene implements GameApi {
     // traînée fantôme
     if (f.ghostTimer > 0) {
       f.ghostTimer -= dt;
-      f.pushGhost(0.22);
+      f.pushGhost(0.24);
     }
     for (let i = f.ghosts.length - 1; i >= 0; i--) {
       f.ghosts[i].t += dt;
@@ -363,12 +308,12 @@ export class FightScene implements GameApi {
     }
 
     if (f.state === 'ko') {
+      f.tilt = approach(f.tilt, -1.25, dt * 3.4);
       f.vy += GRAVITY * dt;
       f.x += f.vx * dt; f.y += f.vy * dt;
       f.vx *= Math.pow(0.9, dt * 60);
       if (f.y >= GROUND_Y) { f.y = GROUND_Y; f.vy = 0; f.vx *= 0.7; }
       f.x = clamp(f.x, STAGE_MIN, STAGE_MAX);
-      f.computePose(dt); f.updateStrands(dt);
       return;
     }
 
@@ -376,6 +321,7 @@ export class FightScene implements GameApi {
     if (f.hitstun > 0) {
       f.hitstun -= dt;
       f.state = 'hurt';
+      f.tilt = approach(f.tilt, -0.26, dt * 6);
       f.vy += GRAVITY * dt;
       f.x += f.vx * dt; f.y += f.vy * dt;
       f.vx *= Math.pow(0.93, dt * 60);
@@ -385,7 +331,7 @@ export class FightScene implements GameApi {
       }
       f.x = clamp(f.x, STAGE_MIN, STAGE_MAX);
       if (f.hitstun <= 0 && f.y >= GROUND_Y) { f.state = 'idle'; f.vx = 0; f.jumpsLeft = 1; }
-      f.computePose(dt); f.updateStrands(dt);
+      f.anim += dt;
       return;
     }
     if (f.blockstun > 0) {
@@ -393,7 +339,6 @@ export class FightScene implements GameApi {
       f.state = 'block';
       f.x += f.vx * dt; f.vx *= Math.pow(0.86, dt * 60);
       f.x = clamp(f.x, STAGE_MIN, STAGE_MAX);
-      f.computePose(dt); f.updateStrands(dt);
       return;
     }
 
@@ -436,9 +381,11 @@ export class FightScene implements GameApi {
         f.state = f.y < GROUND_Y - 1 ? 'jump' : 'idle';
         f.vx = 0;
       }
-      f.computePose(dt); f.updateStrands(dt);
       return;
     }
+
+    f.tilt = approach(f.tilt, 0, dt * 8);
+    f.anim += dt;
 
     // --- contrôle libre ---
     const st = f.cfg.stats;
@@ -499,13 +446,11 @@ export class FightScene implements GameApi {
       if (f.state === 'jump') f.state = 'idle';
     }
     f.x = clamp(f.x, STAGE_MIN, STAGE_MAX);
-    f.computePose(dt);
-    f.updateStrands(dt);
   }
 
   private resolveCollisions(): void {
     const a = this.f0, b = this.f1;
-    const minD = 46 * ((a.scale + b.scale) / 2);
+    const minD = (a.cfg.stats.height + b.cfg.stats.height) * 0.22;
     const d = b.x - a.x;
     if (Math.abs(d) < minD && a.state !== 'ko' && b.state !== 'ko') {
       const push = (minD - Math.abs(d)) / 2 * Math.sign(d || 1);
@@ -860,52 +805,60 @@ export class FightScene implements GameApi {
 
   private drawFighterFull(ctx: CanvasRenderingContext2D, f: Fighter): void {
     const pal = PALETTES[f.id];
-    drawShadow(ctx, f.x, GROUND_Y, GROUND_Y - f.y, f.scale);
+    const sp = f.sp;
+    const sc = f.scale;
+    drawShadow(ctx, f.x, GROUND_Y, GROUND_Y - f.y, f.cfg.stats.height / 200);
+    if (!sp) return;
+
+    const blit = (fr: Frame, x: number, y: number, face: number, alpha: number, tilt = 0) => {
+      const k = sc * frameScale(sp, fr);   // chaque rangée de la fiche a sa taille
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(x, y);
+      if (tilt) ctx.rotate(tilt * face);
+      ctx.scale(face * k, k);
+      ctx.drawImage(sp.img, fr.x, fr.y, fr.w, fr.h, -fr.ax, -fr.ay, fr.w, fr.h);
+      ctx.restore();
+    };
 
     // rémanences
     for (const gh of f.ghosts) {
       const k = 1 - gh.t / gh.life;
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.translate(gh.x, gh.y);
-      ctx.scale(gh.face * gh.scale, gh.scale);
-      ctx.globalAlpha = k * 0.4;
-      const j = solve(gh.pose);
-      drawFighter(ctx, {
-        id: f.id, pose: gh.pose, joints: j, hair: f.hair, coat: f.coat,
-        flash: 1, tint: 1, weapon: false, alpha: k * 0.45,
-      });
+      blit(gh.frame, gh.x, gh.y, gh.face, k * 0.38);
       ctx.restore();
     }
 
-    ctx.save();
-    ctx.translate(f.x, f.y);
-    ctx.scale(f.face * f.scale, f.scale);
-    const j = f.joints();
-    // aura de jauge pleine
+    const fr = f.frame();
+    if (!fr) return;
+
+    // aura quand la jauge est pleine
     if (f.meter >= 100 && f.state !== 'ko') {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = 0.28 + Math.sin(performance.now() * 0.006) * 0.1;
-      ctx.drawImage(glowSprite(pal.accent), -66, -186, 132, 210);
+      ctx.globalAlpha = 0.26 + Math.sin(performance.now() * 0.006) * 0.1;
+      const h = f.cfg.stats.height;
+      ctx.drawImage(glowSprite(pal.accent), f.x - h * 0.42, f.y - h * 1.08, h * 0.84, h * 1.25);
       ctx.restore();
       if (Math.random() < 0.3) {
         this.fx.add({
-          x: f.x + rr(-22, 22), y: f.y - rr(0, 140), vx: rr(-14, 14), vy: rr(-70, -26),
-          color: pal.accent, kind: 'ember', size: rr(2.5, 5), max: rr(0.4, 0.8),
+          x: f.x + rr(-24, 24), y: f.y - rr(0, f.cfg.stats.height * 0.9),
+          vx: rr(-14, 14), vy: rr(-70, -26), color: pal.accent, kind: 'ember',
+          size: rr(2.5, 5), max: rr(0.4, 0.8),
         });
       }
     }
-    // mèches/pans dans l'espace local
-    const lx = (wx: number) => (wx - f.x) * f.face / f.scale;
-    const ly = (wy: number) => (wy - f.y) / f.scale;
-    const localHair = f.hair.map((s) => ({ pts: s.pts.map((p) => ({ x: lx(p.x), y: ly(p.y), px: 0, py: 0 })) })) as unknown as Strand[];
-    const localCoat = f.coat.map((s) => ({ pts: s.pts.map((p) => ({ x: lx(p.x), y: ly(p.y), px: 0, py: 0 })) })) as unknown as Strand[];
-    drawFighter(ctx, {
-      id: f.id, pose: f.pose, joints: j, hair: localHair, coat: localCoat,
-      flash: f.flash, tint: 0, weapon: f.state === 'attack', alpha: 1,
-    });
-    ctx.restore();
+
+    blit(fr, f.x, f.y, f.face, 1, f.tilt);
+
+    // flash blanc à l'impact
+    if (f.flash > 0.02) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      blit(fr, f.x, f.y, f.face, f.flash * 0.85, f.tilt);
+      ctx.restore();
+    }
   }
 
   private drawProjs(ctx: CanvasRenderingContext2D): void {

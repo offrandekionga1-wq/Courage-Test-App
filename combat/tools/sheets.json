@@ -1,0 +1,283 @@
+{
+  "dir": "../fiches/",
+  "characters": [
+    {
+      "id": "mika",
+      "file": "5d7532b2-image.png",
+      "darkBg": true,
+      "tol": 70,
+      "grow": 6,
+      "shrink": 6,
+      "bands": [
+        {
+          "name": "idle",
+          "rect": [
+            512,
+            52,
+            922,
+            256
+          ],
+          "count": 5,
+          "minGap": 24
+        },
+        {
+          "name": "move",
+          "rect": [
+            938,
+            46,
+            1532,
+            180
+          ],
+          "count": 5,
+          "minGap": 22
+        },
+        {
+          "name": "jump",
+          "rect": [
+            930,
+            218,
+            1250,
+            352
+          ],
+          "count": 5,
+          "minGap": 22
+        },
+        {
+          "name": "fall",
+          "rect": [
+            1255,
+            218,
+            1532,
+            352
+          ],
+          "count": 4,
+          "minGap": 22
+        },
+        {
+          "name": "atk",
+          "rect": [
+            512,
+            358,
+            1532,
+            508
+          ],
+          "count": 8,
+          "minGap": 22
+        }
+      ],
+      "drop": [
+        "jump0",
+        "atk0"
+      ]
+    },
+    {
+      "id": "ray",
+      "file": "a4154ca3-image.png",
+      "darkBg": true,
+      "tol": 58,
+      "grow": 6,
+      "shrink": 6,
+      "bands": [
+        {
+          "name": "idle",
+          "rect": [
+            512,
+            52,
+            935,
+            236
+          ],
+          "count": 5,
+          "minGap": 24
+        },
+        {
+          "name": "move",
+          "rect": [
+            938,
+            46,
+            1532,
+            182
+          ],
+          "count": 5,
+          "minGap": 22
+        },
+        {
+          "name": "jump",
+          "rect": [
+            930,
+            215,
+            1250,
+            355
+          ],
+          "count": 5,
+          "minGap": 22
+        },
+        {
+          "name": "fall",
+          "rect": [
+            1255,
+            215,
+            1532,
+            355
+          ],
+          "count": 4,
+          "minGap": 22
+        },
+        {
+          "name": "atk",
+          "rect": [
+            512,
+            362,
+            1532,
+            508
+          ],
+          "count": 12,
+          "minGap": 16
+        }
+      ],
+      "drop": [
+        "jump0",
+        "fall1",
+        "fall2"
+      ]
+    },
+    {
+      "id": "zen",
+      "file": "f21f3ad6-image.png",
+      "darkBg": true,
+      "tol": 46,
+      "grow": 6,
+      "shrink": 6,
+      "bands": [
+        {
+          "name": "idle",
+          "rect": [
+            512,
+            54,
+            935,
+            230
+          ],
+          "count": 5,
+          "minGap": 24
+        },
+        {
+          "name": "move",
+          "rect": [
+            938,
+            46,
+            1532,
+            180
+          ],
+          "count": 5,
+          "minGap": 22
+        },
+        {
+          "name": "jump",
+          "rect": [
+            930,
+            220,
+            1250,
+            352
+          ],
+          "count": 5,
+          "minGap": 22
+        },
+        {
+          "name": "fall",
+          "rect": [
+            1255,
+            220,
+            1532,
+            352
+          ],
+          "count": 4,
+          "minGap": 22
+        },
+        {
+          "name": "atk",
+          "rect": [
+            512,
+            372,
+            1532,
+            506
+          ],
+          "count": 12,
+          "minGap": 16
+        }
+      ],
+      "drop": [
+        "idle1",
+        "fall1"
+      ]
+    },
+    {
+      "id": "kira",
+      "file": "4183b2b9-image.png",
+      "darkBg": false,
+      "tol": 40,
+      "grow": 6,
+      "shrink": 6,
+      "bands": [
+        {
+          "name": "idle",
+          "rect": [
+            512,
+            50,
+            935,
+            246
+          ],
+          "count": 5,
+          "minGap": 24
+        },
+        {
+          "name": "move",
+          "rect": [
+            938,
+            50,
+            1532,
+            182
+          ],
+          "count": 5,
+          "minGap": 22
+        },
+        {
+          "name": "jump",
+          "rect": [
+            930,
+            206,
+            1250,
+            346
+          ],
+          "count": 5,
+          "minGap": 22
+        },
+        {
+          "name": "fall",
+          "rect": [
+            1255,
+            206,
+            1532,
+            346
+          ],
+          "count": 4,
+          "minGap": 22
+        },
+        {
+          "name": "atk",
+          "rect": [
+            512,
+            358,
+            1532,
+            502
+          ],
+          "count": 8,
+          "minGap": 22
+        }
+      ],
+      "drop": [
+        "idle0",
+        "jump0",
+        "fall1"
+      ]
+    }
+  ]
+}

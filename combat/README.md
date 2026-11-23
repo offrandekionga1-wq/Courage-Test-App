@@ -11,6 +11,8 @@ ordinateur. Quatre champions : **Mika**, **Ray**, **Zen**, **Kira**.
 - Chaque personnage possède : un enchaînement de 3 coups, un uppercut, un coup
   lourd, une attaque aérienne, **4 techniques spéciales** et un **super** qui
   consomme la jauge pleine.
+- Animations tirées des fiches de personnage : repos, course, saut, chute,
+  réception et sept poses d'attaque par combattant.
 
 ## Commandes
 | Tactile | Clavier (J1) | Clavier (J2) | Action |
@@ -26,14 +28,41 @@ Les techniques spéciales dépendent de la direction tenue : neutre = projectile
 avant = charge, haut = anti-aérien, arrière = barrière défensive.
 
 ## Fabrication des visuels
-Les fiches de personnages fournies servent de référence : les portraits et les
-vignettes du HUD en sont extraits (`public/art/`). Toutes les images manquantes
-— poses de combat, animations, effets — sont **dessinées par le code** :
-squelette articulé interpolé entre poses clés (`src/art.ts`), animation
-secondaire des cheveux et des pans de manteau, et une bibliothèque d'effets
-additifs (`src/vfx.ts`) : arcs de lame, cercles runiques, éclairs fractals,
-ondes de choc, piliers d'énergie, dômes, sceaux de renard, failles du vide.
-Les sons sont synthétisés par la Web Audio API : aucun fichier audio.
+
+Les combattants à l'écran **sont les sprites des fiches de personnage**, pas des
+dessins refaits : `tools/cut_sprites.py` découpe chaque rangée des planches
+(repos, déplacement, saut, chute, attaques), détoure les silhouettes et écrit un
+atlas `public/art/<perso>-sprites.webp` plus ses métadonnées JSON.
+
+Le détourage ne peut pas se faire au simple seuil : sur trois fiches le fond est
+noir **et** les vêtements aussi. Le script part donc des pixels clairs ou
+colorés, les épaissit pour refermer le contour, ne conserve que la plus grosse
+composante connexe (les figures voisines et les bandeaux de la planche
+disparaissent), rebouche les petits creux, puis ramène le bord. La fiche de Kira
+est sur fond blanc : là, le personnage est entièrement « encre » et la
+silhouette est prise telle quelle.
+
+Deux repères sont calculés par image : l'abscisse d'appui (centre des pieds, et
+non de la boîte, pour que les poses dont l'effet déborde d'un côté restent
+alignées) et l'ordonnée des pieds (les vignettes ajoutent une ombre sous le
+personnage, qui le ferait flotter). Chaque rangée des planches étant dessinée à
+une échelle différente, un facteur par groupe ramène toutes les poses à la
+taille de la pose debout.
+
+Portraits des cartes, de l'écran VS et de la victoire, vignettes du HUD : extraits
+des mêmes fiches. Les effets, eux, sont dessinés par le code (`src/vfx.ts`) :
+arcs de lame, cercles runiques, éclairs fractals, ondes de choc, piliers
+d'énergie, dômes, sceaux de renard, failles du vide, particules additives. Les
+sons sont synthétisés par la Web Audio API : aucun fichier audio.
+
+### Re-découper les sprites
+Les planches sources ne sont pas versionnées (≈ 10 Mo). Indiquez leur dossier
+dans `tools/sheets.json` (clé `dir`), puis :
+```bash
+python3 tools/cut_sprites.py tools/sheets.json /tmp/controle public/art
+```
+`/tmp/controle` reçoit une planche de contrôle indexée par personnage, pratique
+pour ajuster les rectangles de bandes, les comptes d'images et la liste `drop`.
 
 ## Développement
 ```bash
