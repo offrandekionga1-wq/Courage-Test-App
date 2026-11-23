@@ -43,8 +43,12 @@ export function titleScreen(
   onHelp: () => void,
 ): void {
   const s = screen();
-  s.appendChild(h('div', 'kicker', 'Arène de combat · 4 champions'));
-  s.appendChild(h('h1', 'title-xl', 'NEON<br>CLASH'));
+  s.classList.add('split');
+  const colA = h('div', 'col');
+  const colB = h('div', 'col');
+  s.append(colA, colB);
+  colA.appendChild(h('div', 'kicker', 'Arène de combat · 4 champions'));
+  colA.appendChild(h('h1', 'title-xl', 'NEON<br>CLASH'));
 
   const menu = h('div', 'menu');
   menu.appendChild(clickable(
@@ -60,7 +64,7 @@ export function titleScreen(
     () => onPlay('training'),
   ));
   menu.appendChild(clickable(h('button', 'mbtn', '<span>Coups spéciaux</span><span class="arrow">?</span>'), onHelp));
-  s.appendChild(menu);
+  colB.appendChild(menu);
 
   const row = h('div', 'row');
   const diffs: [string, number][] = [['Facile', 0.6], ['Normal', 1], ['Difficile', 1.5]];
@@ -83,7 +87,7 @@ export function titleScreen(
     save(st);
   });
   row.appendChild(snd);
-  s.appendChild(row);
+  colB.appendChild(row);
 }
 
 export function save(st: Settings): void {
@@ -210,7 +214,10 @@ export function resultScreen(
   onRematch: () => void, onSelect: () => void, onMenu: () => void,
 ): void {
   clearScreens();
-  const o = h('div', 'overlay');
+  const o = h('div', 'overlay split');
+  const colA = h('div', 'col');
+  const colB = h('div', 'col');
+  o.append(colA, colB);
   const hero = h('div', 'result-hero');
   hero.innerHTML =
     `<img src="${portrait(winner)}" alt="" />` +
@@ -223,12 +230,12 @@ export function resultScreen(
     `<div>Meilleur combo<b>${info.combo}</b></div>` +
     `<div>Durée<b>${info.time}</b></div>` +
     `</div></div>`;
-  o.appendChild(hero);
+  colA.appendChild(hero);
   const menu = h('div', 'menu');
   menu.appendChild(clickable(h('button', 'mbtn primary', '<span>Revanche</span><span class="arrow">↻</span>'), onRematch));
   menu.appendChild(clickable(h('button', 'mbtn', '<span>Changer de personnage</span><span class="arrow">▶</span>'), onSelect));
   menu.appendChild(clickable(h('button', 'mbtn', '<span>Menu principal</span><span class="arrow">⌂</span>'), onMenu));
-  o.appendChild(menu);
+  colB.appendChild(menu);
   screens.appendChild(o);
 }
 

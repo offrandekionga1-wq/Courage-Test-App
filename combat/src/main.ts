@@ -30,6 +30,7 @@ let prevApp: AppState = 'title';
 
 // ------------------------------------------------------------- Affichage --
 let view = { k: 1, ox: 0, oy: 0 };
+let vignette: CanvasGradient | null = null;
 function resize(): void {
   const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
   const w = window.innerWidth, hgt = window.innerHeight;
@@ -37,6 +38,11 @@ function resize(): void {
   canvas.height = Math.floor(hgt * dpr);
   const k = Math.min(w / VW, hgt / VH) * dpr;
   view = { k, ox: (w * dpr - VW * k) / 2, oy: (hgt * dpr - VH * k) / 2 };
+  const cw = canvas.width, ch = canvas.height;
+  const g = ctx.createRadialGradient(cw / 2, ch / 2, Math.min(cw, ch) * 0.34, cw / 2, ch / 2, Math.max(cw, ch) * 0.72);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, 'rgba(0,0,0,0.55)');
+  vignette = g;
 }
 window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 120));
@@ -188,12 +194,11 @@ const loop = new Loop(
     ctx.fillStyle = '#05040a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     if (scene && (app === 'fight' || app === 'pause' || (app === 'help' && prevApp === 'pause'))) {
+      // pas de rognage : le décor déborde et remplit les bandes latérales
       ctx.setTransform(view.k, 0, 0, view.k, view.ox, view.oy);
-      ctx.beginPath();
-      ctx.rect(0, 0, VW, VH);
-      ctx.clip();
       scene.render(ctx);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
+      if (vignette) { ctx.fillStyle = vignette; ctx.fillRect(0, 0, canvas.width, canvas.height); }
       const s = scene.hud();
       hud.update(s, scene.round);
       touch?.setUlt(scene.f0.meter >= 100, clamp(scene.f0.meter, 0, 100));

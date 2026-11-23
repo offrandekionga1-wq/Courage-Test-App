@@ -44,7 +44,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 /* ============================ Écrans ============================ */
 .screen {
-  position: absolute; inset: 0; pointer-events: auto;
+  position: absolute; inset: 0; pointer-events: auto; overflow-y: auto;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 18px; padding: 24px calc(24px + var(--safe-l)) calc(20px + var(--safe-b)) calc(24px + var(--safe-r));
   background:
@@ -267,7 +267,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 /* ====================== Pause / Résultat ====================== */
 .overlay {
-  position: absolute; inset: 0; pointer-events: auto; display: flex; flex-direction: column;
+  position: absolute; inset: 0; pointer-events: auto; overflow-y: auto; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 16px;
   background: rgba(5, 5, 10, 0.82); backdrop-filter: blur(6px); animation: fadein 0.2s ease both;
 }
@@ -294,8 +294,35 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 }
 .mv .d { font-size: 12px; } .mv .d b { font-weight: 800; } .mv .d i { color: var(--dim); font-style: normal; font-size: 11px; display: block; }
 
-@media (max-height: 420px) {
+/* ---- Paysage sur téléphone : tout tient sans défilement ---- */
+.split .col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+
+@media (max-height: 600px) {
+  .split { flex-direction: row; align-items: center; justify-content: center; gap: clamp(16px, 5vw, 60px); }
+  .split .col { align-items: flex-start; gap: 10px; }
+  .split .col .row { justify-content: flex-start; }
+  .title-xl { font-size: clamp(32px, 13vh, 74px); }
+  .kicker { letter-spacing: 0.2em; font-size: 10px; }
+  .menu { width: min(330px, 44vw); margin-top: 0; }
+  .result-hero img { width: clamp(84px, 36vh, 168px); }
+  .result-txt .big { font-size: clamp(22px, 9vh, 50px); }
+  .result-txt .sub { font-size: 11px; margin-top: 4px; }
+  .stats b { font-size: 17px; }
+  .sheet { max-height: 84vh; padding: 14px 16px; }
+}
+
+@media (max-height: 600px) and (min-width: 680px) {
+  .sheet { display: grid; grid-template-columns: 1fr 1fr; column-gap: 20px; align-content: start; }
+  .sheet h3, .sheet p, .sheet .row { grid-column: 1 / -1; }
+  .mv { grid-template-columns: 92px 1fr; }
+}
+
+@media (max-height: 460px) {
   .cards { gap: 7px; } .card { max-width: 150px; }
-  .menu { width: min(320px, 70vw); } .mbtn { padding: 11px 15px; font-size: 13px; }
-  .screen { gap: 10px; }
+  .mbtn { padding: 10px 14px; font-size: 13px; }
+  .mbtn small { font-size: 10px; }
+  .screen { gap: 8px; padding-top: 10px; padding-bottom: 10px; }
+  .chip { padding: 7px 11px; font-size: 11px; }
+  .selhead h2 { font-size: clamp(16px, 3.4vw, 24px); }
+  .infobar { min-height: 30px; }
 }

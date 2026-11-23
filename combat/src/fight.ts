@@ -245,7 +245,7 @@ export class FightScene implements GameApi {
     this.difficulty = opts?.difficulty ?? 1;
     this.roundsToWin = opts?.rounds ?? 2;
     for (let i = 0; i < 46; i++) {
-      this.bgParts.push({ x: rr(0, VW), y: rr(40, GROUND_Y), z: rr(0.3, 1), s: rr(1, 2.8) });
+      this.bgParts.push({ x: rr(-200, VW + 200), y: rr(40, GROUND_Y), z: rr(0.3, 1), s: rr(1, 2.8) });
     }
     this.startRound(true);
   }
@@ -743,7 +743,7 @@ export class FightScene implements GameApi {
   render(ctx: CanvasRenderingContext2D): void {
     ctx.save();
     ctx.fillStyle = '#05040a';
-    ctx.fillRect(0, 0, VW, VH);
+    ctx.fillRect(-400, -200, VW + 800, VH + 400);
 
     const shX = this.shakeAmt ? rr(-this.shakeAmt, this.shakeAmt) : 0;
     const shY = this.shakeAmt ? rr(-this.shakeAmt, this.shakeAmt) : 0;
@@ -796,18 +796,18 @@ export class FightScene implements GameApi {
 
     // silhouettes lointaines
     ctx.fillStyle = s.far;
-    for (let i = 0; i < 11; i++) {
+    for (let i = 0; i < 15; i++) {
       const w = 60 + ((i * 97) % 70);
       const h = 90 + ((i * 53) % 180);
-      const x = -40 + i * 95;
+      const x = -220 + i * 95;
       ctx.fillRect(x, GROUND_Y - h, w, h);
     }
     ctx.save();
     ctx.globalAlpha = 0.5;
     ctx.fillStyle = s.accent;
-    for (let i = 0; i < 11; i++) {
+    for (let i = 0; i < 15; i++) {
       const h = 90 + ((i * 53) % 180);
-      const x = -40 + i * 95;
+      const x = -220 + i * 95;
       for (let k = 0; k < 4; k++) ctx.fillRect(x + 8 + k * 13, GROUND_Y - h + 16 + ((i + k) % 5) * 22, 4, 7);
     }
     ctx.restore();
