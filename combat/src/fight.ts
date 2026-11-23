@@ -378,11 +378,12 @@ export class FightScene implements GameApi {
       fc: f.face, fr: f.frameKey(),
       hp: Math.round(f.hp), me: Math.round(f.meter),
       wr: f.wonRounds, fl: Math.round(f.flash * 100) / 100,
-      tl: Math.round(f.tilt * 100) / 100, gh: f.ghostTimer > 0 ? 1 : 0,
+      tl: Math.round(f.tilt * 100) / 100, gh: f.ghostTimer > 0 ? 1 : 0, cb: f.combo,
     };
   }
 
   applySnapshot(s: Snapshot): void {
+    const wasOver = this.phase === 'over';
     this.phase = s.ph as Phase;
     this.round = s.rd;
     this.roundTime = s.tm;
@@ -394,7 +395,7 @@ export class FightScene implements GameApi {
       if (f.netFr === 'idle0' && f.x === 0) { f.x = d.x; f.y = d.y; }
       f.face = d.fc as 1 | -1;
       f.netFr = d.fr;
-      f.hp = d.hp; f.meter = d.me; f.wonRounds = d.wr;
+      f.hp = d.hp; f.meter = d.me; f.wonRounds = d.wr; f.combo = d.cb;
       f.flash = d.fl; f.tilt = d.tl;
       if (d.gh) f.pushGhost(0.24);
     }
@@ -408,6 +409,12 @@ export class FightScene implements GameApi {
       };
     });
     for (const e of s.ev) this.replay(e);
+    // l'invité ne joue pas la fin de match : il la déduit de l'instantané
+    if (this.phase === 'over' && !wasOver) {
+      const w: 0 | 1 = this.f0.wonRounds > this.f1.wonRounds ? 0 : 1;
+      this.winner = w;
+      this.onMatchEnd?.(w);
+    }
   }
 
   /** Rejoue chez l'invité un effet décidé par l'hôte. */

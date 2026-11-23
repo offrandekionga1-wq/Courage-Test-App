@@ -17,7 +17,7 @@ export interface Peer { name: string; host: string; port: number }
 
 export interface FighterSnap {
   x: number; y: number; fc: number; fr: string;
-  hp: number; me: number; wr: number; fl: number; tl: number; gh: number;
+  hp: number; me: number; wr: number; fl: number; tl: number; gh: number; cb: number;
 }
 
 export type NetEvent =

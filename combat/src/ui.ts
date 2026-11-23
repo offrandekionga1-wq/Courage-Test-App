@@ -223,6 +223,7 @@ export function pauseScreen(onResume: () => void, onHelp: () => void, onQuit: ()
 export function resultScreen(
   winner: CharId, loser: CharId, info: { rounds: string; combo: number; time: string },
   onRematch: () => void, onSelect: () => void, onMenu: () => void,
+  waiting?: 'guest',
 ): void {
   clearScreens();
   const o = h('div', 'overlay split');
@@ -243,7 +244,12 @@ export function resultScreen(
     `</div></div>`;
   colA.appendChild(hero);
   const menu = h('div', 'menu');
-  menu.appendChild(clickable(h('button', 'mbtn primary', '<span>Revanche</span><span class="arrow">↻</span>'), onRematch));
+  if (waiting === 'guest') {
+    // en réseau, seule l'hôte relance : l'invité suit
+    menu.appendChild(h('div', 'mbtn', '<span>En attente de l\u2019hôte<small>Il choisit la revanche</small></span><span class="arrow">…</span>'));
+  } else {
+    menu.appendChild(clickable(h('button', 'mbtn primary', '<span>Revanche</span><span class="arrow">↻</span>'), onRematch));
+  }
   menu.appendChild(clickable(h('button', 'mbtn', '<span>Changer de personnage</span><span class="arrow">▶</span>'), onSelect));
   menu.appendChild(clickable(h('button', 'mbtn', '<span>Menu principal</span><span class="arrow">⌂</span>'), onMenu));
   colB.appendChild(menu);
@@ -534,7 +540,7 @@ export function buildControls(mode: Mode, pads: [Pad, Pad]): TouchCtl {
       e.preventDefault();
       if (pid >= 0) return;
       pid = e.pointerId;
-      dpad.setPointerCapture(pid);
+      try { dpad.setPointerCapture(pid); } catch { /* pointeur déjà relâché */ }
       apply(e.clientX, e.clientY);
     };
     const move = (e: PointerEvent) => { if (e.pointerId === pid) apply(e.clientX, e.clientY); };

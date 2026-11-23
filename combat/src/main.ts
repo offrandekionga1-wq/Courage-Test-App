@@ -168,7 +168,6 @@ function goNetSelect(): void {
 /** L'hôte lance dès que les deux personnages sont connus. */
 function tryStartNet(): void {
   if (net.role !== 'host' || !myChar || !theirChar) return;
-  net.send({ m: 'start', p1: myChar, p2: theirChar });
   picks = [myChar, theirChar];
   goVs();
 }
@@ -181,6 +180,8 @@ function goSelect(): void {
 
 function goVs(): void {
   app = 'vs';
+  // en réseau, c'est l'hôte qui donne le départ (première partie et revanches)
+  if (mode === 'lan' && net.role === 'host') net.send({ m: 'start', p1: picks[0], p2: picks[1] });
   // l'écran VS dure le temps de charger les planches de sprites
   const ready = loadSprites([picks[0], picks[1]]).catch(() => []);
   let shown = false;
@@ -228,6 +229,7 @@ function showResult(w: 0 | 1): void {
   Music.play('menu');
   hud.show(false);
   const secs = Math.round((performance.now() - matchStart) / 1000);
+  const lan = mode === 'lan';
   resultScreen(
     picks[w], picks[w === 0 ? 1 : 0],
     {
@@ -235,16 +237,22 @@ function showResult(w: 0 | 1): void {
       combo: bestCombo,
       time: `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`,
     },
-    startFight, goSelect, goTitle,
+    lan ? goVs : startFight,
+    lan ? goNetSelect : goSelect,
+    () => { if (lan) { net.send({ m: 'bye' }); void net.close(); } goTitle(); },
+    lan && net.role !== 'host' ? 'guest' : undefined,
   );
 }
 
 function togglePause(): void {
   if (app === 'fight') {
-    paused = true; app = 'pause';
+    // en réseau, le combat continue : un joueur ne doit pas pouvoir geler l'autre
+    paused = mode !== 'lan';
+    app = 'pause';
     Music.duck(true);
     pauseScreen(() => { clearScreens(); app = 'fight'; paused = false; Music.duck(false); },
-                () => openHelp(), goTitle);
+                () => openHelp(),
+                () => { if (mode === 'lan') { net.send({ m: 'bye' }); void net.close(); } goTitle(); });
   } else if (app === 'pause') {
     clearScreens(); app = 'fight'; paused = false; Music.duck(false);
   }
