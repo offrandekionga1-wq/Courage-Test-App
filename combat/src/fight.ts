@@ -5,9 +5,11 @@ import {
   VW, VH, GROUND_Y, clamp, lerp, rr, Pad, Sfx, buzz, aabb, approach,
 } from './core';
 import { CharId, drawShadow, PALETTES } from './art';
-import { CharSprites, Frame, cycle, frameOf, frameScale, spritesOf } from './sprites';
-import { Fx, FloatText, Shock, glowSprite } from './vfx';
-import { ROSTER, Character, Move, ProjSpec, GameApi, FighterRef } from './roster';
+import { CharSprites, Frame, cycleIndex, frameOf, frameScale, spritesOf } from './sprites';
+import type { NetEvent, NetMsg, NetRole, Snapshot } from './net';
+import { Fx, FloatText, FxImage, Shock, glowSprite } from './vfx';
+import { Music } from './music';
+import { ROSTER, Character, Move, ProjSpec, GameApi, FighterRef, FxKeys, FxShow } from './roster';
 
 const GRAVITY = 1800;
 const STAGE_MIN = 60;
@@ -53,6 +55,9 @@ export class Fighter implements FighterRef {
   anim = 0;
   tilt = 0;          // inclinaison (dégâts, K.O.)
   superLock = 0;
+  remote = false;    // piloté par les instantanés reçus
+  netFr = 'idle0';
+  netX = 0; netY = GROUND_Y;
 
   constructor(public id: CharId, public idx: 0 | 1) {
     this.cfg = ROSTER[id];
@@ -105,31 +110,40 @@ export class Fighter implements FighterRef {
     if (m.invul) this.invul = m.startup + m.active;
     if (m.guardTime) this.guard = m.guardTime;
     if (m.superMove) this.superLock = m.startup;
+    if ((m.weight ?? 1) >= 2) {
+      Music.stinger(STAGE_KEY[this.id], (m.weight ?? 1) >= 3);
+      if (m.superMove) Sfx.charge(m.startup);
+    }
+    if (m.showStart) api.show(this, m.showStart.key, m.showStart.o);
     m.onStart?.(this, api);
     if (m.sfx === 'whoosh') Sfx.whoosh();
   }
 
-  /** Image à afficher pour l'état courant. */
-  frame(): Frame | null {
+  /** Nom de l'image à afficher : c'est aussi ce qui circule sur le réseau. */
+  frameKey(): string {
     const sp = this.sp;
-    if (!sp) return null;
+    if (!sp) return 'idle0';
+    if (this.remote) return this.netFr;
     if (this.state === 'attack' && this.move) {
       const m = this.move;
-      const key = this.moveT < m.startup ? m.fr[0]
+      return this.moveT < m.startup ? m.fr[0]
         : this.moveT < m.startup + m.active ? m.fr[1] : m.fr[2];
-      return frameOf(sp, key);
     }
     switch (this.state) {
-      case 'walk': return cycle(sp, 'move', this.anim, 9);
-      case 'back': return cycle(sp, 'move', -this.anim, 8);
-      case 'crouch': return frameOf(sp, 'fall2');
-      case 'block': return frameOf(sp, 'fall1');
-      case 'jump': return frameOf(sp, this.vy < -150 ? 'jump1' : this.vy < 80 ? 'jump2' : 'jump3');
-      case 'hurt': return frameOf(sp, 'fall0');
-      case 'ko': return frameOf(sp, 'fall0');
-      case 'win': return cycle(sp, 'idle', this.anim, 4, true);
-      default: return cycle(sp, 'idle', this.anim, 5, true);
+      case 'walk': return `move${cycleIndex(sp, 'move', this.anim, 9)}`;
+      case 'back': return `move${cycleIndex(sp, 'move', -this.anim, 8)}`;
+      case 'crouch': return 'fall2';
+      case 'block': return 'fall1';
+      case 'jump': return this.vy < -150 ? 'jump1' : this.vy < 80 ? 'jump2' : 'jump3';
+      case 'hurt': return 'fall0';
+      case 'ko': return 'fall0';
+      case 'win': return `idle${cycleIndex(sp, 'idle', this.anim, 4, true)}`;
+      default: return `idle${cycleIndex(sp, 'idle', this.anim, 5, true)}`;
     }
+  }
+
+  frame(): Frame | null {
+    return this.sp ? frameOf(this.sp, this.frameKey()) : null;
   }
 
   pushGhost(life: number): void {
@@ -142,6 +156,9 @@ export class Fighter implements FighterRef {
 
 // ------------------------------------------------------------------ Stage --
 interface StageCfg { sky: [string, string]; accent: string; far: string; near: string; name: string }
+/** Tonalité de la musique propre à chaque arène. */
+const STAGE_KEY: Record<CharId, number> = { mika: -9, ray: -4, zen: -7, kira: -12 };
+
 const STAGES: Record<CharId, StageCfg> = {
   mika: { sky: ['#1a1405', '#070609'], accent: '#ffc820', far: '#2a2008', near: '#0d0a06', name: 'Sanctuaire doré' },
   ray: { sky: ['#071428', '#05070f'], accent: '#3ba7ff', far: '#0d2440', near: '#060a14', name: 'Orage néon' },
@@ -168,6 +185,7 @@ export class FightScene implements GameApi {
   slowT = 0;
   shakeAmt = 0;
   shakeT = 0;
+  zoomPunch = 0;
   camX = VW / 2; camY = 0; camZoom = 1;
   flashColor = '#fff'; flashA = 0; flashDecay = 2.6;
   bannerText = ''; bannerColor = '#fff'; bannerT = 0;
@@ -177,6 +195,10 @@ export class FightScene implements GameApi {
   onMatchEnd: ((w: 0 | 1) => void) | null = null;
   cpu: 1 | 0 | -1 = 1;      // index contrôlé par l'IA (-1 = aucun)
   difficulty = 1;           // 0.6 facile · 1 normal · 1.4 difficile
+  netRole: NetRole = null;
+  netSend: ((m: NetMsg) => void) | null = null;
+  private netEv: NetEvent[] = [];
+  private netT = 0;
   private aiT = 0;
   private aiPlan: 'rush' | 'space' | 'turtle' = 'rush';
   private bgParts: { x: number; y: number; z: number; s: number }[] = [];
@@ -196,12 +218,45 @@ export class FightScene implements GameApi {
   }
 
   // ------------------------------------------------------------- GameApi --
-  shake(a: number): void { this.shakeAmt = Math.max(this.shakeAmt, a); this.shakeT = 0.3; }
+  /** Affiche une image d'effet découpée dans la fiche du personnage. */
+  show(owner: FighterRef, key: keyof FxKeys, o: FxShow = {}): void {
+    const f = owner === this.f0 ? this.f0 : this.f1;
+    const sp = f.sp;
+    if (!sp) return;
+    const fr = frameOf(sp, f.cfg.fxKeys[key]);
+    const dx = (o.dx ?? 40) * f.face;
+    const dy = o.dy ?? -f.cfg.stats.height * 0.5;
+    const get = () => ({ x: f.x + dx, y: f.y + dy });
+    const p = get();
+    this.fx.giz(new FxImage({
+      img: sp.img, sx: fr.x, sy: fr.y, sw: fr.w, sh: fr.h,
+      x: p.x, y: p.y, size: o.size ?? 150, life: o.life ?? 0.45,
+      from: o.from, to: o.to, rot: o.rot, spin: o.spin,
+      flip: (o.flip ? -1 : 1) * f.face, alpha: o.alpha, tilt: o.tilt,
+      fade: o.fade, follow: o.follow ? get : undefined,
+    }));
+    this.ev({ k: 'fx', i: f.idx, key, o: o as unknown as Record<string, unknown> });
+  }
+
+  /** Note un effet à rejouer chez l'invité (ne fait rien ailleurs). */
+  private ev(e: NetEvent): void { if (this.netRole === 'host') this.netEv.push(e); }
+
+  shake(a: number): void {
+    this.shakeAmt = Math.max(this.shakeAmt, a); this.shakeT = 0.3;
+    this.ev({ k: 'shk', a });
+  }
   flash(color: string, alpha: number, time = 0.35): void {
     this.flashColor = color; this.flashA = Math.max(this.flashA, alpha); this.flashDecay = 1 / time;
+    this.ev({ k: 'fls', c: color, a: alpha, t: time });
   }
-  slow(time: number, scale = 0.25): void { this.slowT = time; this.timeScale = scale; }
-  banner(text: string, color: string): void { this.bannerText = text; this.bannerColor = color; this.bannerT = 1.3; }
+  slow(time: number, scale = 0.25): void {
+    this.slowT = time; this.timeScale = scale;
+    this.ev({ k: 'slo', t: time, s: scale });
+  }
+  banner(text: string, color: string): void {
+    this.bannerText = text; this.bannerColor = color; this.bannerT = 1.3;
+    this.ev({ k: 'ban', t: text, c: color });
+  }
   cinematic(owner: FighterRef, time: number): void {
     this.cinT = time; this.cinOwner = owner === this.f0 ? this.f0 : this.f1;
     this.slow(0.5, 0.18);
@@ -235,10 +290,24 @@ export class FightScene implements GameApi {
     this.roundTime = 90;
     this.winner = -1;
     this.banner(`ROUND ${this.round}`, '#ffffff');
+    Music.play('fight', STAGE_KEY[this.f1.id]);
+    this.tense = false;
+  }
+
+  /** Bascule la musique quand un combattant est au bord du K.O. */
+  private tense = false;
+  private updateMusic(): void {
+    if (this.phase !== 'fight') return;
+    const low = this.f0.hp / this.f0.maxHp < 0.28 || this.f1.hp / this.f1.maxHp < 0.28;
+    if (low !== this.tense) {
+      this.tense = low;
+      Music.play(low ? 'tense' : 'fight', STAGE_KEY[this.f1.id]);
+    }
   }
 
   // ------------------------------------------------------------ Boucle ----
   update(dt: number, pads: [Pad, Pad]): void {
+    if (this.netRole === 'guest') { this.updateGuest(dt); return; }
     // ralenti global
     if (this.slowT > 0) {
       this.slowT -= dt;
@@ -281,7 +350,123 @@ export class FightScene implements GameApi {
       this.checkHits(this.f1, this.f0);
     }
     this.updateProjs(sdt);
+    this.updateMusic();
     this.fx.update(sdt);
+    this.updateCamera(dt);
+    if (this.netRole === 'host') this.emitSnapshot();
+  }
+
+  // ------------------------------------------------------------- réseau --
+  /** Hôte : publie l'état complet de la scène, invité : l'applique. */
+  private emitSnapshot(): void {
+    const snap: Snapshot = {
+      t: ++this.netT,
+      ph: this.phase,
+      rd: this.round,
+      tm: this.roundTime,
+      f: [this.snapOf(this.f0), this.snapOf(this.f1)],
+      pj: this.projs.map((p) => ({ i: p.owner.idx, x: p.x, y: p.y, w: p.spec.w })),
+      ev: this.netEv,
+    };
+    this.netEv = [];
+    this.netSend?.({ m: 'snap', s: snap });
+  }
+
+  private snapOf(f: Fighter) {
+    return {
+      x: Math.round(f.x * 2) / 2, y: Math.round(f.y * 2) / 2,
+      fc: f.face, fr: f.frameKey(),
+      hp: Math.round(f.hp), me: Math.round(f.meter),
+      wr: f.wonRounds, fl: Math.round(f.flash * 100) / 100,
+      tl: Math.round(f.tilt * 100) / 100, gh: f.ghostTimer > 0 ? 1 : 0,
+    };
+  }
+
+  applySnapshot(s: Snapshot): void {
+    this.phase = s.ph as Phase;
+    this.round = s.rd;
+    this.roundTime = s.tm;
+    for (let i = 0; i < 2; i++) {
+      const f = i === 0 ? this.f0 : this.f1;
+      const d = s.f[i];
+      f.remote = true;
+      f.netX = d.x; f.netY = d.y;
+      if (f.netFr === 'idle0' && f.x === 0) { f.x = d.x; f.y = d.y; }
+      f.face = d.fc as 1 | -1;
+      f.netFr = d.fr;
+      f.hp = d.hp; f.meter = d.me; f.wonRounds = d.wr;
+      f.flash = d.fl; f.tilt = d.tl;
+      if (d.gh) f.pushGhost(0.24);
+    }
+    // projectiles : seule leur apparence compte chez l'invité
+    this.projs = s.pj.map((p) => {
+      const owner = p.i === 0 ? this.f0 : this.f1;
+      return {
+        x: p.x, y: p.y, vx: owner.face * 1, vy: 0, owner, t: 0, rot: 0, dead: false,
+        spec: { kind: 'ball', speed: 0, damage: 0, hitstun: 0, life: 9, w: p.w, h: p.w,
+                dy: 0, kbx: 0, kby: 0, img: 'proj' } as ProjSpec,
+      };
+    });
+    for (const e of s.ev) this.replay(e);
+  }
+
+  /** Rejoue chez l'invité un effet décidé par l'hôte. */
+  private replay(e: NetEvent): void {
+    const f = (i: 0 | 1) => (i === 0 ? this.f0 : this.f1);
+    switch (e.k) {
+      case 'shk': this.shake(e.a); break;
+      case 'fls': this.flash(e.c, e.a, e.t); break;
+      case 'slo': this.slow(e.t, e.s); break;
+      case 'ban': this.banner(e.t, e.c); break;
+      case 'fx': this.show(f(e.i), e.key as keyof FxKeys, e.o as FxShow); break;
+      case 'blk': {
+        const pal = PALETTES[f(e.i).id];
+        this.fx.giz(new Shock(e.x, e.y, e.g ? pal.accent : '#cfe4ff', 0.25, 34));
+        this.fx.burst(e.x, e.y, '#cfe4ff', 8, 160);
+        Sfx.block(); buzz(8);
+        break;
+      }
+      case 'hit': {
+        const pal = PALETTES[f(e.c as 0 | 1).id];
+        this.fx.impact(e.x, e.y, pal.accent, e.p);
+        this.fx.burst(e.x, e.y, '#ffffff', 8, 220);
+        if (e.w >= 2) {
+          this.fx.giz(new Shock(e.x, e.y, pal.accent2, 0.42, 70 + 40 * e.w));
+          this.fx.burst(e.x, e.y, pal.accent2, 16, 360);
+        }
+        Sfx.hit(e.p); buzz(Math.round((10 + e.p * 12) * (e.w > 1 ? 1.5 : 1)));
+        break;
+      }
+      case 'ko': {
+        const pal = PALETTES[f(e.i === 0 ? 1 : 0).id];
+        this.fx.impact(f(e.i).x, f(e.i).y - 80, pal.accent, 2.4);
+        Sfx.boom(); buzz(90);
+        break;
+      }
+      default: break;
+    }
+  }
+
+  /** Invité : pas de simulation, seulement l'affichage et les effets. */
+  private updateGuest(dt: number): void {
+    if (this.slowT > 0) { this.slowT -= dt; if (this.slowT <= 0) this.timeScale = 1; }
+    this.bannerT = Math.max(0, this.bannerT - dt);
+    this.flashA = Math.max(0, this.flashA - this.flashDecay * dt);
+    if (this.shakeT > 0) { this.shakeT -= dt; if (this.shakeT <= 0) this.shakeAmt = 0; }
+    if (this.cinT > 0) this.cinT -= dt;
+    for (const f of [this.f0, this.f1]) {
+      // lissage : absorbe la gigue du réseau sans retarder l'action
+      f.x = lerp(f.x, f.netX, 1 - Math.pow(0.0001, dt));
+      f.y = lerp(f.y, f.netY, 1 - Math.pow(0.0001, dt));
+      f.anim += dt;
+      f.flash = Math.max(0, f.flash - dt * 4);
+      for (let i = f.ghosts.length - 1; i >= 0; i--) {
+        f.ghosts[i].t += dt;
+        if (f.ghosts[i].t >= f.ghosts[i].life) f.ghosts.splice(i, 1);
+      }
+    }
+    this.updateMusic();
+    this.fx.update(dt * this.timeScale);
     this.updateCamera(dt);
   }
 
@@ -352,6 +537,7 @@ export class FightScene implements GameApi {
 
       if (prevT < activeStart && f.moveT >= activeStart) {
         f.movePhase = 'active';
+        if (m.showHit) this.show(f, m.showHit.key, m.showHit.o);
         m.onStrike?.(f, this);
         if (m.dashX) f.vx = f.face * m.dashX;
         if (m.dashY) { f.vy = m.dashY; f.airborne = true; }
@@ -422,7 +608,7 @@ export class FightScene implements GameApi {
           f.state = 'block'; f.vx = -f.face * st.back * 0.55;
         } else if (fwd) {
           f.state = 'walk'; f.vx = f.face * st.walk;
-          if (Math.random() < 0.08) this.fx.dust(f.x - f.face * 10, GROUND_Y, -f.face, 1);
+          if (Math.random() < 0.08) { this.fx.dust(f.x - f.face * 10, GROUND_Y, -f.face, 1); Sfx.step(); }
         } else {
           f.state = 'idle'; f.vx = 0;
         }
@@ -441,7 +627,7 @@ export class FightScene implements GameApi {
     f.vy += GRAVITY * dt;
     f.x += f.vx * dt; f.y += f.vy * dt;
     if (f.y >= GROUND_Y) {
-      if (f.airborne) { this.fx.dust(f.x, GROUND_Y, 0, 7); Sfx.tone(140, 0.08, 'sine', 0.1, 60); }
+      if (f.airborne) { this.fx.dust(f.x, GROUND_Y, 0, 7); Sfx.land(); }
       f.y = GROUND_Y; f.vy = 0; f.airborne = false; f.jumpsLeft = 1;
       if (f.state === 'jump') f.state = 'idle';
     }
@@ -469,12 +655,13 @@ export class FightScene implements GameApi {
     if (!aabb(hb.x, hb.y, hb.w, hb.h, d.x, d.y, d.w, d.h)) return;
     att.hitFlags.add(key);
     const m = att.move;
-    this.applyHit(att, def, m.damage, m.kbx, m.kby, m.hitstun, !!m.launcher, m.gain ?? 8);
+    this.applyHit(att, def, m.damage, m.kbx, m.kby, m.hitstun, !!m.launcher, m.gain ?? 8,
+                  m.weight ?? 1, m.name);
   }
 
   private applyHit(
     att: Fighter, def: Fighter, damage: number, kbx: number, kby: number,
-    hitstun: number, launcher: boolean, gain = 8,
+    hitstun: number, launcher: boolean, gain = 8, weight = 1, label = '',
   ): void {
     if (def.state === 'ko' || def.invul > 0) return;
     const hx = (att.x + def.x) / 2 + att.face * 10;
@@ -496,6 +683,7 @@ export class FightScene implements GameApi {
       this.shake(3);
       Sfx.block();
       buzz(8);
+      this.ev({ k: 'blk', x: hx, y: hy, i: def.idx, g: guarded ? 1 : 0 });
       def.meter = Math.min(100, def.meter + 3);
       return;
     }
@@ -516,14 +704,26 @@ export class FightScene implements GameApi {
     att.meter = Math.min(100, att.meter + gain);
     def.meter = Math.min(100, def.meter + gain * 0.4);
 
-    const power = clamp(dmg / 60, 0.6, 2.2);
-    const stop = clamp(0.045 + dmg * 0.0012, 0.05, 0.16);
+    const power = clamp(dmg / 60, 0.6, 2.6) * (weight > 1 ? 1.25 : 1);
+    const stop = clamp(0.045 + dmg * 0.0012, 0.05, 0.16) * (1 + 0.55 * (weight - 1));
     att.hitstop = stop; def.hitstop = stop;
     this.fx.impact(hx, hy, pal.accent, power);
     this.fx.burst(hx, hy, '#ffffff', 8, 220);
-    this.shake(4 + power * 5);
+    this.shake((4 + power * 5) * (weight > 1 ? 1.6 : 1));
     Sfx.hit(power);
-    buzz(Math.round(10 + power * 12));
+    buzz(Math.round((10 + power * 12) * (weight > 1 ? 1.5 : 1)));
+    this.ev({ k: 'hit', x: hx, y: hy, i: def.idx, p: power, w: weight, c: att.idx });
+    if (weight >= 2) {
+      // technique spéciale : on appuie l'impact
+      this.zoomPunch = Math.max(this.zoomPunch, weight >= 3 ? 0.1 : 0.06);
+      this.fx.giz(new Shock(hx, hy, pal.accent2, 0.42, 70 + 40 * weight));
+      this.fx.burst(hx, hy, pal.accent2, 16, 360);
+      this.flash(pal.accent2, weight >= 3 ? 0.4 : 0.18, 0.3);
+      if (weight >= 3) this.slow(0.22, 0.35);
+      if (label && weight === 2 && att.hitsDone <= 1) {
+        this.fx.giz(new FloatText(hx, hy - 96, label.toUpperCase(), pal.accent2, 1, 22));
+      }
+    }
     if (crit) this.fx.giz(new FloatText(hx + att.face * 36, hy - 76, 'CRITIQUE !', '#ff8f9e', 0.8, 24));
     if (att.combo >= 2) {
       this.fx.giz(new FloatText(att.x - att.face * 54, att.y - 196 - (att.combo % 3) * 22, `${att.combo} COMBO`, pal.accent2, 0.9, 26));
@@ -539,12 +739,15 @@ export class FightScene implements GameApi {
     this.winner = att.idx;
     att.wonRounds++;
     this.slow(1.5, 0.22);
+    Music.duck(true);
+    setTimeout(() => Music.duck(false), 2200);
     this.shake(16);
     this.flash('#ffffff', 0.5);
     this.banner('K.O.', PALETTES[att.id].accent);
     this.fx.impact(def.x, def.y - 80, PALETTES[att.id].accent, 2.4);
     Sfx.boom();
     buzz(90);
+    this.ev({ k: 'ko', i: def.idx });
     setTimeout(() => Sfx.fanfare(), 500);
   }
 
@@ -583,7 +786,7 @@ export class FightScene implements GameApi {
       const hb = target.hurtbox();
       const w = p.spec.w, h = p.spec.h;
       if (!p.dead && aabb(p.x - w / 2, p.y - h / 2, w, h, hb.x, hb.y, hb.w, hb.h)) {
-        this.applyHit(p.owner, target, p.spec.damage, p.spec.kbx, p.spec.kby, p.spec.hitstun, false, 6);
+        this.applyHit(p.owner, target, p.spec.damage, p.spec.kbx, p.spec.kby, p.spec.hitstun, false, 10, 2);
         this.fx.impact(p.x, p.y, pal.accent, 1.1);
         if (!p.spec.pierce) p.dead = true;
       }
@@ -606,7 +809,8 @@ export class FightScene implements GameApi {
       tx = this.cinOwner.x;
       ty = -24;
     }
-    this.camZoom = lerp(this.camZoom, targetZoom, 1 - Math.pow(0.002, dt));
+    this.zoomPunch = Math.max(0, this.zoomPunch - dt * 0.42);
+    this.camZoom = lerp(this.camZoom, targetZoom + this.zoomPunch, 1 - Math.pow(0.002, dt));
     const halfW = VW / 2 / this.camZoom;
     this.camX = lerp(this.camX, clamp(tx, halfW, VW - halfW), 1 - Math.pow(0.004, dt));
     this.camY = lerp(this.camY, ty, 1 - Math.pow(0.01, dt));
@@ -868,6 +1072,20 @@ export class FightScene implements GameApi {
       ctx.translate(p.x, p.y);
       ctx.globalCompositeOperation = 'lighter';
       const pulse = 1 + Math.sin(p.t * 24) * 0.08;
+
+      // projectile illustré par une image d'effet de la fiche
+      const sp = p.owner.sp;
+      if (p.spec.img && sp) {
+        const fr = frameOf(sp, p.owner.cfg.fxKeys[p.spec.img]);
+        const k = (p.spec.h * 2.1 / fr.h) * pulse;
+        ctx.drawImage(glowSprite(pal.accent), -p.spec.w, -p.spec.w, p.spec.w * 2, p.spec.w * 2);
+        ctx.scale(Math.sign(p.vx) * k, k);
+        ctx.rotate(Math.sin(p.t * 9) * 0.06);
+        ctx.drawImage(sp.img, fr.x, fr.y, fr.w, fr.h, -fr.w / 2, -fr.h / 2, fr.w, fr.h);
+        ctx.restore();
+        continue;
+      }
+
       switch (p.spec.kind) {
         case 'card': {
           ctx.drawImage(glowSprite(pal.accent), -32, -32, 64, 64);

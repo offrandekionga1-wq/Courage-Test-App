@@ -15,6 +15,8 @@ export interface ProjSpec {
   kbx: number; kby: number;
   pierce?: boolean;
   spin?: number;
+  /** image d'effet utilisée pour le projectile */
+  img?: keyof FxKeys;
 }
 
 export interface FighterRef {
@@ -22,8 +24,21 @@ export interface FighterRef {
   meter: number; hp: number;
 }
 
+/** Noms des images d'effet découpées dans la fiche du personnage. */
+export interface FxKeys {
+  slash: string; proj: string; pillar: string; seal: string; aura: string; smoke: string;
+}
+
+export interface FxShow {
+  dx?: number; dy?: number; size?: number; life?: number;
+  from?: number; to?: number; rot?: number; spin?: number;
+  flip?: boolean; alpha?: number; tilt?: number; follow?: boolean; fade?: 'out' | 'inOut';
+}
+
 export interface GameApi {
   fx: Fx;
+  /** Affiche une image d'effet de la fiche, en additif, devant le combattant. */
+  show(owner: FighterRef, key: keyof FxKeys, o?: FxShow): void;
   shake(amount: number): void;
   flash(color: string, alpha: number, time?: number): void;
   slow(time: number, scale?: number): void;
@@ -58,6 +73,11 @@ export interface Move {
   onStrike?: Hook;
   onTick?: Hook;
   superMove?: boolean;
+  /** 1 coup normal · 2 technique spéciale · 3 super : règle l'emphase */
+  weight?: number;
+  /** images d'effet de la fiche jouées au déclenchement / à la frappe */
+  showStart?: { key: keyof FxKeys; o: FxShow };
+  showHit?: { key: keyof FxKeys; o: FxShow };
 }
 
 export interface CharStats {
@@ -71,6 +91,7 @@ export interface Character {
   role: string; style: string; spec: string; quote: string;
   color: string; color2: string;
   stats: CharStats;
+  fxKeys: FxKeys;
   normals: { light: Move; medium: Move; heavy: Move; launcher: Move; air: Move };
   specials: { neutral: Move; forward: Move; up: Move; back: Move };
   ult: Move;
@@ -123,6 +144,7 @@ const mika: Character = {
   quote: '« Le destin est entre mes mains… »',
   color: '#ffc820', color2: '#ffe987',
   stats: { hp: 1000, walk: 170, back: 140, jump: 630, weight: 1, height: 212 },
+  fxKeys: { slash: 'fx0', proj: 'fxb1', pillar: 'fx2', seal: 'fx1', aura: 'fxb0', smoke: 'fxb2' },
   normals: {
     light: light({ onStrike: slashFx('#ffc820', 54, 16) }),
     medium: medium({ onStrike: slashFx('#ffc820', 62, 20) }),
@@ -132,7 +154,8 @@ const mika: Character = {
   },
   specials: {
     neutral: {
-      key: 'sp_n', name: 'Spirit Seal', startup: 0.17, active: 0.08, recovery: 0.3,
+      key: 'sp_n',
+      showStart: { key: 'seal', o: { dx: 46, dy: -106, size: 136, life: 0.42, spin: 5, from: 0.25, to: 1.05 } }, name: 'Spirit Seal', startup: 0.17, active: 0.08, recovery: 0.3,
       fr: ['atk0', 'atk2', 'atk2'],
       damage: 0, hitstun: 0, kbx: 0, kby: 0, box: { x: 0, y: 0, w: 0, h: 0 },
       noHitbox: true, cost: 0, gain: 0, sfx: 'none',
@@ -143,8 +166,8 @@ const mika: Character = {
       onStrike: (f, g) => {
         for (let i = 0; i < 3; i++) {
           g.spawnProj(f, {
-            kind: 'card', speed: 360 + i * 36, damage: 26, hitstun: 0.2, life: 1.6,
-            w: 26, h: 34, dy: -118 + (i - 1) * 26, kbx: 110, kby: -40, spin: 7,
+            kind: 'card', speed: 380 + i * 36, damage: 38, hitstun: 0.26, life: 1.6,
+            w: 30, h: 38, dy: -118 + (i - 1) * 26, kbx: 170, kby: -60, spin: 7,
           }, (i - 1) * 24);
         }
         Sfx.whoosh(0.2);
@@ -152,10 +175,11 @@ const mika: Character = {
       },
     },
     forward: {
-      key: 'sp_f', name: 'Wind Blade', startup: 0.13, active: 0.16, recovery: 0.26,
+      key: 'sp_f',
+      showHit: { key: 'slash', o: { dx: 78, dy: -102, size: 240, life: 0.32, from: 0.45, to: 1.4 } }, name: 'Wind Blade', startup: 0.13, active: 0.16, recovery: 0.26,
       fr: ['atk0', 'move3', 'atk2'],
-      damage: 72, hitstun: 0.38, kbx: 300, kby: -170, dashX: 430,
-      box: { x: 18, y: -140, w: 88, h: 76 }, cost: 0, gain: 14, sfx: 'whoosh',
+      damage: 132, hitstun: 0.5, kbx: 380, kby: -230, dashX: 470, weight: 2,
+      box: { x: 18, y: -140, w: 96, h: 80 }, cost: 0, gain: 16, sfx: 'whoosh',
       onStart: (f, g) => { g.afterimage(f, 0.3); },
       onTick: (f, g) => { g.fx.trail(f.cx, f.cy, '#ffe987', 1); },
       onStrike: (f, g) => {
@@ -165,10 +189,11 @@ const mika: Character = {
       },
     },
     up: {
-      key: 'sp_u', name: 'Divine Judgment', startup: 0.22, active: 0.2, recovery: 0.36,
+      key: 'sp_u',
+      showHit: { key: 'pillar', o: { dx: 58, dy: -152, size: 310, life: 0.55, from: 0.6, to: 1.14 } }, name: 'Divine Judgment', startup: 0.22, active: 0.2, recovery: 0.36,
       fr: ['atk0', 'atk2', 'atk2'],
-      damage: 86, hitstun: 0.5, kbx: 120, kby: -430, launcher: true,
-      box: { x: 46, y: -220, w: 86, h: 220 }, cost: 25, gain: 10, sfx: 'boom',
+      damage: 158, hitstun: 0.6, kbx: 180, kby: -500, launcher: true, weight: 2,
+      box: { x: 40, y: -230, w: 100, h: 232 }, cost: 25, gain: 12, sfx: 'boom',
       onStart: (f, g) => {
         g.fx.giz(new RuneCircle(f.cx + f.face * 88, f.y - 4, 56, '#ffc820', 0.5, 4));
       },
@@ -179,7 +204,8 @@ const mika: Character = {
       },
     },
     back: {
-      key: 'sp_b', name: 'Barrier of Fate', startup: 0.12, active: 0.05, recovery: 0.22,
+      key: 'sp_b',
+      showStart: { key: 'seal', o: { dx: 0, dy: -104, size: 220, life: 2, spin: 1.6, from: 0.75, to: 1.08, fade: 'inOut', follow: true } }, name: 'Barrier of Fate', startup: 0.12, active: 0.05, recovery: 0.22,
       fr: ['fall1', 'atk4', 'fall1'],
       damage: 0, hitstun: 0, kbx: 0, kby: 0, box: { x: 0, y: 0, w: 0, h: 0 },
       noHitbox: true, guardTime: 2.2, cost: 20, sfx: 'none',
@@ -191,9 +217,11 @@ const mika: Character = {
     },
   },
   ult: {
-    key: 'ult', name: 'Eternal Fate', startup: 0.5, active: 0.7, recovery: 0.6,
+    key: 'ult',
+    showStart: { key: 'aura', o: { dx: 0, dy: -124, size: 380, life: 1.3, from: 0.6, to: 1.2, fade: 'inOut', follow: true } },
+    showHit: { key: 'pillar', o: { dx: 118, dy: -176, size: 440, life: 0.8, from: 0.55, to: 1.25 } }, name: 'Eternal Fate', startup: 0.5, active: 0.7, recovery: 0.6,
     fr: ['atk0', 'atk6', 'idle0'],
-    damage: 300, hitstun: 0.9, kbx: 420, kby: -300, hits: 6, cost: 100,
+    damage: 480, hitstun: 0.9, kbx: 460, kby: -340, hits: 6, cost: 100, weight: 3,
     box: { x: -40, y: -240, w: 320, h: 250 }, superMove: true, sfx: 'boom',
     onStart: (f, g) => {
       g.cinematic(f, 1.1); g.banner('ETERNAL FATE', '#ffc820');
@@ -228,6 +256,7 @@ const ray: Character = {
   quote: '« La foudre ne rate jamais… »',
   color: '#3ba7ff', color2: '#9ddcff',
   stats: { hp: 950, walk: 205, back: 175, jump: 680, weight: 0.92, height: 204 },
+  fxKeys: { slash: 'fx0', proj: 'fx1', pillar: 'fx2', seal: 'fxb1', aura: 'fxb2', smoke: 'fxb0' },
   normals: {
     light: light({ startup: 0.06, damage: 30, onStrike: slashFx('#3ba7ff', 52, 15) }),
     medium: medium({ damage: 42, onStrike: slashFx('#3ba7ff', 60, 19) }),
@@ -240,22 +269,24 @@ const ray: Character = {
   },
   specials: {
     neutral: {
-      key: 'sp_n', name: 'Electric Ball', startup: 0.16, active: 0.07, recovery: 0.3,
+      key: 'sp_n',
+      showStart: { key: 'seal', o: { dx: 46, dy: -106, size: 136, life: 0.42, spin: 5, from: 0.25, to: 1.05 } }, name: 'Electric Ball', startup: 0.16, active: 0.07, recovery: 0.3,
       fr: ['atk0', 'atk2', 'atk2'],
       damage: 0, hitstun: 0, kbx: 0, kby: 0, box: { x: 0, y: 0, w: 0, h: 0 },
       noHitbox: true, sfx: 'none',
       onStart: (f, g) => { g.fx.giz(new Shock(f.cx + f.face * 34, f.cy - 6, '#3ba7ff', 0.3, 36)); Sfx.tone(300, 0.2, 'sawtooth', 0.14, 820); },
       onStrike: (f, g) => {
-        g.spawnProj(f, { kind: 'ball', speed: 300, damage: 48, hitstun: 0.3, life: 2.2, w: 36, h: 36, dy: -116, kbx: 180, kby: -70 });
+        g.spawnProj(f, { kind: 'ball', speed: 330, damage: 82, hitstun: 0.42, life: 2.2, w: 46, h: 46, dy: -116, kbx: 300, kby: -120, img: 'proj' });
         Sfx.zap();
         g.fx.burst(f.cx + f.face * 38, f.cy - 8, '#9ddcff', 12, 200);
       },
     },
     forward: {
-      key: 'sp_f', name: 'Thunder Dash', startup: 0.1, active: 0.2, recovery: 0.24,
+      key: 'sp_f',
+      showHit: { key: 'slash', o: { dx: 78, dy: -102, size: 240, life: 0.32, from: 0.45, to: 1.4 } }, name: 'Thunder Dash', startup: 0.1, active: 0.2, recovery: 0.24,
       fr: ['move0', 'move3', 'atk2'],
-      damage: 64, hitstun: 0.34, kbx: 260, kby: -120, dashX: 540, invul: true,
-      box: { x: 10, y: -136, w: 92, h: 76 }, gain: 13, sfx: 'zap',
+      damage: 124, hitstun: 0.48, kbx: 350, kby: -200, dashX: 580, invul: true, weight: 2,
+      box: { x: 10, y: -136, w: 100, h: 80 }, gain: 16, sfx: 'zap',
       onStart: (f, g) => { g.afterimage(f, 0.34); Sfx.zap(); },
       onTick: (f, g) => {
         g.fx.trail(f.cx, f.cy, '#3ba7ff', 2);
@@ -268,10 +299,11 @@ const ray: Character = {
       },
     },
     up: {
-      key: 'sp_u', name: 'Lightning Slash', startup: 0.1, active: 0.18, recovery: 0.34,
+      key: 'sp_u',
+      showHit: { key: 'pillar', o: { dx: 58, dy: -152, size: 310, life: 0.55, from: 0.6, to: 1.14 } }, name: 'Lightning Slash', startup: 0.1, active: 0.18, recovery: 0.34,
       fr: ['fall2', 'atk4', 'fall0'],
-      damage: 78, hitstun: 0.5, kbx: 140, kby: -480, launcher: true, dashY: -420, dashX: 90,
-      box: { x: 20, y: -200, w: 70, h: 150 }, cost: 25, gain: 10, sfx: 'zap',
+      damage: 146, hitstun: 0.6, kbx: 200, kby: -540, launcher: true, dashY: -430, dashX: 90, weight: 2,
+      box: { x: 18, y: -210, w: 82, h: 162 }, cost: 25, gain: 12, sfx: 'zap',
       onStart: (f, g) => { Sfx.zap(); g.fx.giz(new Shock(f.cx, f.y, '#3ba7ff', 0.3, 60, 0.4)); },
       onStrike: (f, g) => {
         g.fx.giz(new SlashArc(f.cx + f.face * 16, f.cy - 10, f.face > 0 ? 2.6 : Math.PI - 2.6, f.face > 0 ? -2.6 : 2.6, 96, '#9ddcff', 0.3, 32));
@@ -280,7 +312,8 @@ const ray: Character = {
       },
     },
     back: {
-      key: 'sp_b', name: 'Storm Guard', startup: 0.1, active: 0.05, recovery: 0.2,
+      key: 'sp_b',
+      showStart: { key: 'seal', o: { dx: 0, dy: -104, size: 220, life: 2, spin: 1.6, from: 0.75, to: 1.08, fade: 'inOut', follow: true } }, name: 'Storm Guard', startup: 0.1, active: 0.05, recovery: 0.2,
       fr: ['fall1', 'atk4', 'fall1'],
       damage: 0, hitstun: 0, kbx: 0, kby: 0, box: { x: 0, y: 0, w: 0, h: 0 },
       noHitbox: true, guardTime: 2, cost: 20, sfx: 'none',
@@ -295,9 +328,11 @@ const ray: Character = {
     },
   },
   ult: {
-    key: 'ult', name: 'RaiStorm Inferno', startup: 0.5, active: 0.75, recovery: 0.55,
+    key: 'ult',
+    showStart: { key: 'aura', o: { dx: 0, dy: -124, size: 380, life: 1.3, from: 0.6, to: 1.2, fade: 'inOut', follow: true } },
+    showHit: { key: 'pillar', o: { dx: 118, dy: -176, size: 440, life: 0.8, from: 0.55, to: 1.25 } }, name: 'RaiStorm Inferno', startup: 0.5, active: 0.75, recovery: 0.55,
     fr: ['atk0', 'atk6', 'idle0'],
-    damage: 300, hitstun: 0.9, kbx: 380, kby: -340, hits: 7, cost: 100,
+    damage: 490, hitstun: 0.9, kbx: 420, kby: -380, hits: 7, cost: 100, weight: 3,
     box: { x: -60, y: -260, w: 360, h: 270 }, superMove: true, sfx: 'boom',
     onStart: (f, g) => {
       g.cinematic(f, 1.1); g.banner('RAISTORM INFERNO', '#3ba7ff');
@@ -326,6 +361,7 @@ const zen: Character = {
   quote: '« Je vais te montrer ma vraie puissance… »',
   color: '#a35cff', color2: '#d7b2ff',
   stats: { hp: 1020, walk: 190, back: 160, jump: 650, weight: 1.02, height: 208 },
+  fxKeys: { slash: 'fx0', proj: 'fx1', pillar: 'fx2', seal: 'fxb2', aura: 'fxb0', smoke: 'fxb1' },
   normals: {
     light: light({ damage: 34, onStrike: slashFx('#a35cff', 54, 16) }),
     medium: medium({ damage: 46, onStrike: slashFx('#a35cff', 62, 20) }),
@@ -338,31 +374,34 @@ const zen: Character = {
   },
   specials: {
     neutral: {
-      key: 'sp_n', name: 'Energy Burst', startup: 0.18, active: 0.07, recovery: 0.3,
+      key: 'sp_n',
+      showStart: { key: 'seal', o: { dx: 46, dy: -106, size: 136, life: 0.42, spin: 5, from: 0.25, to: 1.05 } }, name: 'Energy Burst', startup: 0.18, active: 0.07, recovery: 0.3,
       fr: ['atk0', 'atk2', 'atk2'],
       damage: 0, hitstun: 0, kbx: 0, kby: 0, box: { x: 0, y: 0, w: 0, h: 0 },
       noHitbox: true, sfx: 'none',
       onStart: (f, g) => { g.fx.giz(new RuneCircle(f.cx + f.face * 34, f.cy, 34, '#a35cff', 0.45, 4, 1)); },
       onStrike: (f, g) => {
-        g.spawnProj(f, { kind: 'ball', speed: 330, damage: 52, hitstun: 0.32, life: 2, w: 40, h: 40, dy: -118, kbx: 210, kby: -80 });
+        g.spawnProj(f, { kind: 'ball', speed: 350, damage: 86, hitstun: 0.44, life: 2, w: 50, h: 50, dy: -118, kbx: 320, kby: -130, img: 'proj' });
         g.fx.burst(f.cx + f.face * 40, f.cy - 6, '#d7b2ff', 14, 230);
         Sfx.tone(180, 0.3, 'sawtooth', 0.2, 60);
       },
     },
     forward: {
-      key: 'sp_f', name: 'Shadow Dash', startup: 0.09, active: 0.18, recovery: 0.22,
+      key: 'sp_f',
+      showHit: { key: 'slash', o: { dx: 78, dy: -102, size: 240, life: 0.32, from: 0.45, to: 1.4 } }, name: 'Shadow Dash', startup: 0.09, active: 0.18, recovery: 0.22,
       fr: ['move0', 'move3', 'atk2'],
-      damage: 62, hitstun: 0.32, kbx: 250, kby: -110, dashX: 500, invul: true,
-      box: { x: 10, y: -136, w: 88, h: 74 }, gain: 13, sfx: 'whoosh',
+      damage: 126, hitstun: 0.48, kbx: 350, kby: -200, dashX: 540, invul: true, weight: 2,
+      box: { x: 10, y: -136, w: 96, h: 80 }, gain: 16, sfx: 'whoosh',
       onStart: (f, g) => { g.afterimage(f, 0.3); Sfx.whoosh(0.25); },
       onTick: (f, g) => { g.fx.trail(f.cx, f.cy, '#a35cff', 2); },
       onStrike: (f, g) => { slashFx('#d7b2ff', 88, 30)(f, g); g.shake(6); },
     },
     up: {
-      key: 'sp_u', name: 'Dark Slash', startup: 0.12, active: 0.16, recovery: 0.32,
+      key: 'sp_u',
+      showHit: { key: 'pillar', o: { dx: 58, dy: -152, size: 310, life: 0.55, from: 0.6, to: 1.14 } }, name: 'Dark Slash', startup: 0.12, active: 0.16, recovery: 0.32,
       fr: ['fall2', 'atk4', 'fall0'],
-      damage: 80, hitstun: 0.48, kbx: 150, kby: -450, launcher: true, dashY: -380, dashX: 80,
-      box: { x: 20, y: -196, w: 76, h: 146 }, cost: 25, gain: 10, sfx: 'whoosh',
+      damage: 150, hitstun: 0.6, kbx: 200, kby: -520, launcher: true, dashY: -400, dashX: 80, weight: 2,
+      box: { x: 18, y: -206, w: 88, h: 158 }, cost: 25, gain: 12, sfx: 'whoosh',
       onStrike: (f, g) => {
         g.fx.giz(new SlashArc(f.cx + f.face * 14, f.cy - 8, f.face > 0 ? 2.7 : Math.PI - 2.7, f.face > 0 ? -2.8 : 2.8, 100, '#a35cff', 0.32, 36));
         g.fx.giz(new VoidRift(f.cx + f.face * 30, f.cy - 40, 54, '#d7b2ff', 0.5));
@@ -370,10 +409,11 @@ const zen: Character = {
       },
     },
     back: {
-      key: 'sp_b', name: 'Shadow Clone', startup: 0.14, active: 0.26, recovery: 0.3,
+      key: 'sp_b',
+      showStart: { key: 'seal', o: { dx: 0, dy: -104, size: 220, life: 2, spin: 1.6, from: 0.75, to: 1.08, fade: 'inOut', follow: true } }, name: 'Shadow Clone', startup: 0.14, active: 0.26, recovery: 0.3,
       fr: ['atk0', 'atk2', 'idle0'],
-      damage: 54, hitstun: 0.34, kbx: 200, kby: -150, hits: 2,
-      box: { x: -110, y: -140, w: 110, h: 90 }, cost: 30, gain: 8, sfx: 'whoosh',
+      damage: 68, hitstun: 0.4, kbx: 260, kby: -190, hits: 2, weight: 2,
+      box: { x: -120, y: -146, w: 124, h: 98 }, cost: 30, gain: 10, sfx: 'whoosh',
       onStart: (f, g) => {
         g.afterimage(f, 0.6); g.afterimage(f, 0.45);
         g.fx.giz(new VoidRift(f.cx - f.face * 60, f.cy, 48, '#a35cff', 0.6));
@@ -386,9 +426,11 @@ const zen: Character = {
     },
   },
   ult: {
-    key: 'ult', name: 'Void Dimension', startup: 0.5, active: 0.8, recovery: 0.6,
+    key: 'ult',
+    showStart: { key: 'aura', o: { dx: 0, dy: -124, size: 380, life: 1.3, from: 0.6, to: 1.2, fade: 'inOut', follow: true } },
+    showHit: { key: 'pillar', o: { dx: 118, dy: -176, size: 440, life: 0.8, from: 0.55, to: 1.25 } }, name: 'Void Dimension', startup: 0.5, active: 0.8, recovery: 0.6,
     fr: ['atk0', 'atk6', 'idle0'],
-    damage: 310, hitstun: 0.95, kbx: 360, kby: -300, hits: 8, cost: 100,
+    damage: 500, hitstun: 0.95, kbx: 400, kby: -340, hits: 8, cost: 100, weight: 3,
     box: { x: -80, y: -260, w: 380, h: 270 }, superMove: true, sfx: 'boom',
     onStart: (f, g) => {
       g.cinematic(f, 1.1); g.banner('VOID DIMENSION', '#a35cff');
@@ -417,6 +459,7 @@ const kira: Character = {
   quote: '« Tu ne peux pas m’échapper… »',
   color: '#ff3450', color2: '#ff8f9e',
   stats: { hp: 900, walk: 215, back: 185, jump: 700, weight: 0.88, height: 206 },
+  fxKeys: { slash: 'fx0', proj: 'fx1', pillar: 'fx3', seal: 'fxb2', aura: 'fxb0', smoke: 'fxb3' },
   normals: {
     light: light({ startup: 0.06, damage: 30, box: { x: 36, y: -120, w: 66, h: 34 }, onStrike: slashFx('#ff3450', 62, 14) }),
     medium: medium({ damage: 44, box: { x: 38, y: -122, w: 74, h: 36 }, onStrike: slashFx('#ff3450', 72, 18) }),
@@ -426,22 +469,24 @@ const kira: Character = {
   },
   specials: {
     neutral: {
-      key: 'sp_n', name: 'Fox Fireball', startup: 0.17, active: 0.07, recovery: 0.3,
+      key: 'sp_n',
+      showStart: { key: 'seal', o: { dx: 46, dy: -106, size: 136, life: 0.42, spin: 5, from: 0.25, to: 1.05 } }, name: 'Fox Fireball', startup: 0.17, active: 0.07, recovery: 0.3,
       fr: ['atk0', 'atk2', 'atk2'],
       damage: 0, hitstun: 0, kbx: 0, kby: 0, box: { x: 0, y: 0, w: 0, h: 0 },
       noHitbox: true, sfx: 'none',
       onStart: (f, g) => { g.fx.giz(new FoxSigil(f.cx + f.face * 40, f.cy - 10, 26, '#ff3450', 0.4, f.face)); },
       onStrike: (f, g) => {
-        g.spawnProj(f, { kind: 'fox', speed: 340, damage: 50, hitstun: 0.3, life: 2, w: 44, h: 34, dy: -116, kbx: 190, kby: -60 });
+        g.spawnProj(f, { kind: 'fox', speed: 370, damage: 84, hitstun: 0.42, life: 2, w: 56, h: 44, dy: -116, kbx: 300, kby: -110, img: 'proj' });
         g.fx.burst(f.cx + f.face * 42, f.cy - 8, '#ff8f9e', 14, 220);
         Sfx.tone(420, 0.3, 'sawtooth', 0.18, 140);
       },
     },
     forward: {
-      key: 'sp_f', name: 'Kitsune Dash', startup: 0.08, active: 0.2, recovery: 0.22,
+      key: 'sp_f',
+      showHit: { key: 'slash', o: { dx: 78, dy: -102, size: 240, life: 0.32, from: 0.45, to: 1.4 } }, name: 'Kitsune Dash', startup: 0.08, active: 0.2, recovery: 0.22,
       fr: ['move0', 'move3', 'atk2'],
-      damage: 68, hitstun: 0.34, kbx: 230, kby: -120, dashX: 560, invul: true,
-      box: { x: 0, y: -136, w: 96, h: 76 }, gain: 14, sfx: 'whoosh',
+      damage: 130, hitstun: 0.48, kbx: 340, kby: -200, dashX: 600, invul: true, weight: 2,
+      box: { x: 0, y: -136, w: 104, h: 80 }, gain: 16, sfx: 'whoosh',
       onStart: (f, g) => { g.afterimage(f, 0.32); Sfx.whoosh(0.28); },
       onTick: (f, g) => {
         g.fx.trail(f.cx, f.cy, '#ff3450', 2);
@@ -455,10 +500,11 @@ const kira: Character = {
       },
     },
     up: {
-      key: 'sp_u', name: 'Crimson Slash', startup: 0.11, active: 0.17, recovery: 0.32,
+      key: 'sp_u',
+      showHit: { key: 'pillar', o: { dx: 58, dy: -152, size: 310, life: 0.55, from: 0.6, to: 1.14 } }, name: 'Crimson Slash', startup: 0.11, active: 0.17, recovery: 0.32,
       fr: ['fall2', 'atk4', 'fall0'],
-      damage: 84, hitstun: 0.5, kbx: 140, kby: -470, launcher: true, dashY: -400, dashX: 90,
-      box: { x: 18, y: -204, w: 80, h: 154 }, cost: 25, gain: 10, sfx: 'whoosh',
+      damage: 154, hitstun: 0.6, kbx: 200, kby: -540, launcher: true, dashY: -420, dashX: 90, weight: 2,
+      box: { x: 16, y: -214, w: 92, h: 166 }, cost: 25, gain: 12, sfx: 'whoosh',
       onStrike: (f, g) => {
         g.fx.giz(new SlashArc(f.cx + f.face * 14, f.cy - 10, f.face > 0 ? 2.7 : Math.PI - 2.7, f.face > 0 ? -2.9 : 2.9, 110, '#ff3450', 0.32, 38));
         g.fx.giz(new SlashArc(f.cx + f.face * 14, f.cy - 10, f.face > 0 ? 2.5 : Math.PI - 2.5, f.face > 0 ? -2.6 : 2.6, 82, '#ffffff', 0.26, 16));
@@ -466,7 +512,8 @@ const kira: Character = {
       },
     },
     back: {
-      key: 'sp_b', name: 'Barrier of the Kitsune', startup: 0.12, active: 0.05, recovery: 0.22,
+      key: 'sp_b',
+      showStart: { key: 'seal', o: { dx: 0, dy: -104, size: 220, life: 2, spin: 1.6, from: 0.75, to: 1.08, fade: 'inOut', follow: true } }, name: 'Barrier of the Kitsune', startup: 0.12, active: 0.05, recovery: 0.22,
       fr: ['fall1', 'atk4', 'fall1'],
       damage: 0, hitstun: 0, kbx: 0, kby: 0, box: { x: 0, y: 0, w: 0, h: 0 },
       noHitbox: true, guardTime: 2, cost: 20, sfx: 'none',
@@ -478,9 +525,11 @@ const kira: Character = {
     },
   },
   ult: {
-    key: 'ult', name: 'Nine-Tailed Fury', startup: 0.5, active: 0.8, recovery: 0.6,
+    key: 'ult',
+    showStart: { key: 'aura', o: { dx: 0, dy: -124, size: 380, life: 1.3, from: 0.6, to: 1.2, fade: 'inOut', follow: true } },
+    showHit: { key: 'pillar', o: { dx: 118, dy: -176, size: 440, life: 0.8, from: 0.55, to: 1.25 } }, name: 'Nine-Tailed Fury', startup: 0.5, active: 0.8, recovery: 0.6,
     fr: ['atk0', 'atk6', 'idle0'],
-    damage: 320, hitstun: 0.95, kbx: 400, kby: -320, hits: 9, cost: 100,
+    damage: 510, hitstun: 0.95, kbx: 440, kby: -360, hits: 9, cost: 100, weight: 3,
     box: { x: -40, y: -250, w: 340, h: 260 }, superMove: true, sfx: 'boom',
     onStart: (f, g) => {
       g.cinematic(f, 1.1); g.banner('NINE-TAILED FURY', '#ff3450');

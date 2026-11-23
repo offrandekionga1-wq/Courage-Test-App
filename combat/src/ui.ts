@@ -3,9 +3,10 @@
 // ---------------------------------------------------------------------------
 import { CharId, ROSTER, ROSTER_IDS, Character } from './roster';
 import { Sfx, Pad } from './core';
+import { Music } from './music';
 import type { HudState } from './fight';
 
-export type Mode = '1p' | '2p' | 'training';
+export type Mode = '1p' | '2p' | 'training' | 'lan';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const screens = $('screens');
@@ -35,7 +36,7 @@ function screen(): HTMLElement {
 }
 
 // =============================================================== Titre =====
-export interface Settings { difficulty: number; sound: boolean }
+export interface Settings { difficulty: number; sound: boolean; music: boolean }
 
 export function titleScreen(
   st: Settings,
@@ -56,8 +57,8 @@ export function titleScreen(
     () => onPlay('1p'),
   ));
   menu.appendChild(clickable(
-    h('button', 'mbtn', '<span>2 joueurs<small>Même appareil ou clavier</small></span><span class="arrow">▶</span>'),
-    () => onPlay('2p'),
+    h('button', 'mbtn', '<span>Duel Wi-Fi<small>Deux appareils sur le même réseau</small></span><span class="arrow">⇄</span>'),
+    () => onPlay('lan'),
   ));
   menu.appendChild(clickable(
     h('button', 'mbtn', '<span>Entraînement<small>Adversaire passif, jauge infinie</small></span><span class="arrow">▶</span>'),
@@ -87,6 +88,16 @@ export function titleScreen(
     save(st);
   });
   row.appendChild(snd);
+  const mus = h('button', `chip${st.music ? ' on' : ''}`, st.music ? '♫ Musique' : '✕ Musique');
+  clickable(mus, () => {
+    st.music = !st.music;
+    Music.setEnabled(st.music);
+    if (st.music) Music.play('menu');
+    mus.classList.toggle('on', st.music);
+    mus.textContent = st.music ? '♫ Musique' : '✕ Musique';
+    save(st);
+  });
+  row.appendChild(mus);
   colB.appendChild(row);
 }
 
@@ -96,9 +107,9 @@ export function save(st: Settings): void {
 export function load(): Settings {
   try {
     const raw = localStorage.getItem('neonclash');
-    if (raw) return { difficulty: 1, sound: true, ...(JSON.parse(raw) as Partial<Settings>) };
+    if (raw) return { difficulty: 1, sound: true, music: true, ...(JSON.parse(raw) as Partial<Settings>) };
   } catch { /* ignore */ }
-  return { difficulty: 1, sound: true };
+  return { difficulty: 1, sound: true, music: true };
 }
 
 // ====================================================== Sélection perso ====
@@ -276,6 +287,121 @@ export function helpScreen(onClose: () => void, who: CharId = 'mika'): void {
   screens.appendChild(o);
 }
 
+// =============================================== Salon réseau local =======
+export interface LobbyApi {
+  setState(label: string, detail: string): void;
+  setPeers(peers: { name: string; host: string; port: number }[]): void;
+}
+
+export function lobbyScreen(opts: {
+  onHost(): void;
+  onSearch(): void;
+  onJoin(peer: { name: string; host: string; port: number }): void;
+  onManual(host: string): void;
+  onBack(): void;
+}): LobbyApi {
+  const s = screen();
+  s.classList.add('split');
+  const colA = h('div', 'col');
+  const colB = h('div', 'col');
+  s.append(colA, colB);
+
+  colA.appendChild(h('div', 'kicker', 'Deux appareils · même Wi-Fi'));
+  colA.appendChild(h('h1', 'title-xl', 'DUEL<br>EN RÉSEAU'));
+  const state = h('div', 'netstate', '<b>Choisis un rôle</b><i>Un joueur héberge, l\u2019autre rejoint.</i>');
+  colA.appendChild(state);
+
+  const menu = h('div', 'menu');
+  menu.appendChild(clickable(
+    h('button', 'mbtn primary', '<span>Héberger la partie<small>L\u2019autre téléphone te trouvera</small></span><span class="arrow">▲</span>'),
+    opts.onHost,
+  ));
+  menu.appendChild(clickable(
+    h('button', 'mbtn', '<span>Rejoindre une partie<small>Cherche sur le Wi-Fi</small></span><span class="arrow">▼</span>'),
+    opts.onSearch,
+  ));
+  const list = h('div', 'peers');
+  menu.appendChild(list);
+
+  const manual = h('div', 'manual');
+  manual.innerHTML = '<input type="text" inputmode="decimal" placeholder="adresse IP de l\u2019hôte" />';
+  const input = manual.querySelector('input') as HTMLInputElement;
+  const go = h('button', 'chip', 'Connecter');
+  clickable(go, () => { const v = input.value.trim(); if (v) opts.onManual(v); });
+  manual.appendChild(go);
+  menu.appendChild(manual);
+
+  menu.appendChild(clickable(h('button', 'mbtn', '<span>Retour</span><span class="arrow">✕</span>'), opts.onBack));
+  colB.appendChild(menu);
+
+  return {
+    setState(label, detail) {
+      state.innerHTML = `<b>${label}</b><i>${detail}</i>`;
+    },
+    setPeers(peers) {
+      list.innerHTML = '';
+      for (const p of peers) {
+        const b = h('button', 'peer', `<span>${p.name}</span><em>${p.host}</em>`);
+        clickable(b, () => opts.onJoin(p));
+        list.appendChild(b);
+      }
+    },
+  };
+}
+
+// ====================================== Sélection en réseau (un seul choix) =
+export interface NetSelectApi { setTheirs(id: CharId | null): void; setNote(t: string): void }
+
+export function netSelectScreen(
+  role: 'host' | 'guest',
+  onPick: (id: CharId) => void,
+  onBack: () => void,
+): NetSelectApi {
+  const s = screen();
+  const head = h('div', 'selhead');
+  head.append(h('h2', '', 'CHOISIS TON COMBATTANT'),
+              h('span', `turn ${role === 'host' ? 'p1' : 'p2'}`, role === 'host' ? 'Hôte' : 'Invité'));
+  s.appendChild(head);
+
+  const cards = h('div', 'cards');
+  const els: Record<string, HTMLElement> = {};
+  let mine: CharId | null = null;
+  let theirs: CharId | null = null;
+
+  const paint = () => {
+    for (const id of ROSTER_IDS) {
+      els[id].classList.toggle(role === 'host' ? 'p1sel' : 'p2sel', mine === id);
+      els[id].classList.toggle(role === 'host' ? 'p2sel' : 'p1sel', theirs === id);
+      els[id].classList.toggle('sel', mine === id);
+    }
+  };
+
+  for (const id of ROSTER_IDS) {
+    const c = ROSTER[id];
+    const card = h('button', 'card');
+    card.innerHTML =
+      `<img src="${portrait(id)}" alt="${c.name}" /><div class="veil"></div>` +
+      `<div class="nm">${c.name}</div><div class="rl">${c.role}</div>` +
+      `<div class="glowline" style="background:${c.color}"></div>`;
+    clickable(card, () => { mine = id; paint(); onPick(id); });
+    els[id] = card;
+    cards.appendChild(card);
+  }
+  s.appendChild(cards);
+
+  const note = h('div', 'infobar', '<span class="q">Choisis ton personnage.</span>');
+  s.appendChild(note);
+  const row = h('div', 'row');
+  row.appendChild(clickable(h('button', 'chip', '← Quitter la partie'), onBack));
+  s.appendChild(row);
+  paint();
+
+  return {
+    setTheirs(id) { theirs = id; paint(); },
+    setNote(t) { note.innerHTML = `<span class="q">${t}</span>`; },
+  };
+}
+
 // ================================================================= HUD =====
 export class Hud {
   root = $('hud');
@@ -343,6 +469,7 @@ export class Hud {
       if (s.banner) {
         b.textContent = s.banner;
         b.style.color = s.bannerColor;
+        b.classList.toggle('long', s.banner.length > 11);
         b.classList.remove('show');
         void b.offsetWidth;
         b.classList.add('show');
@@ -363,44 +490,60 @@ export function buildControls(mode: Mode, pads: [Pad, Pad]): TouchCtl {
   const ultBtns: HTMLElement[] = [];
   const ultLabels: HTMLElement[] = [];
 
-  const makeStick = (host: HTMLElement, pad: Pad, p2 = false) => {
-    const st = h('div', `stick${p2 ? ' p2' : ''}`);
-    const knob = h('i');
-    st.appendChild(knob);
-    host.appendChild(st);
+  // Croix directionnelle : avancer, reculer (= garde), sauter, s'accroupir.
+  // Un seul pointeur est suivi sur toute la croix, ce qui autorise le
+  // glissement d'une touche à l'autre et les diagonales (saut en avant).
+  const makeDpad = (host: HTMLElement, pad: Pad, p2 = false) => {
+    const dpad = h('div', `dpad${p2 ? ' p2' : ''}`);
+    const keys: { el: HTMLElement; dir: 'up' | 'down' | 'left' | 'right' }[] = [];
+    const defs: [string, 'up' | 'down' | 'left' | 'right', string][] = [
+      ['u', 'up', '▲'], ['l', 'left', '◀'], ['r', 'right', '▶'], ['d', 'down', '▼'],
+    ];
+    for (const [cls, dir, glyph] of defs) {
+      const el = h('button', `dkey ${cls}`, `<span>${glyph}</span>`);
+      dpad.appendChild(el);
+      keys.push({ el, dir });
+    }
+    host.appendChild(dpad);
+
     let pid = -1;
-    const set = (dx: number, dy: number) => {
-      const r = st.clientWidth / 2;
-      const m = Math.hypot(dx, dy);
-      const lim = Math.min(1, m / (r * 0.72));
-      const nx = m ? (dx / m) * lim : 0, ny = m ? (dy / m) * lim : 0;
-      knob.style.transform = `translate(calc(-50% + ${nx * r * 0.52}px), calc(-50% + ${ny * r * 0.52}px))`;
+    const apply = (x: number, y: number) => {
       const wasUp = pad.up;
-      pad.left = nx < -0.34; pad.right = nx > 0.34;
-      pad.up = ny < -0.45; pad.down = ny > 0.45;
-      if (pad.up && !wasUp) pad.upEdge = true;
+      let up = false, down = false, left = false, right = false;
+      for (const k of keys) {
+        const r = k.el.getBoundingClientRect();
+        const m = Math.min(r.width, r.height) * 0.34;   // tolérance pour les diagonales
+        const inside = x >= r.left - m && x <= r.right + m && y >= r.top - m && y <= r.bottom + m;
+        if (!inside) { k.el.classList.remove('down'); continue; }
+        k.el.classList.add('down');
+        if (k.dir === 'up') up = true;
+        else if (k.dir === 'down') down = true;
+        else if (k.dir === 'left') left = true;
+        else right = true;
+      }
+      if (left && right) { left = false; right = false; }
+      pad.up = up; pad.down = down; pad.left = left; pad.right = right;
+      if (up && !wasUp) pad.upEdge = true;
     };
-    const reset = () => {
-      knob.style.transform = 'translate(-50%, -50%)';
-      pad.left = pad.right = pad.up = pad.down = false;
+    const release = () => {
+      pid = -1;
+      pad.up = pad.down = pad.left = pad.right = false;
+      for (const k of keys) k.el.classList.remove('down');
     };
     const down = (e: PointerEvent) => {
+      e.preventDefault();
       if (pid >= 0) return;
-      pid = e.pointerId; st.setPointerCapture(pid);
-      const r = st.getBoundingClientRect();
-      set(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2));
+      pid = e.pointerId;
+      dpad.setPointerCapture(pid);
+      apply(e.clientX, e.clientY);
     };
-    const move = (e: PointerEvent) => {
-      if (e.pointerId !== pid) return;
-      const r = st.getBoundingClientRect();
-      set(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2));
-    };
-    const up = (e: PointerEvent) => { if (e.pointerId !== pid) return; pid = -1; reset(); };
-    st.addEventListener('pointerdown', down);
-    st.addEventListener('pointermove', move);
-    st.addEventListener('pointerup', up);
-    st.addEventListener('pointercancel', up);
-    cleanup.push(() => { st.removeEventListener('pointerdown', down); });
+    const move = (e: PointerEvent) => { if (e.pointerId === pid) apply(e.clientX, e.clientY); };
+    const up = (e: PointerEvent) => { if (e.pointerId === pid) release(); };
+    dpad.addEventListener('pointerdown', down);
+    dpad.addEventListener('pointermove', move);
+    dpad.addEventListener('pointerup', up);
+    dpad.addEventListener('pointercancel', up);
+    cleanup.push(() => { dpad.removeEventListener('pointerdown', down); release(); });
   };
 
   const makeBtn = (host: HTMLElement, cls: string, label: string, pad: Pad, key: 'atk' | 'sp' | 'ult') => {
@@ -425,18 +568,18 @@ export function buildControls(mode: Mode, pads: [Pad, Pad]): TouchCtl {
   };
 
   if (two) {
-    makeStick(L, pads[0]);
+    makeDpad(L, pads[0]);
     const bl = h('div', 'btns'); L.appendChild(bl);
     makeBtn(bl, 'ult', 'U', pads[0], 'ult');
     makeBtn(bl, 'sp', 'SP', pads[0], 'sp');
     makeBtn(bl, 'atk', 'ATK', pads[0], 'atk');
-    makeStick(R, pads[1], true);
+    makeDpad(R, pads[1], true);
     const br = h('div', 'btns'); R.appendChild(br);
     makeBtn(br, 'ult', 'U', pads[1], 'ult');
     makeBtn(br, 'sp', 'SP', pads[1], 'sp');
     makeBtn(br, 'atk', 'ATK', pads[1], 'atk');
   } else {
-    makeStick(L, pads[0]);
+    makeDpad(L, pads[0]);
     const br = h('div', 'btns'); R.appendChild(br);
     makeBtn(br, 'ult', 'ULT', pads[0], 'ult');
     makeBtn(br, 'sp', 'SP', pads[0], 'sp');

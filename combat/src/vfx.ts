@@ -2,7 +2,7 @@
 // Neon Clash — effets visuels : particules + "gizmos" (arcs, cercles runiques,
 // éclairs, ondes de choc, piliers). Tout est dessiné par le code, en additif.
 // ---------------------------------------------------------------------------
-import { rr, ri, clamp, ease } from './core';
+import { rr, ri, clamp, ease, lerp } from './core';
 
 // Cache de halos radiaux : un petit canvas par couleur, redimensionné à la volée.
 const glowCache = new Map<string, HTMLCanvasElement>();
@@ -460,6 +460,45 @@ export class VoidRift implements Gizmo {
     ctx.globalAlpha = a;
     ctx.fillStyle = '#ffffff';
     ctx.beginPath(); ctx.arc(0, 0, this.r * grow * 0.16, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+/** Image d'effet découpée dans la fiche, dessinée en additif. */
+export interface FxImgOpts {
+  img: CanvasImageSource;
+  sx: number; sy: number; sw: number; sh: number;
+  x: number; y: number;
+  size: number;                      // hauteur voulue à l'écran
+  life?: number;
+  from?: number; to?: number;        // échelle au début / à la fin
+  rot?: number; spin?: number;
+  flip?: number;                     // -1 pour retourner
+  alpha?: number;
+  tilt?: number;                     // aplatissement (cercles posés au sol)
+  follow?: () => { x: number; y: number };
+  fade?: 'out' | 'inOut';
+}
+
+export class FxImage implements Gizmo {
+  t = 0; dead = false; life: number;
+  constructor(public o: FxImgOpts) { this.life = o.life ?? 0.5; }
+  update(): void {}
+  draw(ctx: CanvasRenderingContext2D): void {
+    const o = this.o;
+    const k = this.t / this.life;
+    const grow = lerp(o.from ?? 0.7, o.to ?? 1.15, ease.out(k));
+    const a = (o.alpha ?? 1) * (o.fade === 'inOut'
+      ? Math.sin(Math.PI * Math.min(1, k))
+      : 1 - ease.in(k));
+    if (a <= 0.004) return;
+    const p = o.follow ? o.follow() : { x: o.x, y: o.y };
+    const scale = (o.size / o.sh) * grow;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = a;
+    ctx.translate(p.x, p.y);
+    if (o.rot || o.spin) ctx.rotate((o.rot ?? 0) + (o.spin ?? 0) * this.t);
+    ctx.scale((o.flip ?? 1) * scale, scale * (o.tilt ?? 1));
+    ctx.drawImage(o.img, o.sx, o.sy, o.sw, o.sh, -o.sw / 2, -o.sh / 2, o.sw, o.sh);
   }
 }
 

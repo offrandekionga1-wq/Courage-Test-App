@@ -63,6 +63,34 @@
           ],
           "count": 8,
           "minGap": 22
+        },
+        {
+          "name": "fx",
+          "rect": [
+            1038,
+            792,
+            1532,
+            902
+          ],
+          "count": 3,
+          "minGap": 20,
+          "mode": "glow",
+          "tol": 26,
+          "widen": "none"
+        },
+        {
+          "name": "fxb",
+          "rect": [
+            1038,
+            900,
+            1532,
+            1018
+          ],
+          "count": 3,
+          "minGap": 20,
+          "mode": "glow",
+          "tol": 26,
+          "widen": "none"
         }
       ],
       "drop": [
@@ -132,6 +160,34 @@
           ],
           "count": 12,
           "minGap": 16
+        },
+        {
+          "name": "fx",
+          "rect": [
+            1088,
+            778,
+            1532,
+            892
+          ],
+          "count": 3,
+          "minGap": 20,
+          "mode": "glow",
+          "tol": 26,
+          "widen": "none"
+        },
+        {
+          "name": "fxb",
+          "rect": [
+            1088,
+            890,
+            1532,
+            1016
+          ],
+          "count": 3,
+          "minGap": 20,
+          "mode": "glow",
+          "tol": 26,
+          "widen": "none"
         }
       ],
       "drop": [
@@ -202,6 +258,34 @@
           ],
           "count": 12,
           "minGap": 16
+        },
+        {
+          "name": "fx",
+          "rect": [
+            1005,
+            758,
+            1532,
+            886
+          ],
+          "count": 4,
+          "minGap": 20,
+          "mode": "glow",
+          "tol": 26,
+          "widen": "none"
+        },
+        {
+          "name": "fxb",
+          "rect": [
+            1005,
+            886,
+            1532,
+            1018
+          ],
+          "count": 4,
+          "minGap": 20,
+          "mode": "glow",
+          "tol": 26,
+          "widen": "none"
         }
       ],
       "drop": [
@@ -271,6 +355,34 @@
           ],
           "count": 8,
           "minGap": 22
+        },
+        {
+          "name": "fx",
+          "rect": [
+            1092,
+            748,
+            1532,
+            872
+          ],
+          "count": 4,
+          "minGap": 28,
+          "mode": "glow",
+          "tol": 62,
+          "widen": "none"
+        },
+        {
+          "name": "fxb",
+          "rect": [
+            1092,
+            872,
+            1532,
+            1010
+          ],
+          "count": 4,
+          "minGap": 28,
+          "mode": "glow",
+          "tol": 62,
+          "widen": "none"
         }
       ],
       "drop": [

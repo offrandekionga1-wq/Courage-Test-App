@@ -171,6 +171,28 @@ def silhouette(rgb: np.ndarray, dark_bg: bool, tol: int, grow: int, shrink: int,
     return solid
 
 
+def cutout_glow(im: Image.Image, dark_bg: bool, tol: int) -> Image.Image:
+    """Découpe d'un effet lumineux, destiné au dessin additif.
+
+    Pas de silhouette binaire ici : l'opacité suit l'intensité, pour garder le
+    dégradé du halo. Sur fond clair, le blanc du cœur de l'effet doit rester
+    opaque : seul le blanc atteint depuis le bord est du fond.
+    """
+    rgb = np.asarray(im.convert('RGB')).astype(np.int16)
+    if dark_bg:
+        lum = rgb.max(axis=2)
+        a = np.clip((lum - tol * 0.35) * 1.9, 0, 255).astype(np.uint8)
+    else:
+        # Fond clair : l'opacité suit l'écart au blanc. Un remplissage depuis
+        # les bords ne suffit pas, car le blanc pris entre deux flammes reste
+        # enfermé et formerait un bloc opaque en dessin additif.
+        mn = rgb.min(axis=2)
+        a = np.clip((255 - mn - tol * 0.3) * 1.7, 0, 255).astype(np.uint8)
+    out = im.convert('RGBA')
+    out.putalpha(Image.fromarray(a, 'L').filter(ImageFilter.GaussianBlur(0.5)))
+    return out
+
+
 def cutout(im: Image.Image, dark_bg: bool, tol: int, feather: float = 0.8,
            grow: int = 6, shrink: int = 6, hole_max: int = 260) -> Image.Image:
     rgb = np.asarray(im.convert('RGB'))
@@ -269,6 +291,8 @@ def cell_boxes(im: Image.Image, dark_bg: bool, tol: int, count: int, min_gap: in
 def is_junk(img: Image.Image, band: str) -> bool:
     """Écarte les rognures : filets, étiquettes, et cellules à deux figures."""
     a = np.asarray(img.getchannel('A')) > 90
+    if band.startswith('fx'):
+        return a.sum() < 700 or img.width < 24 or img.height < 24
     if a.sum() < 900:
         return True
     if img.width < 24 or img.height < 40:
@@ -389,10 +413,13 @@ def main(cfg_path: str, out_dir: str, atlas_dir: str | None = None) -> None:
                 pad = 3
                 sub = crop.crop((max(0, bx0 - pad), max(0, by0 - pad),
                                  min(crop.width, bx1 + pad), min(crop.height, by1 + pad)))
-                cut = cutout(sub, dark, tol, band.get('feather', 0.8),
-                             band.get('grow', char.get('grow', 6)),
-                             band.get('shrink', char.get('shrink', 6)),
-                             char.get('holeMax', 260 if dark else 45))
+                if band.get('mode') == 'glow':
+                    cut = cutout_glow(sub, dark, band.get('tol', tol))
+                else:
+                    cut = cutout(sub, dark, tol, band.get('feather', 0.8),
+                                 band.get('grow', char.get('grow', 6)),
+                                 band.get('shrink', char.get('shrink', 6)),
+                                 char.get('holeMax', 260 if dark else 45))
                 bb = cut.getbbox()
                 if bb:
                     cut = cut.crop(bb)       # resserre sur ce qui reste opaque
@@ -400,16 +427,20 @@ def main(cfg_path: str, out_dir: str, atlas_dir: str | None = None) -> None:
                     continue
                 images.append(cut)
                 frames.append({'name': band['name'], 'w': cut.width, 'h': cut.height,
-                               'ax': round(anchor_x(cut), 1), 'ay': anchor_y(cut)})
+                               'ax': round(cut.width / 2, 1) if band['name'].startswith('fx')
+                                     else round(anchor_x(cut), 1),
+                               'ay': cut.height if band['name'].startswith('fx')
+                                     else anchor_y(cut)})
         # Second tri : maintenant qu'on connaît la taille de référence, on
         # écarte les bandeaux de la planche (« JUMP », « FALL / LAND »…) et les
         # rognures trop petites pour être un personnage.
         idle_hs = [f['h'] for f in frames if f['name'] == 'idle']
         ref0 = float(np.median(idle_hs)) if idle_hs else 200.0
         floor = {'idle': 0.80, 'move': 0.46, 'jump': 0.38, 'fall': 0.34, 'atk': 0.46}
+        floor.update({'fx': 0.10, 'fxb': 0.10})
         kept = [(f, im) for f, im in zip(frames, images)
                 if f['h'] >= ref0 * floor.get(f['name'], 0.4)
-                and f['w'] <= f['h'] * 3.2]
+                and (f['name'].startswith('fx') or f['w'] <= f['h'] * 3.2)]
         frames = [f for f, _ in kept]
         images = [im for _, im in kept]
 

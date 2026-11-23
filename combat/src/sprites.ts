@@ -55,11 +55,11 @@ export function frameOf(s: CharSprites, key: string): Frame {
   return list[i] ?? s.frames[0];
 }
 
-/** Image d'un cycle (idle, marche…) au temps t. */
-export function cycle(s: CharSprites, group: string, t: number, fps: number, pingPong = false): Frame {
+/** Index d'un cycle (idle, marche…) au temps t. */
+export function cycleIndex(s: CharSprites, group: string, t: number, fps: number, pingPong = false): number {
   const list = s.groups[group] ?? s.groups.idle ?? s.frames;
-  if (list.length === 0) return s.frames[0];
   const n = list.length;
+  if (n === 0) return 0;
   let i = Math.floor(t * fps);
   if (pingPong && n > 2) {
     const period = n * 2 - 2;
@@ -68,5 +68,12 @@ export function cycle(s: CharSprites, group: string, t: number, fps: number, pin
   } else {
     i = ((i % n) + n) % n;
   }
-  return list[i];
+  return i;
+}
+
+/** Image d'un cycle au temps t. */
+export function cycle(s: CharSprites, group: string, t: number, fps: number, pingPong = false): Frame {
+  const list = s.groups[group] ?? s.groups.idle ?? s.frames;
+  if (list.length === 0) return s.frames[0];
+  return list[cycleIndex(s, group, t, fps, pingPong)] ?? s.frames[0];
 }
