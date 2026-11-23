@@ -450,7 +450,7 @@ export class FightScene implements GameApi {
 
   private resolveCollisions(): void {
     const a = this.f0, b = this.f1;
-    const minD = (a.cfg.stats.height + b.cfg.stats.height) * 0.22;
+    const minD = (a.cfg.stats.height + b.cfg.stats.height) * 0.165;
     const d = b.x - a.x;
     if (Math.abs(d) < minD && a.state !== 'ko' && b.state !== 'ko') {
       const push = (minD - Math.abs(d)) / 2 * Math.sign(d || 1);
