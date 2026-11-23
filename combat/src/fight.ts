@@ -2,7 +2,7 @@
 // Neon Clash — scène de combat : physique, touches, IA, caméra, décor, HUD data
 // ---------------------------------------------------------------------------
 import {
-  VW, VH, GROUND_Y, clamp, lerp, rr, ease, Pad, Sfx, aabb, approach,
+  VW, VH, GROUND_Y, clamp, lerp, rr, ease, Pad, Sfx, buzz, aabb, approach,
 } from './core';
 import {
   CharId, Pose, POSE, blend, solve, drawFighter, drawShadow, Strand, PALETTES, Joints,
@@ -550,6 +550,7 @@ export class FightScene implements GameApi {
       this.fx.giz(new FloatText(hx, hy - 30, guarded ? 'BARRIÈRE' : 'GARDE', '#cfe4ff', 0.6, 18));
       this.shake(3);
       Sfx.block();
+      buzz(8);
       def.meter = Math.min(100, def.meter + 3);
       return;
     }
@@ -577,6 +578,7 @@ export class FightScene implements GameApi {
     this.fx.burst(hx, hy, '#ffffff', 8, 220);
     this.shake(4 + power * 5);
     Sfx.hit(power);
+    buzz(Math.round(10 + power * 12));
     if (crit) this.fx.giz(new FloatText(hx + att.face * 36, hy - 76, 'CRITIQUE !', '#ff8f9e', 0.8, 24));
     if (att.combo >= 2) {
       this.fx.giz(new FloatText(att.x - att.face * 54, att.y - 196 - (att.combo % 3) * 22, `${att.combo} COMBO`, pal.accent2, 0.9, 26));
@@ -597,6 +599,7 @@ export class FightScene implements GameApi {
     this.banner('K.O.', PALETTES[att.id].accent);
     this.fx.impact(def.x, def.y - 80, PALETTES[att.id].accent, 2.4);
     Sfx.boom();
+    buzz(90);
     setTimeout(() => Sfx.fanfare(), 500);
   }
 

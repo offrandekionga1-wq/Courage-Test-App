@@ -177,6 +177,11 @@ class SfxEngine {
 }
 export const Sfx = new SfxEngine();
 
+/** Retour haptique court (Android). Silencieux là où c'est indisponible. */
+export function buzz(ms: number): void {
+  try { navigator.vibrate?.(ms); } catch { /* non supporté */ }
+}
+
 // -------------------------------------------------------------- Entrées ----
 export interface Pad {
   left: boolean; right: boolean; up: boolean; down: boolean;
