@@ -1,0 +1,8 @@
+{
+  "appId": "com.neonclash.game",
+  "appName": "Neon Clash",
+  "webDir": "dist",
+  "android": {
+    "backgroundColor": "#07070c"
+  }
+}
